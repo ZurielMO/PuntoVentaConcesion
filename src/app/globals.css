@@ -1,26 +1,139 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* DESIGN.md — Starbucks-inspired design tokens (Inter as SoDoSans substitute) */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Greens */
+  --starbucks-green: #006241;
+  --green-accent: #00754a;
+  --house-green: #1e3932;
+  --green-uplift: #2b5148;
+  --green-light: #d4e9e2;
+
+  /* Gold (Rewards only) */
+  --gold: #cba258;
+  --gold-light: #dfc49d;
+  --gold-lightest: #faf6ee;
+
+  /* Surfaces */
+  --white: #ffffff;
+  --neutral-cool: #f9f9f9;
+  --neutral-warm: #f2f0eb;
+  --ceramic: #edebe9;
+  --black: #000000;
+
+  /* Text */
+  --text-black: rgba(0, 0, 0, 0.87);
+  --text-black-soft: rgba(0, 0, 0, 0.58);
+  --text-white: rgba(255, 255, 255, 1);
+  --text-white-soft: rgba(255, 255, 255, 0.7);
+  --rewards-green: #33433d;
+
+  /* Semantic */
+  --red: #c82014;
+  --yellow: #fbbc05;
+  --input-border: #d6dbde;
+
+  /* Spacing (1rem = 10px root trick) */
+  --space-1: 0.4rem;
+  --space-2: 0.8rem;
+  --space-3: 1.6rem;
+  --space-4: 2.4rem;
+  --space-5: 3.2rem;
+  --space-6: 4rem;
+  --space-7: 4.8rem;
+  --space-8: 5.6rem;
+  --space-9: 6.4rem;
+
+  --outer-gutter: 1.6rem;
+  --outer-gutter-md: 2.4rem;
+  --outer-gutter-lg: 4rem;
+
+  /* Components */
+  --card-border-radius: 12px;
+  --button-border-radius: 50px;
+  --button-active-scale: 0.95;
+  --card-shadow: 0 0 0.5px rgba(0, 0, 0, 0.14), 0 1px 1px rgba(0, 0, 0, 0.24);
+  --nav-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 2px 2px rgba(0, 0, 0, 0.06),
+    0 0 2px rgba(0, 0, 0, 0.07);
+  --frap-shadow: 0 0 6px rgba(0, 0, 0, 0.24), 0 8px 12px rgba(0, 0, 0, 0.14);
+
+  /* shadcn semantic mapping */
+  --background: var(--neutral-warm);
+  --foreground: var(--text-black);
+  --card: var(--white);
+  --card-foreground: var(--text-black);
+  --primary: var(--green-accent);
+  --primary-foreground: var(--white);
+  --secondary: var(--ceramic);
+  --secondary-foreground: var(--text-black);
+  --muted: var(--neutral-cool);
+  --muted-foreground: var(--text-black-soft);
+  --accent: var(--green-light);
+  --accent-foreground: var(--house-green);
+  --destructive: var(--red);
+  --border: var(--input-border);
+  --input: var(--input-border);
+  --ring: var(--green-accent);
+  --radius: var(--card-border-radius);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-starbucks-green: var(--starbucks-green);
+  --color-green-accent: var(--green-accent);
+  --color-house-green: var(--house-green);
+  --color-gold: var(--gold);
+  --color-neutral-warm: var(--neutral-warm);
+  --color-ceramic: var(--ceramic);
+  --radius-sm: 4px;
+  --radius-md: var(--card-border-radius);
+  --radius-lg: var(--button-border-radius);
+  --font-sans: var(--font-inter);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  font-size: 62.5%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--neutral-warm);
+  color: var(--text-black);
+  font-family: var(--font-inter), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 1.6rem;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  font-size: 2.4rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: -0.016px;
+  color: var(--starbucks-green);
+}
+
+h2 {
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: -0.016px;
+  color: var(--text-black);
 }

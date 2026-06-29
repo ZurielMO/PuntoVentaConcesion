@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PuntoVentaFront
 
-## Getting Started
+Frontend del **Punto de Venta — Concesiones Estadio**, construido con Next.js 15 según `STACK.md` y diseño inspirado en `DESIGN.md`.
 
-First, run the development server:
+## Stack
+
+- Next.js 15 (App Router) + React 19 + TypeScript
+- Tailwind CSS 4 + shadcn/ui (componentes base)
+- Firebase Web SDK (auth)
+- BFF en `/api/*` → proxy a `PuntoVentaBack`
+
+## Requisitos
+
+- Node.js 20+
+- npm 10+
+- Backend `PuntoVentaBack` corriendo en `http://localhost:3000`
+
+## Instalación
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd puntoventa-front
+npm install
+cp env.example .env.local
+# Edita .env.local con credenciales Firebase
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+En `PuntoVentaBack/functions/.env.local`, agrega el origen del frontend a CORS:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:9002
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Desarrollo
 
-## Learn More
+```bash
+# Terminal 1 — backend
+cd ../PuntoVentaBack && npm run dev
 
-To learn more about Next.js, take a look at the following resources:
+# Terminal 2 — frontend
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Frontend: http://localhost:9002
+- API BFF: http://localhost:9002/api/*
+- Backend directo: http://localhost:3000/api
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Estructura
 
-## Deploy on Vercel
+```
+src/
+├── app/                    App Router + BFF (/api/[...path])
+├── components/
+│   ├── ui/                 shadcn/ui (button, card, input, label)
+│   ├── layout/             header, footer, frap-button
+│   └── storefront/         hero, feature-band, product-card
+├── hooks/                  use-auth, use-products
+└── lib/
+    ├── api/client.ts       Cliente HTTP (vía BFF)
+    ├── firebase/client.ts  Firebase Auth
+    └── server/backend-client.ts  Proxy server-side
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Rutas
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Ruta | Descripción |
+|------|-------------|
+| `/` | Home |
+| `/login` | Inicio de sesión Firebase |
+| `/products` | Catálogo (requiere auth) |
+| `/tickets` | Placeholder |
+| `/inventarios` | Placeholder |
+| `/cortes` | Placeholder |
+
+## Scripts
+
+| Script | Acción |
+|--------|--------|
+| `npm run dev` | Dev con Turbopack en puerto 9002 |
+| `npm run build` | Build de producción |
+| `npm run start` | Servidor de producción |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | Verificación TypeScript |
+
+## Conexión con el backend
+
+El BFF reenvía peticiones a los dominios de `PuntoVentaBack`:
+
+`auth`, `concessions`, `products`, `sucursales`, `zonas`, `jornadas`, `inventarios`, `tickets`, `cortes`, `users`, `detalle-venta`
+
+El header `Authorization: Bearer <firebase-id-token>` se propaga automáticamente.
