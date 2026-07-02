@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, apiPaths, type ApiResponse } from "@/lib/api/client";
 import { useAuth } from "@/hooks/use-auth";
-import type { Sucursal } from "@/lib/types";
+import type { Sucursal, Caja } from "@/lib/types";
 
 export type CreateSucursalPayload = {
   activo?: boolean;
-  sucursal: { nombre?: string; cajas?: string[] };
+  sucursal: { nombre?: string };
 };
 
 export function useSucursales() {
@@ -54,6 +54,47 @@ export function useSucursales() {
     [token, fetchSucursales],
   );
 
+  const createCaja = useCallback(
+    async (sucursalId: string, nombre: string) => {
+      if (!token) throw new Error("Sin sesión");
+      const res = await api.post<ApiResponse<Caja>>(
+        `${apiPaths.sucursales}/${sucursalId}/cajas`,
+        { nombre },
+        token,
+      );
+      await fetchSucursales();
+      return res.data!;
+    },
+    [token, fetchSucursales],
+  );
+
+  const updateCaja = useCallback(
+    async (
+      sucursalId: string,
+      cajaId: string,
+      payload: { nombre?: string; activo?: boolean },
+    ) => {
+      if (!token) throw new Error("Sin sesión");
+      const res = await api.patch<ApiResponse<Caja>>(
+        `${apiPaths.sucursales}/${sucursalId}/cajas/${cajaId}`,
+        payload,
+        token,
+      );
+      await fetchSucursales();
+      return res.data!;
+    },
+    [token, fetchSucursales],
+  );
+
+  const deleteCaja = useCallback(
+    async (sucursalId: string, cajaId: string) => {
+      if (!token) throw new Error("Sin sesión");
+      await api.delete(`${apiPaths.sucursales}/${sucursalId}/cajas/${cajaId}`, token);
+      await fetchSucursales();
+    },
+    [token, fetchSucursales],
+  );
+
   const updateSucursal = useCallback(
     async (id: string, payload: Partial<CreateSucursalPayload> & { zona_id?: string }) => {
       if (!token) throw new Error("Sin sesión");
@@ -82,6 +123,9 @@ export function useSucursales() {
     error,
     refetch: fetchSucursales,
     createSucursal,
+    createCaja,
+    updateCaja,
+    deleteCaja,
     updateSucursal,
     deleteSucursal,
   };

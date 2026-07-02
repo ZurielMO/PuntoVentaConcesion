@@ -17,12 +17,14 @@ export type PermissionFlags = {
   isVendedor: boolean;
   concesionId?: string | null;
   sucursalId?: string | null;
+  cajaId?: string | null;
   canAccessSuperAdmin: boolean;
   canManageConcessions: boolean;
   canManageUsers: boolean;
   canManageZonas: boolean;
   canManageProducts: boolean;
   canManageSucursales: boolean;
+  canManageEquipo: boolean;
   canManageInventario: boolean;
   canManageVentas: boolean;
   canManageCortes: boolean;
@@ -42,6 +44,7 @@ export const getPermissions = (posUser: PosUser | null | undefined): PermissionF
   const isVendedor = role === UserRole.VENDEDOR;
   const concesionId = (posUser?.concesionId as string | null | undefined) ?? null;
   const sucursalId = (posUser?.sucursalId as string | null | undefined) ?? null;
+  const cajaId = (posUser?.cajaId as string | null | undefined) ?? null;
 
   return {
     role,
@@ -50,12 +53,14 @@ export const getPermissions = (posUser: PosUser | null | undefined): PermissionF
     isVendedor,
     concesionId,
     sucursalId,
+    cajaId,
     canAccessSuperAdmin: isSuperAdmin,
     canManageConcessions: isSuperAdmin,
     canManageUsers: isSuperAdmin,
     canManageZonas: isSuperAdmin,
     canManageProducts: isSuperAdmin || isAdmin,
     canManageSucursales: isSuperAdmin || isAdmin,
+    canManageEquipo: isSuperAdmin || isAdmin,
     canManageInventario: isSuperAdmin || isAdmin,
     canManageVentas: isSuperAdmin || isAdmin || isVendedor,
     canManageCortes: isSuperAdmin || isAdmin || isVendedor,

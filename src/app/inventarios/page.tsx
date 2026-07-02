@@ -4,11 +4,21 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { RequireRole } from "@/components/auth/require-role";
 import { useInventarioJornadaActiva, useJornadas } from "@/hooks/use-inventarios";
 import { useProducts } from "@/hooks/use-products";
 import { useSucursales } from "@/hooks/use-sucursales";
+import { useEquipoVendedores } from "@/hooks/use-equipo";
+import { useAsignacionesCajas } from "@/hooks/use-asignaciones-cajas";
 import { usePermissions } from "@/hooks/use-permissions";
+import { buildJornadaId } from "@/lib/jornada";
 import type { InventarioMovimiento, InventarioProducto } from "@/lib/types";
 
 function stockRow(p: InventarioProducto) {
@@ -39,11 +49,16 @@ export default function InventariosPage() {
   } = useInventarioJornadaActiva();
   const { products } = useProducts();
   const { sucursales } = useSucursales();
+  const { vendedores } = useEquipoVendedores();
+  const { saveAsignaciones, loading: savingAsignaciones } = useAsignacionesCajas();
 
   const [productoId, setProductoId] = useState("");
   const [cantidadInicial, setCantidadInicial] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignSucursalId, setAssignSucursalId] = useState("");
+  const [cajaVendedorMap, setCajaVendedorMap] = useState<Record<string, string>>({});
 
   const jornadaBanner = useMemo(() => {
     const fromApi = jornada;
@@ -60,15 +75,62 @@ export default function InventariosPage() {
 
   const productosEnInventario = inventario?.productos ?? [];
 
+  const jornadaId = useMemo(() => {
+    if (inventario?.jornada_fecha && inventario.jornada_numero != null) {
+      return buildJornadaId(inventario.jornada_fecha, inventario.jornada_numero);
+    }
+    if (jornadaBanner?.fecha && jornadaBanner.jornada != null) {
+      return buildJornadaId(String(jornadaBanner.fecha), Number(jornadaBanner.jornada));
+    }
+    return null;
+  }, [inventario, jornadaBanner]);
+
+  const cajasSucursal = useMemo(
+    () =>
+      (sucursales.find((s) => s.id === assignSucursalId)?.cajas ?? []).filter(
+        (c) => c.activo !== false,
+      ),
+    [sucursales, assignSucursalId],
+  );
+
+  const openAssignModal = (sucursalId?: string) => {
+    const sid = sucursalId ?? sucursales[0]?.id ?? "";
+    setAssignSucursalId(sid);
+    const defaults: Record<string, string> = {};
+    for (const v of vendedores.filter((v) => v.sucursalId === sid && v.cajaId)) {
+      defaults[v.cajaId as string] = (v.uid ?? v.id) as string;
+    }
+    setCajaVendedorMap(defaults);
+    setAssignOpen(true);
+  };
+
   const handleOpen = async () => {
     setSubmitting(true);
     setActionError(null);
     try {
       await openInventarioJornadaActiva();
+      if (perms.canManageInventario) {
+        openAssignModal();
+      }
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Error al abrir inventario");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSaveAsignaciones = async () => {
+    if (!jornadaId || !assignSucursalId) return;
+    setActionError(null);
+    try {
+      const asignaciones = cajasSucursal.map((caja) => ({
+        cajaId: caja.id,
+        vendedorUid: cajaVendedorMap[caja.id] || null,
+      }));
+      await saveAsignaciones(jornadaId, assignSucursalId, asignaciones);
+      setAssignOpen(false);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Error al guardar asignaciones");
     }
   };
 
@@ -127,13 +189,19 @@ export default function InventariosPage() {
               )}
 
               {perms.canManageInventario && (
-                <Button
-                  className="mt-4"
-                  onClick={handleOpen}
-                  disabled={submitting || !jornadaBanner}
-                >
-                  Abrir inventario de jornada
-                </Button>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => void handleOpen()}
+                    disabled={submitting || !jornadaBanner}
+                  >
+                    Abrir inventario de jornada
+                  </Button>
+                  {inventario && jornadaId && (
+                    <Button variant="outline" onClick={() => openAssignModal()}>
+                      Asignar cajeros a cajas
+                    </Button>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -250,6 +318,7 @@ export default function InventariosPage() {
                             {m.tipo === "VENTA" && m.sucursal_id
                               ? ` · Sucursal ${sucursalNombre(m.sucursal_id)}`
                               : ""}
+                            {m.cajaNombre ? ` · Caja ${m.cajaNombre}` : ""}
                             {m.ventaId ? ` · Venta ${m.ventaId}` : ""}
                           </p>
                         </li>
@@ -265,6 +334,73 @@ export default function InventariosPage() {
             Actualizar
           </Button>
         </div>
+
+        <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Asignar cajeros a cajas</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <select
+                className="h-10 w-full rounded-md border px-3 text-[1.4rem]"
+                value={assignSucursalId}
+                onChange={(e) => {
+                  setAssignSucursalId(e.target.value);
+                  setCajaVendedorMap({});
+                }}
+              >
+                {sucursales.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nombre ?? s.id}
+                  </option>
+                ))}
+              </select>
+              {cajasSucursal.length === 0 ? (
+                <p className="text-[1.4rem] text-muted-foreground">
+                  Esta sucursal no tiene cajas. Créalas en Sucursales.
+                </p>
+              ) : (
+                cajasSucursal.map((caja) => (
+                  <div key={caja.id} className="grid gap-2 md:grid-cols-2">
+                    <span className="self-center text-[1.4rem] font-medium">
+                      {caja.nombre ?? caja.id}
+                    </span>
+                    <select
+                      className="h-10 rounded-md border px-3 text-[1.4rem]"
+                      value={cajaVendedorMap[caja.id] ?? ""}
+                      onChange={(e) =>
+                        setCajaVendedorMap((prev) => ({
+                          ...prev,
+                          [caja.id]: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">Sin vendedor</option>
+                      {vendedores
+                        .filter((v) => v.sucursalId === assignSucursalId || !v.sucursalId)
+                        .map((v) => (
+                          <option key={v.id} value={v.uid ?? v.id}>
+                            {v.nombre}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                ))
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAssignOpen(false)}>
+                Cerrar
+              </Button>
+              <Button
+                disabled={savingAsignaciones || !jornadaId || cajasSucursal.length === 0}
+                onClick={() => void handleSaveAsignaciones()}
+              >
+                {savingAsignaciones ? "Guardando…" : "Guardar asignaciones"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </RequireRole>
   );

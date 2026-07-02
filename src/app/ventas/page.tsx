@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingBag, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,8 @@ import { useInventarioJornadaActiva } from "@/hooks/use-inventarios";
 import { useProducts, type Product } from "@/hooks/use-products";
 import { useSucursales } from "@/hooks/use-sucursales";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useAsignacionesCajas } from "@/hooks/use-asignaciones-cajas";
+import { buildJornadaId } from "@/lib/jornada";
 
 function formatPrice(precio: number) {
   return new Intl.NumberFormat("es-MX", {
@@ -44,7 +46,6 @@ function formatVentaTime(fecha?: unknown) {
 
 export default function VentasPage() {
   const perms = usePermissions();
-  const { ventas, loading, error, refetch, createVenta } = useDetalleVentas();
   const {
     inventario,
     jornada,
@@ -54,15 +55,56 @@ export default function VentasPage() {
   } = useInventarioJornadaActiva();
   const { products } = useProducts();
   const { sucursales } = useSucursales();
+  const { fetchMiCaja } = useAsignacionesCajas();
+
+  const [filterSucursalId, setFilterSucursalId] = useState("");
+  const [filterCajaId, setFilterCajaId] = useState("");
+  const [miCajaNombre, setMiCajaNombre] = useState<string | null>(null);
+
+  const sucursalId = perms.sucursalId ?? filterSucursalId;
+  const jornadaId =
+    inventario?.jornada_fecha && inventario?.jornada_numero != null
+      ? buildJornadaId(inventario.jornada_fecha, inventario.jornada_numero)
+      : jornada?.fecha && jornada?.jornada != null
+        ? buildJornadaId(String(jornada.fecha), Number(jornada.jornada))
+        : undefined;
+
+  const ventaFilters = useMemo(
+    () => ({
+      inventarioId: inventario?.id,
+      sucursalId: perms.isAdmin ? filterSucursalId || undefined : sucursalId ?? undefined,
+      cajaId: perms.isAdmin
+        ? filterCajaId || undefined
+        : filterCajaId || perms.cajaId || undefined,
+    }),
+    [inventario?.id, perms.isAdmin, filterSucursalId, filterCajaId, sucursalId, perms.cajaId],
+  );
+
+  const { ventas, loading, error, refetch, createVenta } = useDetalleVentas(ventaFilters);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cantidad, setCantidad] = useState(1);
   const [cartOpen, setCartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const sucursalId = perms.sucursalId;
   const sucursalNombre =
     sucursales.find((s) => s.id === sucursalId)?.nombre ?? "Tu sucursal";
+
+  const cajasFiltradas = useMemo(() => {
+    const sid = perms.isAdmin ? filterSucursalId : sucursalId;
+    if (!sid) return [];
+    return (sucursales.find((s) => s.id === sid)?.cajas ?? []).filter(
+      (c) => c.activo !== false,
+    );
+  }, [sucursales, filterSucursalId, sucursalId, perms.isAdmin]);
+
+  useEffect(() => {
+    if (!jornadaId || !sucursalId || !perms.isVendedor) return;
+    void fetchMiCaja(jornadaId, sucursalId).then((caja) => {
+      setMiCajaNombre(caja?.nombre ?? null);
+      if (caja?.id) setFilterCajaId(caja.id);
+    });
+  }, [jornadaId, sucursalId, perms.isVendedor, fetchMiCaja]);
 
   const stockMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -88,6 +130,11 @@ export default function VentasPage() {
           : ""
       }`
     : "Sin jornada activa";
+
+  const cajaLabel =
+    miCajaNombre ??
+    cajasFiltradas.find((c) => c.id === filterCajaId)?.nombre ??
+    (perms.cajaId ? "Caja asignada" : "Sin caja");
 
   const canSell = Boolean(inventario?.id && perms.concesionId && sucursalId);
 
@@ -171,7 +218,9 @@ export default function VentasPage() {
                 <CalendarDays className="size-5" />
                 {jornadaLabel}
               </p>
-              <p className="mt-1 text-[1.4rem] text-white/70">{sucursalNombre}</p>
+              <p className="mt-1 text-[1.4rem] text-white/70">
+                {sucursalNombre} · {cajaLabel}
+              </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <MetricCard
@@ -234,34 +283,70 @@ export default function VentasPage() {
           )}
 
           <section className="mt-10">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
               <h2 className="flex items-center gap-2 text-[2rem] font-semibold text-starbucks-green">
                 <ShoppingBag className="size-6" />
-                Ventas recientes
+                Ventas por caja
               </h2>
-              <Button variant="outline" size="sm" onClick={() => void refetch()}>
-                Actualizar
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {perms.isAdmin && (
+                  <>
+                    <select
+                      className="h-10 rounded-md border px-3 text-[1.4rem]"
+                      value={filterSucursalId}
+                      onChange={(e) => {
+                        setFilterSucursalId(e.target.value);
+                        setFilterCajaId("");
+                      }}
+                    >
+                      <option value="">Todas las sucursales</option>
+                      {sucursales.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.nombre ?? s.id}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="h-10 rounded-md border px-3 text-[1.4rem]"
+                      value={filterCajaId}
+                      onChange={(e) => setFilterCajaId(e.target.value)}
+                      disabled={!filterSucursalId}
+                    >
+                      <option value="">Todas las cajas</option>
+                      {cajasFiltradas.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nombre ?? c.id}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+                <Button variant="outline" size="sm" onClick={() => void refetch()}>
+                  Actualizar
+                </Button>
+              </div>
             </div>
 
             {loading && <p className="text-muted-foreground">Cargando ventas…</p>}
             {error && <p className="text-destructive">{error}</p>}
 
             <div className="grid gap-3">
-              {ventas.slice(0, 10).map((v) => {
+              {ventas.slice(0, 50).map((v) => {
                 const items =
                   v.detalle?.map(
                     (d) => `${d.cantidad}× ${productoNombre(d.producto)}`,
                   ).join(", ") ?? "Venta";
+                const sucNombre =
+                  sucursales.find((s) => s.id === v.sucursalId)?.nombre ?? v.sucursalId;
                 return (
                   <div key={v.id} className="glass-card flex flex-wrap items-center justify-between gap-3 p-4">
                     <div>
                       <p className="text-[1.6rem] font-medium">{items}</p>
                       <p className="text-[1.3rem] text-muted-foreground">
-                        {formatVentaTime(
-                          (v as { fecha?: unknown; createdAt?: unknown }).fecha ??
-                            (v as { createdAt?: unknown }).createdAt,
-                        )}
+                        {formatVentaTime(v.fecha ?? v.createdAt)}
+                        {v.cajaNombre ? ` · ${v.cajaNombre}` : " · Caja no registrada"}
+                        {v.cajeroNombre ? ` · ${v.cajeroNombre}` : ""}
+                        {` · ${sucNombre}`}
                       </p>
                     </div>
                     <p className="text-[2rem] font-bold text-starbucks-green">
@@ -270,6 +355,11 @@ export default function VentasPage() {
                   </div>
                 );
               })}
+              {!loading && ventas.length === 0 && (
+                <p className="text-[1.4rem] text-muted-foreground">
+                  No hay ventas para los filtros seleccionados.
+                </p>
+              )}
             </div>
           </section>
         </div>
@@ -279,7 +369,7 @@ export default function VentasPage() {
             <DialogHeader>
               <DialogTitle>{selectedProduct?.nombre}</DialogTitle>
               <DialogDescription>
-                Disponible: {stockDisponible} · {sucursalNombre}
+                Disponible: {stockDisponible} · {sucursalNombre} · {cajaLabel}
               </DialogDescription>
             </DialogHeader>
 

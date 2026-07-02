@@ -53,11 +53,17 @@ export function useCortes() {
   return { cortes, loading, error, refetch: fetchCortes, createCorte };
 }
 
-export function useDetalleVentas() {
+export function useDetalleVentas(filters?: {
+  sucursalId?: string;
+  cajaId?: string;
+  inventarioId?: string;
+}) {
   const { token } = useAuth();
   const [ventas, setVentas] = useState<ComprobanteVenta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const filterKey = JSON.stringify(filters ?? {});
 
   const fetchVentas = useCallback(async () => {
     if (!token) {
@@ -68,10 +74,13 @@ export function useDetalleVentas() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<ApiResponse<ComprobanteVenta[]>>(
-        apiPaths.detalleVenta,
-        token,
-      );
+      const qs = new URLSearchParams();
+      if (filters?.sucursalId) qs.set("sucursalId", filters.sucursalId);
+      if (filters?.cajaId) qs.set("cajaId", filters.cajaId);
+      if (filters?.inventarioId) qs.set("inventarioId", filters.inventarioId);
+      const query = qs.toString();
+      const path = query ? `${apiPaths.detalleVenta}?${query}` : apiPaths.detalleVenta;
+      const res = await api.get<ApiResponse<ComprobanteVenta[]>>(path, token);
       setVentas(res.data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar ventas");
@@ -79,7 +88,8 @@ export function useDetalleVentas() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, filterKey]);
 
   const createVenta = useCallback(
     async (params: {

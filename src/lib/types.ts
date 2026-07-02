@@ -12,6 +12,7 @@ export interface PosUser {
   activo?: boolean;
   concesionId?: string | null;
   sucursalId?: string | null;
+  cajaId?: string | null;
   [key: string]: unknown;
 }
 
@@ -32,7 +33,27 @@ export interface User {
   activo: boolean;
   concesionId?: string | null;
   sucursalId?: string | null;
+  cajaId?: string | null;
   fecha_nacimiento?: string;
+}
+
+export interface Caja {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  orden?: number;
+}
+
+export interface AsignacionCajaJornada {
+  id: string;
+  jornadaId: string;
+  concesionId: string;
+  sucursalId: string;
+  cajaId: string;
+  cajaNombre: string;
+  vendedorUid: string;
+  vendedorNombre: string;
+  activo: boolean;
 }
 
 export interface Zona {
@@ -47,7 +68,7 @@ export interface Sucursal {
   zona_id: string;
   nombre: string | null;
   activo: boolean;
-  cajas?: { id: string; activo: boolean }[];
+  cajas?: Caja[];
 }
 
 export interface Product {
@@ -91,6 +112,8 @@ export interface InventarioMovimiento {
   cantidad_anterior: number;
   cantidad_nueva: number;
   sucursal_id?: string | null;
+  cajaId?: string | null;
+  cajaNombre?: string | null;
   idUser?: string | null;
   ventaId?: string | null;
   createdAt?: string;
@@ -114,9 +137,15 @@ export interface ComprobanteVenta {
   concesionId: string;
   sucursalId: string;
   inventarioId: string;
+  jornadaId?: string | null;
+  cajaId?: string | null;
+  cajaNombre?: string | null;
   idUser?: string | null;
+  cajeroNombre?: string | null;
   total: number;
   detalle?: DetalleProducto[];
+  fecha?: unknown;
+  createdAt?: unknown;
 }
 
 export interface Ticket {
