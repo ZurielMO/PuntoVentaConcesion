@@ -32,9 +32,13 @@ async function request<T>(
   const { method = "GET", body, token, headers = {} } = options;
 
   const reqHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
     ...headers,
   };
+
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  if (!isFormData) {
+    reqHeaders["Content-Type"] = "application/json";
+  }
 
   if (token) {
     reqHeaders.Authorization = `Bearer ${token}`;
@@ -43,9 +47,20 @@ async function request<T>(
   const res = await fetch(`/api/${path.replace(/^\//, "")}`, {
     method,
     headers: reqHeaders,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body !== undefined
+      ? isFormData
+        ? (body as FormData)
+        : JSON.stringify(body)
+      : undefined,
     credentials: "include",
   });
+
+  if (res.status === 204) {
+    if (!res.ok) {
+      throw new ApiError(res.status, `Error ${res.status}`);
+    }
+    return {} as T;
+  }
 
   const json = (await res.json().catch(() => ({}))) as T & {
     message?: string;
@@ -75,6 +90,9 @@ export const api = {
 
   delete: <T>(path: string, token?: string | null) =>
     request<T>(path, { method: "DELETE", token }),
+
+  postFormData: <T>(path: string, formData: FormData, token?: string | null) =>
+    request<T>(path, { method: "POST", body: formData, token }),
 };
 
 /** Dominios del backend PuntoVentaBack */

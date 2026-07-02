@@ -77,6 +77,17 @@
   --input: var(--input-border);
   --ring: var(--green-accent);
   --radius: var(--card-border-radius);
+
+  /* POS / SaaS glass */
+  --navy: #0f172a;
+  --royal-blue: #1e40af;
+  --blue: #3b82f6;
+  --light-blue: #60a5fa;
+  --glass-bg: rgba(255, 255, 255, 0.12);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-blur: 12px;
+  --pos-tile-min: 160px;
+  --touch-min: 48px;
 }
 
 @theme inline {
@@ -136,4 +147,34 @@ h2 {
   line-height: 1.5;
   letter-spacing: -0.016px;
   color: var(--text-black);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: var(--card-border-radius);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.pos-gradient-header {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--royal-blue) 55%, var(--green-accent) 100%);
+  color: var(--text-white);
+  border-radius: var(--card-border-radius);
+}
+
+.pos-tile {
+  min-height: var(--pos-tile-min);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.pos-tile:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 8px 24px rgba(0, 117, 74, 0.18);
+}
+
+.pos-tile:active:not(:disabled) {
+  transform: scale(0.98);
 }

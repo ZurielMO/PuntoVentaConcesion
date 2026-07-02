@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
+import { getDefaultRouteForRole } from "@/lib/permissions";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 
 const loginSchema = z.object({
@@ -22,7 +23,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { loginWithPassword, user, loading: authLoading } = useAuth();
+  const { loginWithPassword, user, posUser, loading: authLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,23 +36,27 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    if (!authLoading && user) {
-      router.replace("/products");
+    if (!authLoading && user && posUser) {
+      router.replace(getDefaultRouteForRole(posUser));
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, user, posUser, router]);
 
   const onSubmit = async (data: LoginForm) => {
     setError(null);
     setSubmitting(true);
     try {
       await loginWithPassword(data.email, data.password);
-      router.push("/products");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al iniciar sesión");
-    } finally {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (posUser && user && !authLoading) {
+      router.replace(getDefaultRouteForRole(posUser));
+    }
+  }, [posUser, user, authLoading, router]);
 
   if (authLoading || user) {
     return (
@@ -67,7 +72,7 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle>Iniciar sesión</CardTitle>
           <CardDescription>
-            Accede con tu cuenta Firebase del proyecto puntoventacl
+            Accede con tu cuenta del punto de venta
           </CardDescription>
         </CardHeader>
         <CardContent>

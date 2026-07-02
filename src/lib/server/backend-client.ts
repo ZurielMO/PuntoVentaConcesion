@@ -14,7 +14,11 @@ export async function proxyToBackend(
   const url = `${getBackendBaseUrl()}/${path.replace(/^\//, "")}`;
 
   const headers = new Headers(init.headers);
-  if (!headers.has("Content-Type") && init.body) {
+  if (
+    !headers.has("Content-Type") &&
+    typeof init.body === "string" &&
+    init.body.length > 0
+  ) {
     headers.set("Content-Type", "application/json");
   }
 

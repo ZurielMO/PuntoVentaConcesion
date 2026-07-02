@@ -28,19 +28,34 @@ async function handleProxy(
   };
 
   if (request.method !== "GET" && request.method !== "HEAD") {
-    const body = await request.text();
-    if (body) init.body = body;
+    const contentType = request.headers.get("content-type") ?? "";
+    const isMultipart = contentType.includes("multipart/form-data");
+    const body = isMultipart
+      ? await request.arrayBuffer()
+      : await request.text();
+    const hasBody =
+      typeof body === "string" ? body.length > 0 : body.byteLength > 0;
+    if (hasBody) init.body = body;
   }
 
   const backendRes = await proxyToBackend(`${targetPath}${search}`, init);
+  const status = backendRes.status;
+
+  // NextResponse no admite cuerpo en 204/205/304 (Fetch API).
+  if (status === 204 || status === 205 || status === 304) {
+    return new NextResponse(null, { status });
+  }
+
   const responseBody = await backendRes.text();
+  const responseHeaders: Record<string, string> = {};
+  const backendContentType = backendRes.headers.get("Content-Type");
+  if (backendContentType) {
+    responseHeaders["Content-Type"] = backendContentType;
+  }
 
   return new NextResponse(responseBody, {
-    status: backendRes.status,
-    headers: {
-      "Content-Type":
-        backendRes.headers.get("Content-Type") ?? "application/json",
-    },
+    status,
+    headers: responseHeaders,
   });
 }
 

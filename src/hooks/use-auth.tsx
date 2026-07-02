@@ -17,15 +17,9 @@ import {
 } from "firebase/auth";
 import { api, apiPaths, type ApiResponse } from "@/lib/api/client";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
+import type { PosUser } from "@/lib/types";
 
-export type PosUser = {
-  uid?: string;
-  email?: string;
-  nombre?: string;
-  rol?: string;
-  activo?: boolean;
-  [key: string]: unknown;
-};
+export type { PosUser };
 
 type AuthContextValue = {
   user: User | null;
