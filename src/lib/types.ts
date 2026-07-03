@@ -8,11 +8,17 @@ export interface PosUser {
   uid?: string;
   email?: string;
   nombre?: string;
+  /** Rol interno del POS (SUPERADMIN | ADMIN | VENDEDOR). */
   rol?: string;
+  /** Rol persistido en app-oficial-leon (CONCESION_*). */
+  rolOriginal?: string;
+  from_concesion?: boolean;
   activo?: boolean;
   concesionId?: string | null;
   sucursalId?: string | null;
   cajaId?: string | null;
+  admin?: boolean;
+  isAdmin?: boolean;
   [key: string]: unknown;
 }
 

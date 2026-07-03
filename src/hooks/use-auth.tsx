@@ -9,20 +9,22 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-  type User,
-} from "firebase/auth";
 import { api, apiPaths, type ApiResponse } from "@/lib/api/client";
-import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { PosUser } from "@/lib/types";
 
 export type { PosUser };
 
+/** Sesión mínima (reemplaza Firebase User). */
+export type SessionUser = {
+  uid: string;
+  email?: string;
+  nombre?: string;
+};
+
+const TOKEN_STORAGE_KEY = "pos_auth_token";
+
 type AuthContextValue = {
-  user: User | null;
+  user: SessionUser | null;
   posUser: PosUser | null;
   token: string | null;
   loading: boolean;
@@ -34,81 +36,118 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function readStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredToken(token: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (token) localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    else localStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
   const [posUser, setPosUser] = useState<PosUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const isConfigured = isFirebaseConfigured();
 
-  const refreshProfile = useCallback(async (idToken?: string) => {
-    const activeToken = idToken ?? token;
-    if (!activeToken) {
-      setPosUser(null);
+  const applySession = useCallback((jwt: string | null, profile: PosUser | null) => {
+    setToken(jwt);
+    writeStoredToken(jwt);
+    setPosUser(profile);
+    if (profile?.uid || profile?.email) {
+      setUser({
+        uid: String(profile.uid ?? ""),
+        email: profile.email,
+        nombre: typeof profile.nombre === "string" ? profile.nombre : undefined,
+      });
+    } else {
+      setUser(null);
+    }
+  }, []);
+
+  const refreshProfile = useCallback(async (activeToken?: string) => {
+    const jwt = activeToken ?? token ?? readStoredToken();
+    if (!jwt) {
+      applySession(null, null);
       return;
     }
     try {
       const res = await api.get<ApiResponse<never> & { usuario: PosUser }>(
         apiPaths.auth.me,
-        activeToken,
+        jwt,
       );
-      setPosUser(res.usuario ?? null);
+      const profile = res.usuario ?? null;
+      if (!profile) {
+        applySession(null, null);
+        return;
+      }
+      applySession(jwt, profile);
     } catch {
-      setPosUser(null);
+      applySession(null, null);
     }
-  }, [token]);
+  }, [token, applySession]);
 
   useEffect(() => {
-    const auth = getFirebaseAuth();
-    if (!auth) {
-      setLoading(false);
-      return;
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        const idToken = await firebaseUser.getIdToken();
-        setToken(idToken);
-        await refreshProfile(idToken);
-      } else {
-        setToken(null);
-        setPosUser(null);
+    let cancelled = false;
+    (async () => {
+      const stored = readStoredToken();
+      if (!stored) {
+        if (!cancelled) setLoading(false);
+        return;
       }
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, [refreshProfile]);
+      try {
+        const res = await api.get<ApiResponse<never> & { usuario: PosUser }>(
+          apiPaths.auth.me,
+          stored,
+        );
+        if (cancelled) return;
+        const profile = res.usuario ?? null;
+        if (profile) {
+          applySession(stored, profile);
+        } else {
+          applySession(null, null);
+        }
+      } catch {
+        if (!cancelled) applySession(null, null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [applySession]);
 
   const loginWithPassword = useCallback(
     async (email: string, password: string) => {
-      const auth = getFirebaseAuth();
-      if (!auth) {
-        throw new Error(
-          "Firebase no configurado. Revisa NEXT_PUBLIC_AUTH_FIREBASE_* en .env.local",
-        );
+      const res = await api.post<
+        ApiResponse<never> & { token: string; usuario: PosUser }
+      >(apiPaths.auth.loginPassword, { email, password });
+
+      const jwt = res.token;
+      const profile = res.usuario;
+      if (!jwt || !profile) {
+        throw new Error("Respuesta de login incompleta");
       }
-
-      const credential = await signInWithEmailAndPassword(auth, email, password);
-      const idToken = await credential.user.getIdToken();
-
-      await api.post(apiPaths.auth.login, { idToken });
-
-      setUser(credential.user);
-      setToken(idToken);
-      await refreshProfile(idToken);
+      applySession(jwt, profile);
     },
-    [refreshProfile],
+    [applySession],
   );
 
   const logout = useCallback(async () => {
-    const auth = getFirebaseAuth();
-    if (auth) await signOut(auth);
-    setUser(null);
-    setToken(null);
-    setPosUser(null);
-  }, []);
+    applySession(null, null);
+  }, [applySession]);
 
   const value = useMemo(
     () => ({
@@ -116,21 +155,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       posUser,
       token,
       loading,
-      isConfigured,
+      isConfigured: true,
       loginWithPassword,
       logout,
       refreshProfile: () => refreshProfile(),
     }),
-    [
-      user,
-      posUser,
-      token,
-      loading,
-      isConfigured,
-      loginWithPassword,
-      logout,
-      refreshProfile,
-    ],
+    [user, posUser, token, loading, loginWithPassword, logout, refreshProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

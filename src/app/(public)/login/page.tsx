@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { useAuth } from "@/hooks/use-auth";
 import { getDefaultRouteForRole } from "@/lib/permissions";
-import { isFirebaseConfigured } from "@/lib/firebase/client";
 
 const loginSchema = z.object({
   email: z.string().email("Correo inválido"),
@@ -89,12 +88,6 @@ export default function LoginPage() {
           <p className="mb-6 text-[1.4rem] text-muted-foreground">
             Accede con tu cuenta del punto de venta
           </p>
-
-          {!isFirebaseConfigured() && (
-            <p className="mb-4 rounded-[var(--card-border-radius)] bg-yellow-50 p-3 text-[1.4rem] text-yellow-800">
-              Configura las variables NEXT_PUBLIC_AUTH_FIREBASE_* en .env.local
-            </p>
-          )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
             <Field label="Correo" htmlFor="email" error={errors.email?.message}>

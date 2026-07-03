@@ -3,9 +3,15 @@ import { PosUser, UserRole } from "./types";
 export const normalizeRole = (rol?: string): UserRole | undefined => {
   if (!rol) return undefined;
   const upper = rol.toUpperCase();
-  if (upper === "EMPLEADO") return UserRole.VENDEDOR;
-  if (upper === UserRole.SUPERADMIN) return UserRole.SUPERADMIN;
-  if (upper === UserRole.ADMIN) return UserRole.ADMIN;
+  if (upper === "EMPLEADO" || upper === "CONCESION_VENDEDOR") {
+    return UserRole.VENDEDOR;
+  }
+  if (upper === UserRole.SUPERADMIN || upper === "CONCESION_SUPERADMIN") {
+    return UserRole.SUPERADMIN;
+  }
+  if (upper === UserRole.ADMIN || upper === "CONCESION_ADMIN") {
+    return UserRole.ADMIN;
+  }
   if (upper === UserRole.VENDEDOR) return UserRole.VENDEDOR;
   return undefined;
 };
