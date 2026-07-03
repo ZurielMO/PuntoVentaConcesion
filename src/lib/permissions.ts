@@ -26,10 +26,15 @@ export type PermissionFlags = {
   canManageSucursales: boolean;
   canManageEquipo: boolean;
   canManageInventario: boolean;
+  canManageCombos: boolean;
+  canManageDescuentos: boolean;
   canManageVentas: boolean;
   canManageCortes: boolean;
   canViewProducts: boolean;
   canViewInventario: boolean;
+  canViewVentas: boolean;
+  canViewCortes: boolean;
+  canViewSucursales: boolean;
 };
 
 export const getPermissions = (posUser: PosUser | null | undefined): PermissionFlags => {
@@ -58,21 +63,26 @@ export const getPermissions = (posUser: PosUser | null | undefined): PermissionF
     canManageConcessions: isSuperAdmin,
     canManageUsers: isSuperAdmin,
     canManageZonas: isSuperAdmin,
-    canManageProducts: isSuperAdmin || isAdmin,
-    canManageSucursales: isSuperAdmin || isAdmin,
-    canManageEquipo: isSuperAdmin || isAdmin,
-    canManageInventario: isSuperAdmin || isAdmin,
-    canManageVentas: isSuperAdmin || isAdmin || isVendedor,
-    canManageCortes: isSuperAdmin || isAdmin || isVendedor,
+    canManageProducts: isAdmin || isSuperAdmin,
+    canManageSucursales: isSuperAdmin,
+    canManageEquipo: isSuperAdmin,
+    canManageInventario: isSuperAdmin,
+    canManageCombos: isSuperAdmin,
+    canManageDescuentos: isSuperAdmin,
+    canManageVentas: isAdmin || isVendedor,
+    canManageCortes: isAdmin || isVendedor,
     canViewProducts: isSuperAdmin || isAdmin || isVendedor,
     canViewInventario: isSuperAdmin || isAdmin || isVendedor,
+    canViewVentas: isSuperAdmin || isAdmin || isVendedor,
+    canViewCortes: isSuperAdmin || isAdmin || isVendedor,
+    canViewSucursales: isSuperAdmin || isAdmin,
   };
 };
 
 export const getDefaultRouteForRole = (posUser: PosUser | null | undefined): string => {
   const perms = getPermissions(posUser);
-  if (perms.isSuperAdmin) return "/superAdmin/concesiones";
-  if (perms.isAdmin) return "/products";
+  if (perms.isSuperAdmin) return "/superAdmin/dashboard";
+  if (perms.isAdmin) return "/admin/dashboard";
   if (perms.isVendedor) return "/inventarios";
   return "/login";
 };

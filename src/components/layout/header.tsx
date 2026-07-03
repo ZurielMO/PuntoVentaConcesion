@@ -7,6 +7,8 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
+import { filterNavGroups, getDashboardNav } from "@/lib/nav-config";
+import { getDefaultRouteForRole } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 type NavLink = { href: string; label: string };
@@ -18,24 +20,14 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navLinks = useMemo((): NavLink[] => {
-    if (perms.isSuperAdmin) {
-      return [
-        { href: "/superAdmin/concesiones", label: "Concesiones" },
-        { href: "/superAdmin/usuarios", label: "Usuarios" },
-        { href: "/superAdmin/zonas", label: "Zonas" },
-      ];
-    }
+    if (!user) return [];
+    const groups = filterNavGroups(getDashboardNav(perms), perms);
+    return groups.flatMap((group) =>
+      group.items.map((item) => ({ href: item.href, label: item.label })),
+    );
+  }, [perms, user]);
 
-    const links: NavLink[] = [];
-    if (perms.canViewProducts) links.push({ href: "/products", label: "Productos" });
-    if (perms.canManageSucursales) links.push({ href: "/sucursales", label: "Sucursales" });
-    if (perms.canViewInventario) links.push({ href: "/inventarios", label: "Inventario" });
-    if (perms.canManageVentas) links.push({ href: "/ventas", label: "Ventas" });
-    if (perms.canManageCortes) links.push({ href: "/cortes", label: "Cortes" });
-    if (perms.canManageVentas) links.push({ href: "/tickets", label: "Tickets" });
-    return links;
-  }, [perms]);
-
+  const dashboardHref = posUser ? getDefaultRouteForRole(posUser) : "/login";
   const roleLabel = perms.role ?? "Usuario";
 
   return (
@@ -57,9 +49,7 @@ export function Header() {
               href={link.href}
               className={cn(
                 "text-[1.6rem] font-medium transition-colors hover:text-green-accent",
-                pathname === link.href
-                  ? "text-green-accent"
-                  : "text-[var(--text-black)]",
+                pathname === link.href ? "text-green-accent" : "text-[var(--text-black)]",
               )}
             >
               {link.label}
@@ -70,6 +60,9 @@ export function Header() {
         <div className="hidden items-center gap-3 md:flex">
           {!loading && user ? (
             <>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={dashboardHref}>Panel</Link>
+              </Button>
               <span className="max-w-[200px] truncate text-[1.4rem] text-muted-foreground">
                 {posUser?.nombre ?? user.email}
                 <span className="ml-2 rounded bg-neutral-warm px-2 py-0.5 text-[1.2rem]">
@@ -86,7 +79,7 @@ export function Header() {
                 <Link href="/login">Iniciar sesión</Link>
               </Button>
               <Button variant="dark" size="sm" asChild>
-                <Link href="/login">Acceder al POS</Link>
+                <Link href="/login">Acceder al panel</Link>
               </Button>
             </>
           )}
@@ -115,6 +108,13 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
+            {!loading && user && (
+              <Button asChild variant="outline" className="w-full">
+                <Link href={dashboardHref} onClick={() => setMobileOpen(false)}>
+                  Ir al panel
+                </Link>
+              </Button>
+            )}
             {!loading && !user && (
               <Button asChild className="w-full">
                 <Link href="/login" onClick={() => setMobileOpen(false)}>

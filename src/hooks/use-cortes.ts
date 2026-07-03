@@ -54,6 +54,7 @@ export function useCortes() {
 }
 
 export function useDetalleVentas(filters?: {
+  concesionId?: string;
   sucursalId?: string;
   cajaId?: string;
   inventarioId?: string;
@@ -75,6 +76,7 @@ export function useDetalleVentas(filters?: {
     setError(null);
     try {
       const qs = new URLSearchParams();
+      if (filters?.concesionId) qs.set("concesionId", filters.concesionId);
       if (filters?.sucursalId) qs.set("sucursalId", filters.sucursalId);
       if (filters?.cajaId) qs.set("cajaId", filters.cajaId);
       if (filters?.inventarioId) qs.set("inventarioId", filters.inventarioId);

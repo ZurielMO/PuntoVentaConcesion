@@ -3,25 +3,33 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, apiPaths, type ApiResponse } from "@/lib/api/client";
 import { useAuth } from "@/hooks/use-auth";
-import type { User } from "@/lib/types";
-import { UserRole } from "@/lib/types";
+import type { User, UserRole } from "@/lib/types";
 
 export type CreateUserPayload = {
   nombre: string;
-  fecha_nacimiento: string;
   email: string;
   password: string;
-  rol: UserRole.ADMIN | UserRole.VENDEDOR | "EMPLEADO";
-  activo?: boolean;
+  fecha_nacimiento: string;
+  rol: UserRole | string;
   concesionId: string;
   sucursalId?: string;
+  cajaId?: string | null;
+  activo?: boolean;
 };
 
-export type UpdateUserPayload = Partial<Omit<CreateUserPayload, "password">> & {
+export type UpdateUserPayload = {
+  nombre?: string;
+  email?: string;
   password?: string;
+  fecha_nacimiento?: string;
+  rol?: UserRole | string;
+  concesionId?: string | null;
+  sucursalId?: string | null;
+  cajaId?: string | null;
+  activo?: boolean;
 };
 
-export function useUsers(concesionFilter?: string) {
+export function useUsers(concesionId?: string) {
   const { token } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,14 +41,16 @@ export function useUsers(concesionFilter?: string) {
       setLoading(false);
       return;
     }
-
     setLoading(true);
     setError(null);
     try {
-      const path = concesionFilter
-        ? `${apiPaths.users}?concesionId=${encodeURIComponent(concesionFilter)}`
-        : apiPaths.users;
-      const res = await api.get<ApiResponse<User[]>>(path, token);
+      const qs = concesionId
+        ? `?concesionId=${encodeURIComponent(concesionId)}`
+        : "";
+      const res = await api.get<ApiResponse<User[]>>(
+        `${apiPaths.users}${qs}`,
+        token,
+      );
       setUsers(res.data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar usuarios");
@@ -48,14 +58,13 @@ export function useUsers(concesionFilter?: string) {
     } finally {
       setLoading(false);
     }
-  }, [token, concesionFilter]);
+  }, [token, concesionId]);
 
   const createUser = useCallback(
     async (payload: CreateUserPayload) => {
       if (!token) throw new Error("Sin sesión");
-      const res = await api.post<ApiResponse<User>>(apiPaths.users, payload, token);
+      await api.post(apiPaths.users, payload, token);
       await fetchUsers();
-      return res.data!;
     },
     [token, fetchUsers],
   );
@@ -63,13 +72,8 @@ export function useUsers(concesionFilter?: string) {
   const updateUser = useCallback(
     async (id: string, payload: UpdateUserPayload) => {
       if (!token) throw new Error("Sin sesión");
-      const res = await api.put<ApiResponse<User>>(
-        `${apiPaths.users}/${id}`,
-        payload,
-        token,
-      );
+      await api.put(`${apiPaths.users}/${id}`, payload, token);
       await fetchUsers();
-      return res.data!;
     },
     [token, fetchUsers],
   );
@@ -87,5 +91,13 @@ export function useUsers(concesionFilter?: string) {
     fetchUsers();
   }, [fetchUsers]);
 
-  return { users, loading, error, refetch: fetchUsers, createUser, updateUser, deleteUser };
+  return {
+    users,
+    loading,
+    error,
+    refetch: fetchUsers,
+    createUser,
+    updateUser,
+    deleteUser,
+  };
 }

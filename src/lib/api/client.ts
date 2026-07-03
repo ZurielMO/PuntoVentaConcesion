@@ -115,4 +115,6 @@ export const apiPaths = {
   cortes: "cortes",
   users: "users",
   detalleVenta: "detalle-venta",
+  combos: "combos",
+  descuentos: "descuentos",
 } as const;

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
 type HeroSectionProps = {
@@ -8,6 +9,7 @@ type HeroSectionProps = {
   ctaHref?: string;
   secondaryLabel?: string;
   secondaryHref?: string;
+  actions?: ReactNode;
 };
 
 export function HeroSection({
@@ -17,6 +19,7 @@ export function HeroSection({
   ctaHref = "/products",
   secondaryLabel = "Iniciar sesión",
   secondaryHref = "/login",
+  actions,
 }: HeroSectionProps) {
   return (
     <section className="bg-neutral-warm">
@@ -29,12 +32,16 @@ export function HeroSection({
             {subtitle}
           </p>
           <div className="flex flex-wrap gap-4">
-            <Button asChild size="lg">
-              <Link href={ctaHref}>{ctaLabel}</Link>
-            </Button>
-            <Button variant="outline" asChild size="lg">
-              <Link href={secondaryHref}>{secondaryLabel}</Link>
-            </Button>
+            {actions ?? (
+              <>
+                <Button asChild size="lg">
+                  <Link href={ctaHref}>{ctaLabel}</Link>
+                </Button>
+                <Button variant="outline" asChild size="lg">
+                  <Link href={secondaryHref}>{secondaryLabel}</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
         <div className="order-1 md:order-2">

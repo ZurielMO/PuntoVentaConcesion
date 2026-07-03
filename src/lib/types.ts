@@ -183,3 +183,40 @@ export interface JornadaActivaValue {
   jornada?: number;
   [key: string]: unknown;
 }
+
+export interface ComboProducto {
+  producto_id: string;
+  cantidad: number;
+}
+
+export interface Combo {
+  id: string;
+  concesion_id: string;
+  titulo: string;
+  descripcion?: string | null;
+  productos: ComboProducto[];
+  /** Precio de venta del combo. */
+  precio: number;
+  activo: boolean;
+  createdByUid?: string | null;
+  createdByNombre?: string | null;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+}
+
+export type DescuentoTipo = "2X1" | "3X2" | "PORCENTAJE" | "MONTO";
+
+export interface Descuento {
+  id: string;
+  concesion_id: string;
+  titulo: string;
+  descripcion?: string | null;
+  tipo: DescuentoTipo;
+  valor?: number | null;
+  producto_ids: string[];
+  activo: boolean;
+  createdByUid?: string | null;
+  createdByNombre?: string | null;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+}

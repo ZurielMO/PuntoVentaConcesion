@@ -25,6 +25,8 @@ export type ProductPayload = {
   precio: number;
   imagenes?: string[];
   activo?: boolean;
+  /** Requerido cuando el SuperAdmin crea productos para una concesión. */
+  concesionId?: string;
 };
 
 export const MAX_IMAGES_PER_PRODUCT = 5;
@@ -37,6 +39,9 @@ function buildProductFormData(payload: ProductPayload, files?: File[]): FormData
   form.append("unidad_medida", payload.unidad_medida);
   form.append("precio", String(payload.precio));
   form.append("activo", String(payload.activo !== false));
+  if (payload.concesionId) {
+    form.append("concesionId", payload.concesionId);
+  }
   files?.forEach((file) => form.append("images", file));
   return form;
 }

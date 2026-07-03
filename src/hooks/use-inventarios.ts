@@ -43,8 +43,12 @@ export function useJornadas() {
   return { jornadaActiva, loading, refetch: fetchJornada };
 }
 
-export function useInventarioJornadaActiva() {
+export function useInventarioJornadaActiva(
+  sucursalId?: string,
+  options?: { enabled?: boolean },
+) {
   const { token } = useAuth();
+  const enabled = options?.enabled !== false;
   const [inventario, setInventario] = useState<Inventario | null>(null);
   const [jornada, setJornada] = useState<JornadaActivaValue | null>(null);
   const [movimientos, setMovimientos] = useState<InventarioMovimiento[]>([]);
@@ -66,19 +70,22 @@ export function useInventarioJornadaActiva() {
   );
 
   const getInventarioJornadaActiva = useCallback(async () => {
-    if (!token) {
+    if (!token || !enabled) {
       setInventario(null);
       setJornada(null);
       setMovimientos([]);
       setLoading(false);
+      setError(null);
       return;
     }
 
     setLoading(true);
     setError(null);
     try {
+      const qs = new URLSearchParams({ includeProductos: "true" });
+      if (sucursalId) qs.set("sucursalId", sucursalId);
       const res = await api.get<ApiResponse<InventarioJornadaActivaData>>(
-        `${apiPaths.inventarios}/jornada-activa?includeProductos=true`,
+        `${apiPaths.inventarios}/jornada-activa?${qs.toString()}`,
         token,
       );
       const payload = res.data;
@@ -96,14 +103,15 @@ export function useInventarioJornadaActiva() {
     } finally {
       setLoading(false);
     }
-  }, [token, fetchMovimientos]);
+  }, [token, enabled, sucursalId, fetchMovimientos]);
 
   const openInventarioJornadaActiva = useCallback(async () => {
     if (!token) throw new Error("Sin sesión");
+    if (!sucursalId) throw new Error("Selecciona una sucursal");
     setError(null);
     const res = await api.post<ApiResponse<InventarioJornadaActivaData>>(
       `${apiPaths.inventarios}/jornada-activa`,
-      {},
+      { sucursalId },
       token,
     );
     const payload = res.data!;
@@ -113,7 +121,7 @@ export function useInventarioJornadaActiva() {
       await fetchMovimientos(payload.inventario.id);
     }
     return payload;
-  }, [token, fetchMovimientos]);
+  }, [token, sucursalId, fetchMovimientos]);
 
   const upsertProducto = useCallback(
     async (
