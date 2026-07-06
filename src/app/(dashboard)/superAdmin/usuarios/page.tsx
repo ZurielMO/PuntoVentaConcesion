@@ -26,6 +26,7 @@ import {
   type UpdateUserPayload,
 } from "@/hooks/use-users";
 import { useConcessions } from "@/hooks/use-concessions";
+import { useConcesionFilterParam } from "@/hooks/use-concesion-filter-param";
 import { useSucursales } from "@/hooks/use-sucursales";
 import { UserRole, type User } from "@/lib/types";
 
@@ -52,7 +53,7 @@ const emptyForm = (): FormState => ({
 });
 
 export default function UsuariosPage() {
-  const [concesionFilter, setConcesionFilter] = useState("");
+  const [concesionFilter, setConcesionFilter] = useConcesionFilterParam();
   const { users, loading, error, refetch, createUser, updateUser, deleteUser } =
     useUsers(concesionFilter || undefined);
   const { concessions } = useConcessions();

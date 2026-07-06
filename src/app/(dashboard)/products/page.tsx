@@ -21,6 +21,7 @@ import { RequireRole } from "@/components/auth/require-role";
 import { DataTable } from "@/components/dashboard/data-table";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useConcesionFilterParam } from "@/hooks/use-concesion-filter-param";
 import { useConcessions } from "@/hooks/use-concessions";
 import { useSucursales } from "@/hooks/use-sucursales";
 import {
@@ -61,7 +62,7 @@ export default function ProductsPage() {
   } = useProducts();
   const { concessions } = useConcessions();
   const { sucursales } = useSucursales();
-  const [concesionFilter, setConcesionFilter] = useState("");
+  const [concesionFilter, setConcesionFilter] = useConcesionFilterParam();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

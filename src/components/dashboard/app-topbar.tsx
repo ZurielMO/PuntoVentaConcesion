@@ -15,8 +15,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useAuth } from "@/hooks/use-auth";
+import { useConcessions } from "@/hooks/use-concessions";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useActiveConcesionOptional } from "@/hooks/use-active-concesion";
 import { filterNavGroups, getDashboardNav } from "@/lib/nav-config";
 import { AppSidebarNav } from "./app-sidebar-nav";
 
@@ -31,10 +34,14 @@ function getInitials(name?: string | null, email?: string | null) {
 }
 
 function getPageTitle(pathname: string): string {
+  if (pathname.startsWith("/superAdmin/concesiones/") && pathname !== "/superAdmin/concesiones/nueva") {
+    return "Centro de concesión";
+  }
   const map: Record<string, string> = {
     "/superAdmin/dashboard": "Dashboard",
     "/admin/dashboard": "Dashboard",
     "/superAdmin/concesiones": "Concesiones",
+    "/superAdmin/concesiones/nueva": "Asistente de alta",
     "/superAdmin/usuarios": "Usuarios",
     "/superAdmin/zonas": "Zonas",
     "/products": "Productos",
@@ -51,6 +58,8 @@ export function AppTopbar() {
   const pathname = usePathname();
   const { posUser, user, logout } = useAuth();
   const perms = usePermissions();
+  const { concessions } = useConcessions();
+  const activeCtx = useActiveConcesionOptional();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navGroups = useMemo(
@@ -95,6 +104,27 @@ export function AppTopbar() {
         </p>
       </div>
 
+      <div className="flex items-center gap-3">
+        {perms.isSuperAdmin && concessions.length > 0 && activeCtx && (
+          <NativeSelect
+            value={activeCtx.activeConcesionId ?? ""}
+            onChange={(e) =>
+              activeCtx.setActiveConcesionId(e.target.value ? e.target.value : null)
+            }
+            className="hidden max-w-[220px] md:block"
+            aria-label="Concesión activa"
+          >
+            <option value="">Todas las concesiones</option>
+            {concessions
+              .filter((c) => c.activo !== false)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+          </NativeSelect>
+        )}
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -124,6 +154,7 @@ export function AppTopbar() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </header>
   );
 }

@@ -11,8 +11,24 @@ type AppSidebarNavProps = {
   className?: string;
 };
 
+function navItemMatches(pathname: string, href: string): boolean {
+  if (pathname === href) return true;
+  return pathname.startsWith(`${href}/`);
+}
+
+function resolveActiveHref(pathname: string, groups: NavGroup[]): string | null {
+  const matches = groups
+    .flatMap((group) => group.items)
+    .filter((item) => navItemMatches(pathname, item.href))
+    .map((item) => item.href);
+
+  if (matches.length === 0) return null;
+  return matches.sort((a, b) => b.length - a.length)[0] ?? null;
+}
+
 export function AppSidebarNav({ groups, onNavigate, className }: AppSidebarNavProps) {
   const pathname = usePathname();
+  const activeHref = resolveActiveHref(pathname, groups);
 
   return (
     <nav className={cn("flex flex-col gap-6 p-4", className)}>
@@ -23,8 +39,7 @@ export function AppSidebarNav({ groups, onNavigate, className }: AppSidebarNavPr
           </p>
           <ul className="space-y-1">
             {group.items.map((item) => {
-              const active =
-                pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const active = item.href === activeHref;
               const Icon = item.icon;
               return (
                 <li key={item.href}>
