@@ -117,4 +117,5 @@ export const apiPaths = {
   detalleVenta: "detalle-venta",
   combos: "combos",
   descuentos: "descuentos",
+  trabajadoresClub: "trabajadores-club",
 } as const;

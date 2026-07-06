@@ -226,3 +226,35 @@ export interface Descuento {
   createdAt?: unknown;
   updatedAt?: unknown;
 }
+
+export interface TrabajadorClubPreview {
+  id: string;
+  uid: string;
+  nombre: string;
+  email: string;
+  telefono?: string | null;
+  rol: string;
+  roles: string[];
+  provider?: string;
+  activo: boolean;
+  puntosActuales?: number;
+  nivel?: string | null;
+  esTrabajadorClub: boolean;
+  puedeAgregar: boolean;
+  motivoNoAgregar?: string;
+}
+
+export interface TrabajadorClub {
+  id: string;
+  uid: string;
+  nombre: string;
+  email: string;
+  telefono?: string | null;
+  roles: string[];
+  cortesiaCanjeada: boolean;
+  trabajadorClubAgregadoAt?: string | null;
+  trabajadorClubAgregadoPor?: string | null;
+  activo: boolean;
+  puntosActuales?: number;
+  nivel?: string | null;
+}

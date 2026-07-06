@@ -34,6 +34,7 @@ export type PermissionFlags = {
   canManageInventario: boolean;
   canManageCombos: boolean;
   canManageDescuentos: boolean;
+  canManageTrabajadoresClub: boolean;
   canManageVentas: boolean;
   canManageCortes: boolean;
   canViewProducts: boolean;
@@ -75,6 +76,7 @@ export const getPermissions = (posUser: PosUser | null | undefined): PermissionF
     canManageInventario: isSuperAdmin,
     canManageCombos: isSuperAdmin,
     canManageDescuentos: isSuperAdmin,
+    canManageTrabajadoresClub: isSuperAdmin,
     canManageVentas: isAdmin || isVendedor,
     canManageCortes: isAdmin || isVendedor,
     canViewProducts: isSuperAdmin || isAdmin || isVendedor,

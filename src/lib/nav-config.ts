@@ -3,6 +3,7 @@ import {
   BadgePercent,
   Building2,
   ClipboardList,
+  IdCard,
   Layers,
   LayoutDashboard,
   MapPin,
@@ -90,6 +91,12 @@ export function getDashboardNav(perms: PermissionFlags): NavGroup[] {
           label: "Descuentos",
           icon: BadgePercent,
           permission: "canManageDescuentos",
+        },
+        {
+          href: "/superAdmin/trabajadores-club",
+          label: "Trabajadores Club",
+          icon: IdCard,
+          permission: "canManageTrabajadoresClub",
         },
       ],
     });
