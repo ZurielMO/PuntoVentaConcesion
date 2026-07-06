@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useEffect, useState, type FormEvent } from "react";
 import { Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RequireRole } from "@/components/auth/require-role";
 import { DataTable } from "@/components/dashboard/data-table";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -24,11 +23,14 @@ import { useSucursales } from "@/hooks/use-sucursales";
 import { useZonas } from "@/hooks/use-zonas";
 import { useConcessions } from "@/hooks/use-concessions";
 import { useEquipoVendedores } from "@/hooks/use-equipo";
+import { useConcesionFilterParam } from "@/hooks/use-concesion-filter-param";
+import { useActiveConcesionOptional } from "@/hooks/use-active-concesion";
 import { usePermissions } from "@/hooks/use-permissions";
-import type { Caja, Sucursal, User } from "@/lib/types";
+import type { Caja, User } from "@/lib/types";
 
 export default function SucursalesPage() {
   const perms = usePermissions();
+  const activeCtx = useActiveConcesionOptional();
   const {
     sucursales,
     loading,
@@ -43,10 +45,7 @@ export default function SucursalesPage() {
   const { zonas } = useZonas();
   const { concessions } = useConcessions();
 
-  const [tab, setTab] = useState("sucursales");
-
-  // Filtro de concesión (solo SuperAdmin)
-  const [concesionFilter, setConcesionFilter] = useState("");
+  const [concesionFilter, setConcesionFilter] = useConcesionFilterParam();
 
   const {
     vendedores,
@@ -97,6 +96,25 @@ export default function SucursalesPage() {
 
   const cajasDeAsignacion =
     sucursales.find((s) => s.id === assignSucursalId)?.cajas ?? [];
+
+  useEffect(() => {
+    if (sucursalesVisibles.length === 0) {
+      setSelectedSucursalId("");
+      return;
+    }
+    const stillVisible = sucursalesVisibles.some((s) => s.id === selectedSucursalId);
+    if (!stillVisible) {
+      setSelectedSucursalId(sucursalesVisibles[0].id);
+    }
+  }, [sucursalesVisibles, selectedSucursalId]);
+
+  const equipoDeSucursal = useMemo(
+    () =>
+      vendedores.filter(
+        (v) => !selectedSucursalId || v.sucursalId === selectedSucursalId,
+      ),
+    [vendedores, selectedSucursalId],
+  );
 
   const closeSucursalDialog = () => {
     setSucursalDialogOpen(false);
@@ -218,7 +236,11 @@ export default function SucursalesPage() {
             <NativeSelect
               id="concesionFilter"
               value={concesionFilter}
-              onChange={(e) => setConcesionFilter(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setConcesionFilter(value);
+                activeCtx?.setActiveConcesionId(value || null);
+              }}
             >
               <option value="">Todas las concesiones</option>
               {concessions.map((c) => (
@@ -231,241 +253,216 @@ export default function SucursalesPage() {
         </div>
       )}
 
-      <Tabs value={tab} onValueChange={setTab} className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="sucursales">1. Sucursales</TabsTrigger>
-          <TabsTrigger value="cajas">2. Cajas</TabsTrigger>
-          <TabsTrigger value="equipo">3. Equipo</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="sucursales" className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-[1.4rem] text-muted-foreground">
-              {perms.canManageSucursales
-                ? "Define los puntos de venta por concesión."
-                : "Puntos de venta de tu concesión (solo consulta)."}
-            </p>
-            {perms.canManageSucursales && (
-              <Button size="sm" onClick={() => setSucursalDialogOpen(true)}>
-                <Plus className="size-4" />
-                Agregar
-              </Button>
-            )}
-          </div>
-
-          <DataTable<Sucursal>
-            loading={loading}
-            data={sucursalesVisibles}
-            getRowKey={(s) => s.id}
-            emptyMessage="No hay sucursales. Crea la primera para continuar."
-            columns={[
-              {
-                key: "nombre",
-                header: "Nombre",
-                cell: (s) => (
-                  <span className="font-medium">{s.nombre ?? s.id}</span>
-                ),
-              },
-              ...(perms.isSuperAdmin
-                ? [
-                    {
-                      key: "concesion",
-                      header: "Concesión",
-                      cell: (s: Sucursal) => concesionNombre(s.concesion_id),
-                    },
-                  ]
-                : []),
-              {
-                key: "zona",
-                header: "Zona",
-                cell: (s) => zonaNombre(s.zona_id),
-              },
-              {
-                key: "cajas",
-                header: "Cajas",
-                cell: (s) =>
-                  (s.cajas ?? []).filter((c) => c.activo !== false).length,
-              },
-              {
-                key: "estado",
-                header: "Estado",
-                cell: (s) => (
-                  <Badge variant={s.activo !== false ? "default" : "secondary"}>
-                    {s.activo !== false ? "Activa" : "Inactiva"}
-                  </Badge>
-                ),
-              },
-              {
-                key: "acciones",
-                header: "Acciones",
-                cell: (s: Sucursal) => (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedSucursalId(s.id);
-                        setTab("cajas");
-                      }}
-                    >
-                      Ver cajas
-                    </Button>
-                    {perms.canManageSucursales && (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => void deleteSucursal(s.id)}
-                      >
-                        Desactivar
-                      </Button>
-                    )}
-                  </div>
-                ),
-              },
-            ]}
-          />
-        </TabsContent>
-
-        <TabsContent value="cajas" className="space-y-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="w-full max-w-xs">
-              <NativeSelect
-                value={selectedSucursalId}
-                onChange={(e) => setSelectedSucursalId(e.target.value)}
-                aria-label="Seleccionar sucursal"
-              >
-                <option value="">Selecciona sucursal</option>
-                {sucursalesVisibles.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nombre ?? s.id}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
-            {perms.canManageSucursales && selectedSucursalId && (
-              <Button size="sm" onClick={openCajaCreate}>
-                <Plus className="size-4" />
-                Agregar caja
-              </Button>
-            )}
-          </div>
-
-          {!selectedSucursalId ? (
-            <div className="dashboard-card p-8 text-center">
-              <p className="text-[1.4rem] text-muted-foreground">
-                Selecciona una sucursal para administrar sus cajas.
-              </p>
-            </div>
-          ) : (
-            <DataTable<Caja>
-              loading={loading}
-              data={cajasActivas}
-              getRowKey={(c) => c.id}
-              emptyMessage="Sin cajas. Agrega la primera caja de esta sucursal."
-              columns={[
-                {
-                  key: "nombre",
-                  header: "Nombre",
-                  cell: (c) => c.nombre ?? c.id,
-                },
-                {
-                  key: "estado",
-                  header: "Estado",
-                  cell: (c) => (
-                    <Badge variant={c.activo !== false ? "default" : "secondary"}>
-                      {c.activo !== false ? "Activa" : "Inactiva"}
-                    </Badge>
-                  ),
-                },
-                ...(perms.canManageSucursales
-                  ? [
-                      {
-                        key: "acciones",
-                        header: "Acciones",
-                        cell: (c: Caja) => (
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openCajaEdit(c)}
-                            >
-                              Editar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() =>
-                                void deleteCaja(selectedSucursalId, c.id)
-                              }
-                            >
-                              Desactivar
-                            </Button>
-                          </div>
-                        ),
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="equipo" className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-[1.4rem] text-muted-foreground">
-              {perms.canManageEquipo
-                ? "Asigna vendedores a sucursal y caja por defecto."
-                : "Vendedores asignados por sucursal y caja (solo consulta)."}
-            </p>
-            {perms.canManageEquipo &&
+      <div className="grid gap-6 lg:grid-cols-[minmax(260px,320px)_1fr]">
+        {/* Panel izquierdo: lista de sucursales */}
+        <div className="dashboard-card flex flex-col p-4">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <h2 className="text-[1.6rem] font-semibold text-green-dark">
+              Sucursales
+            </h2>
+            {perms.canManageSucursales &&
               (!perms.isSuperAdmin || Boolean(concesionFilter)) && (
-                <Button size="sm" onClick={() => setEquipoDialogOpen(true)}>
+                <Button size="sm" onClick={() => setSucursalDialogOpen(true)}>
                   <Plus className="size-4" />
-                  Asignar vendedor
                 </Button>
               )}
           </div>
 
           {perms.isSuperAdmin && !concesionFilter ? (
+            <p className="text-[1.3rem] text-muted-foreground">
+              Selecciona una concesión arriba para ver sus sucursales.
+            </p>
+          ) : loading ? (
+            <p className="text-[1.3rem] text-muted-foreground">Cargando…</p>
+          ) : sucursalesVisibles.length === 0 ? (
+            <p className="text-[1.3rem] text-muted-foreground">
+              No hay sucursales. Crea la primera para continuar.
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {sucursalesVisibles.map((s) => {
+                const isSelected = s.id === selectedSucursalId;
+                const cajasCount = (s.cajas ?? []).filter(
+                  (c) => c.activo !== false,
+                ).length;
+                return (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSucursalId(s.id)}
+                      className={`w-full rounded-[8px] px-3 py-3 text-left transition-colors ${
+                        isSelected
+                          ? "bg-green-soft text-green-dark"
+                          : "hover:bg-neutral-cool"
+                      }`}
+                    >
+                      <p className="text-[1.4rem] font-medium">
+                        {s.nombre ?? s.id}
+                      </p>
+                      <p className="text-[1.2rem] text-muted-foreground">
+                        {zonaNombre(s.zona_id)} · {cajasCount} caja(s)
+                      </p>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Panel derecho: detalle sucursal → cajas + equipo */}
+        <div className="space-y-6">
+          {!selectedSucursal ? (
             <div className="dashboard-card p-8 text-center">
               <p className="text-[1.4rem] text-muted-foreground">
-                Selecciona una concesión para ver y asignar su equipo.
+                Selecciona una sucursal para administrar cajas y equipo.
               </p>
             </div>
           ) : (
-            <DataTable<User>
-              loading={false}
-              data={vendedores}
-              getRowKey={(v) => v.id}
-              emptyMessage="No hay vendedores en el equipo."
-              columns={[
-                { key: "nombre", header: "Nombre", cell: (v) => v.nombre },
-                { key: "email", header: "Email", cell: (v) => v.email },
-                {
-                  key: "sucursal",
-                  header: "Sucursal",
-                  cell: (v) =>
-                    sucursales.find((s) => s.id === v.sucursalId)?.nombre ??
-                    v.sucursalId ??
-                    "—",
-                },
-                {
-                  key: "caja",
-                  header: "Caja",
-                  cell: (v) => {
-                    if (!v.sucursalId || !v.cajaId) return "—";
-                    const suc = sucursales.find((s) => s.id === v.sucursalId);
-                    return (
-                      suc?.cajas?.find((c) => c.id === v.cajaId)?.nombre ??
-                      v.cajaId
-                    );
-                  },
-                },
-              ]}
-            />
+            <>
+              <div className="dashboard-card p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-[1.8rem] font-semibold text-green-dark">
+                      {selectedSucursal.nombre ?? selectedSucursal.id}
+                    </h2>
+                    <p className="mt-1 text-[1.3rem] text-muted-foreground">
+                      Zona: {zonaNombre(selectedSucursal.zona_id)}
+                      {perms.isSuperAdmin &&
+                        ` · ${concesionNombre(selectedSucursal.concesion_id)}`}
+                    </p>
+                  </div>
+                  {perms.canManageSucursales && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => void deleteSucursal(selectedSucursal.id)}
+                    >
+                      Desactivar sucursal
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-[1.6rem] font-semibold text-green-dark">
+                    Paso 2 · Cajas
+                  </h3>
+                  {perms.canManageSucursales && (
+                    <Button size="sm" onClick={openCajaCreate}>
+                      <Plus className="size-4" />
+                      Agregar caja
+                    </Button>
+                  )}
+                </div>
+                <DataTable<Caja>
+                  loading={loading}
+                  data={cajasActivas}
+                  getRowKey={(c) => c.id}
+                  emptyMessage="Sin cajas. Agrega la primera caja de esta sucursal."
+                  columns={[
+                    {
+                      key: "nombre",
+                      header: "Nombre",
+                      cell: (c) => c.nombre ?? c.id,
+                    },
+                    {
+                      key: "estado",
+                      header: "Estado",
+                      cell: (c) => (
+                        <Badge
+                          variant={c.activo !== false ? "default" : "secondary"}
+                        >
+                          {c.activo !== false ? "Activa" : "Inactiva"}
+                        </Badge>
+                      ),
+                    },
+                    ...(perms.canManageSucursales
+                      ? [
+                          {
+                            key: "acciones",
+                            header: "Acciones",
+                            cell: (c: Caja) => (
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openCajaEdit(c)}
+                                >
+                                  Editar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() =>
+                                    void deleteCaja(selectedSucursalId, c.id)
+                                  }
+                                >
+                                  Desactivar
+                                </Button>
+                              </div>
+                            ),
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-[1.6rem] font-semibold text-green-dark">
+                    Paso 3 · Equipo en esta sucursal
+                  </h3>
+                  {perms.canManageEquipo &&
+                    (!perms.isSuperAdmin || Boolean(concesionFilter)) && (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setAssignSucursalId(selectedSucursalId);
+                          setEquipoDialogOpen(true);
+                        }}
+                      >
+                        <Plus className="size-4" />
+                        Asignar vendedor
+                      </Button>
+                    )}
+                </div>
+                {perms.isSuperAdmin && !concesionFilter ? (
+                  <div className="dashboard-card p-6 text-center">
+                    <p className="text-[1.4rem] text-muted-foreground">
+                      Selecciona una concesión para asignar equipo.
+                    </p>
+                  </div>
+                ) : (
+                  <DataTable<User>
+                    loading={false}
+                    data={equipoDeSucursal}
+                    getRowKey={(v) => v.id}
+                    emptyMessage="No hay vendedores asignados a esta sucursal."
+                    columns={[
+                      { key: "nombre", header: "Nombre", cell: (v) => v.nombre },
+                      { key: "email", header: "Email", cell: (v) => v.email },
+                      {
+                        key: "caja",
+                        header: "Caja",
+                        cell: (v) => {
+                          if (!v.cajaId) return "—";
+                          return (
+                            selectedSucursal.cajas?.find((c) => c.id === v.cajaId)
+                              ?.nombre ?? v.cajaId
+                          );
+                        },
+                      },
+                    ]}
+                  />
+                )}
+              </div>
+            </>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
 
       {/* Modal sucursal */}
       <Dialog

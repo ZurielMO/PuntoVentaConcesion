@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ImagePlus, Plus, RefreshCw } from "lucide-react";
+import { ImagePlus, Plus, RefreshCw, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,12 +110,18 @@ export default function ConcesionesPage() {
     <RequireRole superAdminOnly>
       <PageHeader
         title="Concesiones"
-        description="Crea y administra las concesiones del estadio."
+        description="Crea concesiones con el asistente paso a paso o administra la lista."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={openCreate}>
+            <Button asChild size="sm">
+              <Link href="/superAdmin/concesiones/nueva">
+                <Settings2 className="size-4" />
+                Asistente de configuración
+              </Link>
+            </Button>
+            <Button size="sm" variant="outline" onClick={openCreate}>
               <Plus className="size-4" />
-              Agregar
+              Agregar rápido
             </Button>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCw className="size-4" />
@@ -168,6 +175,9 @@ export default function ConcesionesPage() {
             header: "Acciones",
             cell: (c) => (
               <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm">
+                  <Link href={`/superAdmin/concesiones/${c.id}`}>Configurar</Link>
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => openEdit(c)}>
                   Editar
                 </Button>

@@ -23,11 +23,16 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useConcessions } from "@/hooks/use-concessions";
 import { useCortes, useDetalleVentas } from "@/hooks/use-cortes";
+import { useEquipoVendedores } from "@/hooks/use-equipo";
 import { useProducts } from "@/hooks/use-products";
 import { useSucursales } from "@/hooks/use-sucursales";
 import { useUsers } from "@/hooks/use-users";
 import { useZonas } from "@/hooks/use-zonas";
 import { formatDateTime, formatPrice } from "@/lib/format";
+import {
+  computeConcesionSetupStatus,
+  findIncompleteConcesion,
+} from "@/lib/concesion-setup";
 import type { ComprobanteVenta, Concession } from "@/lib/types";
 
 export default function SuperAdminDashboardPage() {
@@ -39,6 +44,7 @@ export default function SuperAdminDashboardPage() {
   const { products, loading: loadingProducts } = useProducts();
   const { ventas, loading: loadingVentas } = useDetalleVentas();
   const { cortes, loading: loadingCortes } = useCortes();
+  const { vendedores } = useEquipoVendedores();
   const [detalleVenta, setDetalleVenta] = useState<ComprobanteVenta | null>(null);
 
   const activeConcessions = concessions.filter((c) => c.activo !== false);
@@ -62,18 +68,81 @@ export default function SuperAdminDashboardPage() {
   const productoNombre = (id: string) =>
     products.find((p) => p.id === id)?.nombre ?? id;
 
+  const incompleteSetup = useMemo(() => {
+    return findIncompleteConcesion(activeConcessions, (concesionId) =>
+      computeConcesionSetupStatus({
+        concesionId,
+        concession: concessions.find((c) => c.id === concesionId),
+        users,
+        products,
+        sucursales,
+        vendedores,
+      }),
+    );
+  }, [
+    activeConcessions,
+    concessions,
+    users,
+    products,
+    sucursales,
+    vendedores,
+  ]);
+
+  const bannerAction = useMemo(() => {
+    if (zonas.length === 0) {
+      return (
+        <Button asChild variant="on-dark" size="sm">
+          <Link href="/superAdmin/zonas">Configurar zonas del estadio</Link>
+        </Button>
+      );
+    }
+    if (incompleteSetup) {
+      const { concession, status } = incompleteSetup;
+      return (
+        <Button asChild variant="on-dark" size="sm">
+          <Link href={`/superAdmin/concesiones/${concession.id}`}>
+            Continuar {concession.nombre} ({status.completedCount}/{status.totalCount})
+          </Link>
+        </Button>
+      );
+    }
+    if (activeConcessions.length === 0) {
+      return (
+        <Button asChild variant="on-dark" size="sm">
+          <Link href="/superAdmin/concesiones/nueva">Configurar primera concesión</Link>
+        </Button>
+      );
+    }
+    return (
+      <Button asChild variant="on-dark" size="sm">
+        <Link href="/superAdmin/concesiones/nueva">Nueva concesión</Link>
+      </Button>
+    );
+  }, [zonas.length, incompleteSetup, activeConcessions.length]);
+
   return (
     <RequireRole superAdminOnly>
       <div className="space-y-6">
         <DashboardBanner
           title={`Hola, ${posUser?.nombre ?? "SuperAdmin"}`}
-          subtitle="Panel de plataforma — gestiona concesiones, usuarios y zonas, y consulta reportes operativos."
-          action={
-            <Button asChild variant="on-dark" size="sm">
-              <Link href="/superAdmin/concesiones">Nueva concesión</Link>
-            </Button>
+          subtitle={
+            zonas.length === 0
+              ? "Empieza definiendo las zonas del estadio, luego configura cada concesión paso a paso."
+              : incompleteSetup
+                ? `«${incompleteSetup.concession.nombre}» tiene configuración pendiente.`
+                : "Panel de plataforma — gestiona concesiones y consulta reportes operativos."
           }
+          action={bannerAction}
         />
+
+        {zonas.length === 0 && (
+          <div className="rounded-[12px] border border-amber-200 bg-amber-50 p-4 text-[1.4rem] text-amber-900">
+            Paso 0: crea las zonas del estadio antes de registrar sucursales.{" "}
+            <Link href="/superAdmin/zonas" className="font-medium underline">
+              Ir a zonas
+            </Link>
+          </div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
@@ -154,6 +223,15 @@ export default function SuperAdminDashboardPage() {
                     <Badge variant={r.activo ? "default" : "secondary"}>
                       {r.activo ? "Activa" : "Inactiva"}
                     </Badge>
+                  ),
+                },
+                {
+                  key: "config",
+                  header: "",
+                  cell: (r) => (
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/superAdmin/concesiones/${r.id}`}>Configurar</Link>
+                    </Button>
                   ),
                 },
               ]}

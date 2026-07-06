@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   MapPin,
   Package,
+  Settings2,
   ShoppingCart,
   Store,
   Users,
@@ -41,8 +42,14 @@ export function getDashboardNav(perms: PermissionFlags): NavGroup[] {
       ],
     });
     groups.push({
-      title: "Plataforma",
+      title: "Configuración",
       items: [
+        {
+          href: "/superAdmin/concesiones/nueva",
+          label: "Asistente de alta",
+          icon: Settings2,
+          permission: "canManageConcessions",
+        },
         {
           href: "/superAdmin/concesiones",
           label: "Concesiones",
@@ -50,20 +57,25 @@ export function getDashboardNav(perms: PermissionFlags): NavGroup[] {
           permission: "canManageConcessions",
         },
         {
+          href: "/superAdmin/zonas",
+          label: "Zonas del estadio",
+          icon: MapPin,
+          permission: "canManageZonas",
+        },
+        {
           href: "/superAdmin/usuarios",
           label: "Usuarios",
           icon: Users,
           permission: "canManageUsers",
         },
-        {
-          href: "/superAdmin/zonas",
-          label: "Zonas",
-          icon: MapPin,
-          permission: "canManageZonas",
-        },
+      ],
+    });
+    groups.push({
+      title: "Operación",
+      items: [
         {
           href: "/sucursales",
-          label: "Sucursales",
+          label: "Sucursales y cajas",
           icon: Store,
           permission: "canManageSucursales",
         },
