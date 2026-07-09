@@ -166,17 +166,88 @@ export interface Ticket {
   idUser?: string | null;
 }
 
+export interface CorteResumenProducto {
+  productoId: string;
+  nombre: string;
+  cantidad: number;
+  subtotal: number;
+  /** Precio real por unidad tal como se registró en la línea de venta. */
+  precioUnitario: number;
+}
+
+export interface CorteResumenPromociones2x1 {
+  montoTotal: number;
+  montoDescuento: number;
+  unidadesGratis: number;
+  cantidadTransacciones: number;
+}
+
+export interface CorteResumenComboLinea {
+  comboId: string;
+  nombre: string;
+  cantidadVendidos: number;
+  montoTotal: number;
+}
+
+export interface CorteResumenCombos {
+  montoTotal: number;
+  cantidadVendidos: number;
+  items: CorteResumenComboLinea[];
+}
+
+export interface CorteResumen {
+  /** Dinero real vendido = efectivo + tarjeta. NO incluye puntos. */
+  totalVendido: number;
+  totalEfectivo: number;
+  totalTarjeta: number;
+  /** Monto ($) canjeado con puntos. Informativo: NO se suma al dinero real. */
+  totalPuntosMonto: number;
+  totalPuntosCanjeados: number;
+  ventasConPuntos: number;
+  cantidadVentas: number;
+  productos: CorteResumenProducto[];
+  promociones2x1: CorteResumenPromociones2x1;
+  combos: CorteResumenCombos;
+  /** Efectivo físico contado al cerrar (arqueo). null si el corte no está cerrado. */
+  efectivoContado: number | null;
+  /** efectivoContado - totalEfectivo. Positivo = sobrante, negativo = faltante. */
+  diferenciaCaja: number | null;
+  cajaNombre: string | null;
+  cajeroNombre: string | null;
+  corteCerrado: boolean;
+  corteId: string | null;
+}
+
 export interface Corte {
   id: string;
   ventaId: string | null;
   idUser: string | null;
   concesionId: string;
   sucursalId?: string | null;
+  jornadaId?: string | null;
+  inventarioId?: string | null;
+  cajaId?: string | null;
+  cajaNombre?: string | null;
+  secuencia?: number | null;
+  ventasAbiertas?: boolean | null;
   fecha: string;
   comentarios: string | null;
   estatus: string;
   totalReal: number;
   totalCaja: number;
+  totalEfectivo?: number | null;
+  totalTarjeta?: number | null;
+  totalPuntosMonto?: number | null;
+  totalPuntosCanjeados?: number | null;
+  ventasConPuntos?: number | null;
+  cantidadVentas?: number | null;
+  efectivoContado?: number | null;
+  diferenciaCaja?: number | null;
+  productos?: CorteResumenProducto[] | null;
+  promociones2x1?: CorteResumenPromociones2x1 | null;
+  combos?: CorteResumenCombos | null;
+  createdAt?: unknown;
+  updatedAt?: unknown;
 }
 
 export interface JornadaActivaValue {
@@ -251,10 +322,28 @@ export interface TrabajadorClub {
   email: string;
   telefono?: string | null;
   roles: string[];
-  cortesiaCanjeada: boolean;
+  cortesiasTotal: number;
+  cortesiasCanjeadas: number;
   trabajadorClubAgregadoAt?: string | null;
   trabajadorClubAgregadoPor?: string | null;
   activo: boolean;
   puntosActuales?: number;
   nivel?: string | null;
+}
+
+export interface CortesiaTrabajadorClub {
+  id: string;
+  torneo: string;
+  torneoPath: string;
+  partidoKey: string;
+  jornada: number;
+  fecha: string;
+  hora?: string | null;
+  equipoLocal: string;
+  equipoVisitante: string;
+  estadio?: string | null;
+  cortesiaCanjeada: boolean;
+  syncedAt?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
 }

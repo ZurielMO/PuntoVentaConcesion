@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, apiPaths, type ApiResponse } from "@/lib/api/client";
 import { useAuth } from "@/hooks/use-auth";
-import type { TrabajadorClub, TrabajadorClubPreview } from "@/lib/types";
+import type {
+  CortesiaTrabajadorClub,
+  TrabajadorClub,
+  TrabajadorClubPreview,
+} from "@/lib/types";
 
 export function useTrabajadoresClub() {
   const { token } = useAuth();
@@ -66,6 +70,18 @@ export function useTrabajadoresClub() {
     [token],
   );
 
+  const fetchCortesias = useCallback(
+    async (uid: string) => {
+      if (!token) throw new Error("Sin sesión");
+      const res = await api.get<ApiResponse<CortesiaTrabajadorClub[]>>(
+        `${apiPaths.trabajadoresClub}/${uid}/cortesias`,
+        token,
+      );
+      return res.data ?? [];
+    },
+    [token],
+  );
+
   const addTrabajador = useCallback(
     async (uid: string) => {
       if (!token) throw new Error("Sin sesión");
@@ -82,10 +98,10 @@ export function useTrabajadoresClub() {
   );
 
   const updateCortesiaCanjeada = useCallback(
-    async (uid: string, cortesiaCanjeada: boolean) => {
+    async (uid: string, cortesiaId: string, cortesiaCanjeada: boolean) => {
       if (!token) throw new Error("Sin sesión");
-      const res = await api.patch<ApiResponse<TrabajadorClub>>(
-        `${apiPaths.trabajadoresClub}/${uid}`,
+      const res = await api.patch<ApiResponse<CortesiaTrabajadorClub>>(
+        `${apiPaths.trabajadoresClub}/${uid}/cortesias/${cortesiaId}`,
         { cortesiaCanjeada },
         token,
       );
@@ -117,6 +133,7 @@ export function useTrabajadoresClub() {
     searching,
     searchError,
     searchByEmail,
+    fetchCortesias,
     addTrabajador,
     updateCortesiaCanjeada,
     removeTrabajador,

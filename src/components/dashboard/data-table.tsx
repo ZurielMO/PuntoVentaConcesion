@@ -55,8 +55,8 @@ export function DataTable<T>({
   }
 
   return (
-    <div className={cn("dashboard-card overflow-hidden", className)}>
-      <Table>
+    <div className={cn("dashboard-card overflow-x-auto", className)}>
+      <Table className="w-full">
         <TableHeader>
           <TableRow>
             {columns.map((col) => (

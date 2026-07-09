@@ -3,13 +3,32 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, apiPaths, type ApiResponse } from "@/lib/api/client";
 import { useAuth } from "@/hooks/use-auth";
-import type { Corte, ComprobanteVenta, DetalleProducto } from "@/lib/types";
+import type {
+  Corte,
+  CorteResumen,
+  ComprobanteVenta,
+  DetalleProducto,
+} from "@/lib/types";
 
-export function useCortes() {
+export type CorteFilters = {
+  concesionId?: string;
+  sucursalId?: string;
+};
+
+function buildCorteQuery(filters?: CorteFilters): string {
+  const qs = new URLSearchParams();
+  if (filters?.concesionId) qs.set("concesionId", filters.concesionId);
+  if (filters?.sucursalId) qs.set("sucursalId", filters.sucursalId);
+  return qs.toString();
+}
+
+export function useCortes(filters?: CorteFilters) {
   const { token } = useAuth();
   const [cortes, setCortes] = useState<Corte[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const query = buildCorteQuery(filters);
 
   const fetchCortes = useCallback(async () => {
     if (!token) {
@@ -20,7 +39,8 @@ export function useCortes() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<ApiResponse<Corte[]>>(apiPaths.cortes, token);
+      const path = query ? `${apiPaths.cortes}?${query}` : apiPaths.cortes;
+      const res = await api.get<ApiResponse<Corte[]>>(path, token);
       setCortes(res.data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar cortes");
@@ -28,7 +48,7 @@ export function useCortes() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, query]);
 
   const createCorte = useCallback(
     async (payload: {
@@ -51,6 +71,42 @@ export function useCortes() {
   }, [fetchCortes]);
 
   return { cortes, loading, error, refetch: fetchCortes, createCorte };
+}
+
+export function useCorteResumen(filters?: CorteFilters) {
+  const { token } = useAuth();
+  const [resumen, setResumen] = useState<CorteResumen | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const query = buildCorteQuery(filters);
+
+  const fetchResumen = useCallback(async () => {
+    if (!token) {
+      setResumen(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const base = `${apiPaths.cortes}/resumen`;
+      const path = query ? `${base}?${query}` : base;
+      const res = await api.get<ApiResponse<CorteResumen>>(path, token);
+      setResumen(res.data ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al cargar el resumen");
+      setResumen(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, query]);
+
+  useEffect(() => {
+    fetchResumen();
+  }, [fetchResumen]);
+
+  return { resumen, loading, error, refetch: fetchResumen };
 }
 
 export function useDetalleVentas(filters?: {

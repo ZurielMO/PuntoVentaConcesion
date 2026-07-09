@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { RefreshCw, Search, Trash2, UserPlus, X } from "lucide-react";
+import { Eye, RefreshCw, Search, Trash2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ import { DataTable } from "@/components/dashboard/data-table";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { useTrabajadoresClub } from "@/hooks/use-trabajadores-club";
 import { formatDateTime } from "@/lib/format";
-import type { TrabajadorClub } from "@/lib/types";
+import type { CortesiaTrabajadorClub, TrabajadorClub } from "@/lib/types";
 
 export default function TrabajadoresClubPage() {
   const {
@@ -33,6 +33,7 @@ export default function TrabajadoresClubPage() {
     searching,
     searchError,
     searchByEmail,
+    fetchCortesias,
     addTrabajador,
     updateCortesiaCanjeada,
     removeTrabajador,
@@ -43,7 +44,12 @@ export default function TrabajadoresClubPage() {
   const [adding, setAdding] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removing, setRemoving] = useState<TrabajadorClub | null>(null);
-  const [togglingUid, setTogglingUid] = useState<string | null>(null);
+  const [cortesiasDialogOpen, setCortesiasDialogOpen] = useState(false);
+  const [selectedTrabajador, setSelectedTrabajador] =
+    useState<TrabajadorClub | null>(null);
+  const [cortesias, setCortesias] = useState<CortesiaTrabajadorClub[]>([]);
+  const [cortesiasLoading, setCortesiasLoading] = useState(false);
+  const [togglingKey, setTogglingKey] = useState<string | null>(null);
 
   const handleSearch = async (e: FormEvent) => {
     e.preventDefault();
@@ -65,7 +71,7 @@ export default function TrabajadoresClubPage() {
     setAdding(true);
     try {
       await addTrabajador(searchResult.uid);
-      toast.success("Trabajador del club agregado");
+      toast.success("Trabajador del club agregado con cortesías del torneo");
       setEmail("");
     } catch (err) {
       toast.error(
@@ -76,17 +82,42 @@ export default function TrabajadoresClubPage() {
     }
   };
 
-  const handleToggleCortesia = async (row: TrabajadorClub) => {
-    setTogglingUid(row.uid);
+  const openCortesias = async (row: TrabajadorClub) => {
+    setSelectedTrabajador(row);
+    setCortesiasDialogOpen(true);
+    setCortesiasLoading(true);
     try {
-      await updateCortesiaCanjeada(row.uid, !row.cortesiaCanjeada);
+      const data = await fetchCortesias(row.uid);
+      setCortesias(data);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "No se pudieron cargar las cortesías",
+      );
+      setCortesias([]);
+    } finally {
+      setCortesiasLoading(false);
+    }
+  };
+
+  const handleToggleCortesia = async (cortesia: CortesiaTrabajadorClub) => {
+    if (!selectedTrabajador) return;
+    setTogglingKey(cortesia.id);
+    try {
+      const updated = await updateCortesiaCanjeada(
+        selectedTrabajador.uid,
+        cortesia.id,
+        !cortesia.cortesiaCanjeada,
+      );
+      setCortesias((prev) =>
+        prev.map((item) => (item.id === updated.id ? updated : item)),
+      );
       toast.success("Cortesía actualizada");
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "No se pudo actualizar la cortesía",
       );
     } finally {
-      setTogglingUid(null);
+      setTogglingKey(null);
     }
   };
 
@@ -118,19 +149,13 @@ export default function TrabajadoresClubPage() {
       cell: (row: TrabajadorClub) => row.email,
     },
     {
-      key: "telefono",
-      header: "Teléfono",
-      cell: (row: TrabajadorClub) => row.telefono ?? "—",
-    },
-    {
-      key: "nivel",
-      header: "Nivel",
-      cell: (row: TrabajadorClub) => row.nivel ?? "—",
-    },
-    {
-      key: "puntos",
-      header: "Puntos",
-      cell: (row: TrabajadorClub) => row.puntosActuales ?? 0,
+      key: "cortesias",
+      header: "Cortesías",
+      cell: (row: TrabajadorClub) => (
+        <span>
+          {row.cortesiasCanjeadas}/{row.cortesiasTotal} canjeadas
+        </span>
+      ),
     },
     {
       key: "agregado",
@@ -144,18 +169,28 @@ export default function TrabajadoresClubPage() {
       key: "acciones",
       header: "",
       cell: (row: TrabajadorClub) => (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-destructive hover:text-destructive"
-          onClick={() => {
-            setRemoving(row);
-            setRemoveDialogOpen(true);
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void openCortesias(row)}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            onClick={() => {
+              setRemoving(row);
+              setRemoveDialogOpen(true);
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       ),
     },
   ];
@@ -165,7 +200,7 @@ export default function TrabajadoresClubPage() {
       <div className="space-y-6">
         <PageHeader
           title="Trabajadores Club"
-          description="Busca clientes de la app oficial por correo y agrégalos como trabajadores del club."
+          description="Busca clientes de la app oficial por correo y agrégalos como trabajadores del club con cortesías por jornada de local."
         />
 
         <section className="rounded-lg border bg-card p-4 space-y-4">
@@ -214,30 +249,8 @@ export default function TrabajadoresClubPage() {
                   {searchResult.esTrabajadorClub && (
                     <Badge>TRABAJADOR_CLUBLEON</Badge>
                   )}
-                  {!searchResult.activo && (
-                    <Badge variant="destructive">Inactivo</Badge>
-                  )}
                 </div>
               </div>
-
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                <div>
-                  <dt className="text-muted-foreground">Teléfono</dt>
-                  <dd>{searchResult.telefono ?? "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Proveedor</dt>
-                  <dd>{searchResult.provider ?? "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Puntos</dt>
-                  <dd>{searchResult.puntosActuales ?? 0}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Nivel</dt>
-                  <dd>{searchResult.nivel ?? "—"}</dd>
-                </div>
-              </dl>
 
               {!searchResult.puedeAgregar && searchResult.motivoNoAgregar && (
                 <p className="text-sm text-amber-700 dark:text-amber-400">
@@ -285,14 +298,65 @@ export default function TrabajadoresClubPage() {
           />
         </section>
 
+        <Dialog open={cortesiasDialogOpen} onOpenChange={setCortesiasDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Cortesías por jornada</DialogTitle>
+              <DialogDescription>
+                {selectedTrabajador?.nombre} — partidos de local del torneo actual.
+              </DialogDescription>
+            </DialogHeader>
+
+            {cortesiasLoading ? (
+              <p className="text-sm text-muted-foreground">Cargando cortesías…</p>
+            ) : cortesias.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No hay cortesías sincronizadas. Verifica el calendario en RTDB o espera
+                al cron semanal.
+              </p>
+            ) : (
+              <div className="max-h-[50vh] overflow-y-auto space-y-2">
+                {cortesias.map((cortesia) => (
+                  <div
+                    key={cortesia.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-md border p-3"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        J{cortesia.jornada}: {cortesia.equipoLocal} vs{" "}
+                        {cortesia.equipoVisitante}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {cortesia.fecha}
+                        {cortesia.hora ? ` · ${cortesia.hora}` : ""}
+                        {cortesia.estadio ? ` · ${cortesia.estadio}` : ""}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{cortesia.torneo}</p>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                      <Checkbox
+                        checked={cortesia.cortesiaCanjeada}
+                        disabled={togglingKey === cortesia.id}
+                        onChange={() => void handleToggleCortesia(cortesia)}
+                      />
+                      <span className="text-sm">
+                        {cortesia.cortesiaCanjeada ? "Canjeada" : "Pendiente"}
+                      </span>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Quitar trabajador del club</DialogTitle>
               <DialogDescription>
-                Se removerá el rol TRABAJADOR_CLUBLEON de{" "}
-                <strong>{removing?.nombre}</strong>. Seguirá siendo CLIENTE en
-                la app.
+                Se removerá el rol TRABAJADOR_CLUBLEON y sus cortesías de{" "}
+                <strong>{removing?.nombre}</strong>. Seguirá siendo CLIENTE en la app.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

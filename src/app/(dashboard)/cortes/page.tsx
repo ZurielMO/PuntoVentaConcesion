@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { Plus, RefreshCw } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
+import { Eye, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,17 +18,53 @@ import {
 import { RequireRole } from "@/components/auth/require-role";
 import { DataTable } from "@/components/dashboard/data-table";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { CorteResumenPanel } from "@/components/dashboard/corte-resumen-panel";
+import { CorteDetalleDialog } from "@/components/dashboard/corte-detalle-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { useCortes } from "@/hooks/use-cortes";
+import { useCortes, useCorteResumen, type CorteFilters } from "@/hooks/use-cortes";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useConcessions } from "@/hooks/use-concessions";
+import { useSucursales } from "@/hooks/use-sucursales";
 import { formatPrice } from "@/lib/format";
 import type { Corte } from "@/lib/types";
 
+const nullableMoney = (value?: number | null) =>
+  value == null ? "—" : formatPrice(Number(value));
+
 export default function CortesPage() {
   const perms = usePermissions();
-  const { cortes, loading, error, refetch, createCorte } = useCortes();
   const canManage = perms.canManageCortes;
+  const canFilter = perms.isSuperAdmin || perms.isAdmin;
 
+  const [concesionId, setConcesionId] = useState("");
+  const [sucursalId, setSucursalId] = useState("");
+
+  const filters = useMemo<CorteFilters>(() => {
+    const f: CorteFilters = {};
+    if (perms.isSuperAdmin && concesionId) f.concesionId = concesionId;
+    if (sucursalId) f.sucursalId = sucursalId;
+    return f;
+  }, [perms.isSuperAdmin, concesionId, sucursalId]);
+
+  const { cortes, loading, error, refetch, createCorte } = useCortes(filters);
+  const {
+    resumen,
+    loading: loadingResumen,
+    error: errorResumen,
+    refetch: refetchResumen,
+  } = useCorteResumen(filters);
+  const { concessions } = useConcessions();
+  const { sucursales } = useSucursales();
+
+  const sucursalesFiltradas = useMemo(() => {
+    if (perms.isSuperAdmin && concesionId) {
+      return sucursales.filter((s) => s.concesion_id === concesionId);
+    }
+    return sucursales;
+  }, [sucursales, perms.isSuperAdmin, concesionId]);
+
+  const [detalleCorte, setDetalleCorte] = useState<Corte | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({
     fecha: new Date().toISOString().slice(0, 10),
@@ -38,6 +74,16 @@ export default function CortesPage() {
     comentarios: "",
   });
   const [submitting, setSubmitting] = useState(false);
+
+  const refreshAll = () => {
+    void refetch();
+    void refetchResumen();
+  };
+
+  const handleConcesionChange = (value: string) => {
+    setConcesionId(value);
+    setSucursalId("");
+  };
 
   const closeDialog = () => {
     setDialogOpen(false);
@@ -63,6 +109,7 @@ export default function CortesPage() {
       });
       toast.success("Corte registrado");
       closeDialog();
+      void refetchResumen();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al registrar corte");
     } finally {
@@ -74,11 +121,7 @@ export default function CortesPage() {
     <RequireRole authenticated>
       <PageHeader
         title="Cortes de caja"
-        description={
-          perms.isSuperAdmin
-            ? "Reporte de cortes de caja (solo lectura)."
-            : "Registro de cierres de caja por jornada."
-        }
+        description="Reporte de ventas por concesión y sucursal: desglose de lo vendido, venta neta y puntos canjeados."
         actions={
           <div className="flex flex-wrap gap-2">
             {canManage && (
@@ -87,7 +130,7 @@ export default function CortesPage() {
                 Agregar
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <Button variant="outline" size="sm" onClick={refreshAll}>
               <RefreshCw className="size-4" />
               Actualizar
             </Button>
@@ -95,40 +138,150 @@ export default function CortesPage() {
         }
       />
 
-      {error && (
-        <div className="mb-4 rounded-[8px] border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
-          {error}
+      {canFilter && (
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:max-w-2xl">
+          {perms.isSuperAdmin && (
+            <Field label="Concesión" htmlFor="filtro-concesion">
+              <NativeSelect
+                id="filtro-concesion"
+                value={concesionId}
+                onChange={(e) => handleConcesionChange(e.target.value)}
+              >
+                <option value="">Todas las concesiones</option>
+                {concessions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+          )}
+          <Field label="Sucursal" htmlFor="filtro-sucursal">
+            <NativeSelect
+              id="filtro-sucursal"
+              value={sucursalId}
+              onChange={(e) => setSucursalId(e.target.value)}
+            >
+              <option value="">Todas las sucursales</option>
+              {sucursalesFiltradas.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nombre ?? s.id}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
         </div>
       )}
 
-      <DataTable<Corte>
-        loading={loading}
-        data={cortes}
-        getRowKey={(c) => c.id}
-        emptyMessage="No hay cortes registrados."
-        columns={[
-          { key: "fecha", header: "Fecha", cell: (c) => c.fecha },
-          {
-            key: "estatus",
-            header: "Estatus",
-            cell: (c) => <Badge variant="secondary">{c.estatus}</Badge>,
-          },
-          {
-            key: "totalReal",
-            header: "Total real",
-            cell: (c) => formatPrice(Number(c.totalReal)),
-          },
-          {
-            key: "totalCaja",
-            header: "Total caja",
-            cell: (c) => formatPrice(Number(c.totalCaja)),
-          },
-          {
-            key: "comentarios",
-            header: "Comentarios",
-            cell: (c) => c.comentarios || "—",
-          },
-        ]}
+      <section className="mb-8">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <h2 className="text-[1.8rem] font-semibold text-green-dark">
+            Resumen del corte actual
+          </h2>
+          {resumen && (
+            <Badge variant={resumen.corteCerrado ? "secondary" : "default"}>
+              {resumen.corteCerrado ? "Corte cerrado" : "En curso"}
+            </Badge>
+          )}
+        </div>
+
+        {errorResumen && (
+          <div className="rounded-sm border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
+            {errorResumen}
+          </div>
+        )}
+
+        {loadingResumen ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-md" />
+            ))}
+          </div>
+        ) : resumen ? (
+          <CorteResumenPanel resumen={resumen} />
+        ) : (
+          !errorResumen && (
+            <div className="dashboard-card p-8 text-center">
+              <p className="text-[1.4rem] text-muted-foreground">
+                No hay datos de ventas para el periodo actual.
+              </p>
+            </div>
+          )
+        )}
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-[1.8rem] font-semibold text-green-dark">
+          Historial de cortes
+        </h2>
+
+        {error && (
+          <div className="mb-4 rounded-sm border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
+            {error}
+          </div>
+        )}
+
+        <DataTable<Corte>
+          loading={loading}
+          data={cortes}
+          getRowKey={(c) => c.id}
+          emptyMessage="No hay cortes registrados."
+          columns={[
+            { key: "fecha", header: "Fecha", cell: (c) => c.fecha },
+            {
+              key: "estatus",
+              header: "Estatus",
+              cell: (c) => <Badge variant="secondary">{c.estatus}</Badge>,
+            },
+            {
+              key: "totalReal",
+              header: "Venta neta",
+              cell: (c) => (
+                <span className="font-medium">
+                  {formatPrice(Number(c.totalReal))}
+                </span>
+              ),
+            },
+            {
+              key: "totalEfectivo",
+              header: "Efectivo",
+              cell: (c) => nullableMoney(c.totalEfectivo ?? c.totalCaja),
+            },
+            {
+              key: "totalTarjeta",
+              header: "Tarjeta",
+              cell: (c) => nullableMoney(c.totalTarjeta),
+            },
+            {
+              key: "puntos",
+              header: "Puntos",
+              cell: (c) =>
+                c.totalPuntosCanjeados
+                  ? `${Number(c.totalPuntosCanjeados).toLocaleString("es-MX")} (${nullableMoney(c.totalPuntosMonto)})`
+                  : "—",
+            },
+            {
+              key: "detalle",
+              header: "",
+              cell: (c) => (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setDetalleCorte(c)}
+                >
+                  <Eye className="size-4" />
+                  Detalle
+                </Button>
+              ),
+            },
+          ]}
+        />
+      </section>
+
+      <CorteDetalleDialog
+        corte={detalleCorte}
+        open={Boolean(detalleCorte)}
+        onOpenChange={(open) => !open && setDetalleCorte(null)}
       />
 
       {canManage && (

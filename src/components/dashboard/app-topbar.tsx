@@ -105,25 +105,6 @@ export function AppTopbar() {
       </div>
 
       <div className="flex items-center gap-3">
-        {perms.isSuperAdmin && concessions.length > 0 && activeCtx && (
-          <NativeSelect
-            value={activeCtx.activeConcesionId ?? ""}
-            onChange={(e) =>
-              activeCtx.setActiveConcesionId(e.target.value ? e.target.value : null)
-            }
-            className="hidden max-w-[220px] md:block"
-            aria-label="Concesión activa"
-          >
-            <option value="">Todas las concesiones</option>
-            {concessions
-              .filter((c) => c.activo !== false)
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre}
-                </option>
-              ))}
-          </NativeSelect>
-        )}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
