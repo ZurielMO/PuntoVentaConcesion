@@ -73,7 +73,8 @@ export default function NuevaConcesionWizardPage() {
   const router = useRouter();
   const { setActiveConcesionId } = useActiveConcesion();
 
-  const { concessions, createConcession, uploadConcessionImages } = useConcessions();
+  const { concessions, createConcession, updateConcession, uploadConcessionImages } =
+    useConcessions();
   const { zonas } = useZonas();
   const { createUser } = useUsers();
   const { createProduct, createProductWithImages } = useProducts();
@@ -84,6 +85,7 @@ export default function NuevaConcesionWizardPage() {
   const [resumeId, setResumeId] = useState<string | null>(null);
 
   const [concesionNombre, setConcesionNombre] = useState("");
+  const [concesionPorcentajeComision, setConcesionPorcentajeComision] = useState("0");
   const [concesionImage, setConcesionImage] = useState<File | null>(null);
   const [sucursalNombre, setSucursalNombre] = useState("");
   const [zonaId, setZonaId] = useState("");
@@ -141,9 +143,20 @@ export default function NuevaConcesionWizardPage() {
   useEffect(() => {
     if (resumeId) {
       const existing = concessions.find((c) => c.id === resumeId);
-      if (existing) setConcesionNombre(existing.nombre);
+      if (existing) {
+        setConcesionNombre(existing.nombre);
+        setConcesionPorcentajeComision(String(existing.porcentajeComision ?? 0));
+      }
     }
   }, [resumeId, concessions]);
+
+  const parseConcesionPorcentajeComision = () => {
+    const value = Number(concesionPorcentajeComision);
+    if (Number.isNaN(value) || value < 0 || value > 100) {
+      throw new Error("Ingresa un porcentaje de comisión entre 0 y 100");
+    }
+    return value;
+  };
 
   const cajasValidas = useMemo(
     () =>
@@ -208,6 +221,12 @@ export default function NuevaConcesionWizardPage() {
     e.preventDefault();
     if (!resumeId && !concesionNombre.trim()) {
       toast.error("Ingresa el nombre de la concesión");
+      return;
+    }
+    try {
+      parseConcesionPorcentajeComision();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Comisión inválida");
       return;
     }
     goNext();
@@ -318,6 +337,7 @@ export default function NuevaConcesionWizardPage() {
   const handleFinalCreate = async () => {
     setCreating(true);
     try {
+      const comision = parseConcesionPorcentajeComision();
       let concesionId = resumeId;
 
       if (!concesionId) {
@@ -325,11 +345,20 @@ export default function NuevaConcesionWizardPage() {
           nombre: concesionNombre.trim(),
           activo: true,
           imagenes: [],
+          porcentajeComision: comision,
         });
         concesionId = created.id;
         if (concesionImage) {
           await uploadConcessionImages(created.id, [concesionImage]);
         }
+      } else {
+        const existing = concessions.find((c) => c.id === concesionId);
+        await updateConcession(concesionId, {
+          nombre: concesionNombre.trim(),
+          activo: existing?.activo ?? true,
+          imagenes: existing?.imagenes ?? [],
+          porcentajeComision: comision,
+        });
       }
 
       const sucursal = await createSucursal(concesionId, zonaId, {
@@ -445,6 +474,22 @@ export default function NuevaConcesionWizardPage() {
                         placeholder="Ej. Taquería León"
                         required={!resumeId}
                         disabled={Boolean(resumeId)}
+                      />
+                    </Field>
+                    <Field
+                      label="Porcentaje de comisión (%)"
+                      htmlFor="concesionPorcentajeComision"
+                      hint="Se aplicará en los reportes de cortes de esta concesión"
+                    >
+                      <Input
+                        id="concesionPorcentajeComision"
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.01}
+                        value={concesionPorcentajeComision}
+                        onChange={(e) => setConcesionPorcentajeComision(e.target.value)}
+                        required
                       />
                     </Field>
                   </div>
@@ -786,6 +831,7 @@ export default function NuevaConcesionWizardPage() {
             {step === "resumen" && (
               <WizardResumen
                 concesionNombre={concesionNombre}
+                concesionPorcentajeComision={concesionPorcentajeComision}
                 imagePreview={imagePreview}
                 sucursalNombre={sucursalNombre}
                 zonaLabel={zonaId ? zonaNombre(zonaId) : "—"}
@@ -814,6 +860,7 @@ export default function NuevaConcesionWizardPage() {
 
 function WizardResumen({
   concesionNombre,
+  concesionPorcentajeComision,
   imagePreview,
   sucursalNombre,
   zonaLabel,
@@ -827,6 +874,7 @@ function WizardResumen({
   onCreate,
 }: {
   concesionNombre: string;
+  concesionPorcentajeComision: string;
   imagePreview: string | null;
   sucursalNombre: string;
   zonaLabel: string;
@@ -859,7 +907,9 @@ function WizardResumen({
             )}
             <div className="min-w-0">
               <p className="text-[1.7rem] font-bold text-[#206734]">{concesionNombre}</p>
-              <p className="text-[1.25rem] text-[#6b7280]">Lista para operar en el estadio</p>
+              <p className="text-[1.25rem] text-[#6b7280]">
+                Comisión {concesionPorcentajeComision}% · Lista para operar en el estadio
+              </p>
             </div>
           </div>
         </div>

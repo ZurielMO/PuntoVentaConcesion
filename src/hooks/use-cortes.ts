@@ -8,11 +8,17 @@ import type {
   CorteResumen,
   ComprobanteVenta,
   DetalleProducto,
+  ReporteCortes,
 } from "@/lib/types";
 
 export type CorteFilters = {
   concesionId?: string;
   sucursalId?: string;
+};
+
+export type ReporteCortesFilters = CorteFilters & {
+  fecha?: string;
+  jornada?: number;
 };
 
 function buildCorteQuery(filters?: CorteFilters): string {
@@ -107,6 +113,51 @@ export function useCorteResumen(filters?: CorteFilters) {
   }, [fetchResumen]);
 
   return { resumen, loading, error, refetch: fetchResumen };
+}
+
+function buildReporteQuery(filters?: ReporteCortesFilters): string {
+  const qs = new URLSearchParams();
+  if (filters?.concesionId) qs.set("concesionId", filters.concesionId);
+  if (filters?.sucursalId) qs.set("sucursalId", filters.sucursalId);
+  if (filters?.fecha) qs.set("fecha", filters.fecha);
+  if (filters?.jornada != null) qs.set("jornada", String(filters.jornada));
+  return qs.toString();
+}
+
+export function useReporteCortes(filters?: ReporteCortesFilters) {
+  const { token } = useAuth();
+  const [reporte, setReporte] = useState<ReporteCortes | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const query = buildReporteQuery(filters);
+
+  const fetchReporte = useCallback(async () => {
+    if (!token) {
+      setReporte(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const base = `${apiPaths.cortes}/reporte`;
+      const path = query ? `${base}?${query}` : base;
+      const res = await api.get<ApiResponse<ReporteCortes>>(path, token);
+      setReporte(res.data ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al cargar el reporte");
+      setReporte(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, query]);
+
+  useEffect(() => {
+    fetchReporte();
+  }, [fetchReporte]);
+
+  return { reporte, loading, error, refetch: fetchReporte };
 }
 
 export function useDetalleVentas(filters?: {

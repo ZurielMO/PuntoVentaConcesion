@@ -28,6 +28,7 @@ export interface Concession {
   activo: boolean;
   imagenes?: string[];
   idUser?: string | null;
+  porcentajeComision?: number | null;
 }
 
 export interface User {
@@ -248,6 +249,31 @@ export interface Corte {
   combos?: CorteResumenCombos | null;
   createdAt?: unknown;
   updatedAt?: unknown;
+}
+
+export interface ReporteProductoRow {
+  productoId: string;
+  nombre: string;
+  inventarioInicial: number;
+  precioUnitario: number;
+  inventarioFinal: number;
+  cortesias: number;
+  totalVendido: number;
+}
+
+export interface ReporteConcesionRow {
+  concesionId: string;
+  nombre: string;
+  porcentajeComision: number;
+  totalVenta: number;
+  comision: number;
+  gananciaConcesion: number;
+}
+
+export interface ReporteCortes {
+  jornada: { fecha: string; numero: number; jornadaId: string };
+  productos: ReporteProductoRow[] | null;
+  resumen: ReporteConcesionRow[];
 }
 
 export interface JornadaActivaValue {

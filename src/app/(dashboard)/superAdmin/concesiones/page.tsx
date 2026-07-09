@@ -37,6 +37,7 @@ export default function ConcesionesPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [nombre, setNombre] = useState("");
+  const [porcentajeComision, setPorcentajeComision] = useState("0");
   const [editing, setEditing] = useState<Concession | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -56,6 +57,7 @@ export default function ConcesionesPage() {
   const openCreate = () => {
     setEditing(null);
     setNombre("");
+    setPorcentajeComision("0");
     setImageFiles([]);
     setDialogOpen(true);
   };
@@ -63,6 +65,7 @@ export default function ConcesionesPage() {
   const openEdit = (c: Concession) => {
     setEditing(c);
     setNombre(c.nombre);
+    setPorcentajeComision(String(c.porcentajeComision ?? 0));
     setImageFiles([]);
     setDialogOpen(true);
   };
@@ -71,17 +74,29 @@ export default function ConcesionesPage() {
     setDialogOpen(false);
     setEditing(null);
     setNombre("");
+    setPorcentajeComision("0");
     setImageFiles([]);
+  };
+
+  const parsePorcentajeComision = () => {
+    const value = Number(porcentajeComision);
+    if (Number.isNaN(value) || value < 0 || value > 100) {
+      throw new Error("Ingresa un porcentaje de comisión entre 0 y 100");
+    }
+    return value;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const comision = parsePorcentajeComision();
       if (editing) {
         await updateConcession(editing.id, {
           nombre,
           activo: editing.activo ?? true,
+          imagenes: editing.imagenes ?? [],
+          porcentajeComision: comision,
         });
         if (imageFiles.length > 0) {
           await uploadConcessionImages(editing.id, imageFiles);
@@ -92,6 +107,7 @@ export default function ConcesionesPage() {
           nombre,
           activo: true,
           imagenes: [],
+          porcentajeComision: comision,
         });
         if (imageFiles.length > 0 && created?.id) {
           await uploadConcessionImages(created.id, imageFiles);
@@ -162,6 +178,11 @@ export default function ConcesionesPage() {
             cell: (c) => <span className="font-medium">{c.nombre}</span>,
           },
           {
+            key: "comision",
+            header: "Comisión",
+            cell: (c) => `${c.porcentajeComision ?? 0}%`,
+          },
+          {
             key: "estado",
             header: "Estado",
             cell: (c) => (
@@ -211,6 +232,22 @@ export default function ConcesionesPage() {
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
                 placeholder="Nombre de la concesión"
+                required
+              />
+            </Field>
+            <Field
+              label="Porcentaje de comisión (%)"
+              htmlFor="porcentajeComision"
+              hint="Se usa en los reportes de cortes de esta concesión"
+            >
+              <Input
+                id="porcentajeComision"
+                type="number"
+                min={0}
+                max={100}
+                step={0.01}
+                value={porcentajeComision}
+                onChange={(e) => setPorcentajeComision(e.target.value)}
                 required
               />
             </Field>

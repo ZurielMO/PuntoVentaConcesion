@@ -10,6 +10,7 @@ export type ConcessionPayload = {
   nombre: string;
   activo?: boolean;
   imagenes?: string[];
+  porcentajeComision?: number;
 };
 
 export function useConcessions() {
@@ -123,6 +124,20 @@ export function useConcessions() {
     [token, fetchConcessions],
   );
 
+  const updateConcessionComision = useCallback(
+    async (id: string, porcentajeComision: number) => {
+      if (!token) throw new Error("Sin sesión");
+      const res = await api.patch<ApiResponse<Concession>>(
+        `${apiPaths.concessions}/${id}/comision`,
+        { porcentajeComision },
+        token,
+      );
+      await fetchConcessions();
+      return res.data!;
+    },
+    [token, fetchConcessions],
+  );
+
   useEffect(() => {
     fetchConcessions();
   }, [fetchConcessions]);
@@ -138,5 +153,6 @@ export function useConcessions() {
     assignUser,
     uploadConcessionImages,
     deleteConcessionImage,
+    updateConcessionComision,
   };
 }

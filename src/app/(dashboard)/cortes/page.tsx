@@ -1,31 +1,33 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
-import { Eye, Plus, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { useEffect, useMemo, useState } from "react";
+import { Eye, FileDown, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Field } from "@/components/ui/field";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { RequireRole } from "@/components/auth/require-role";
 import { DataTable } from "@/components/dashboard/data-table";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { CorteResumenPanel } from "@/components/dashboard/corte-resumen-panel";
 import { CorteDetalleDialog } from "@/components/dashboard/corte-detalle-dialog";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CorteReporteProductosTable } from "@/components/dashboard/corte-reporte-productos-table";
+import { CorteReporteComisionTable } from "@/components/dashboard/corte-reporte-comision-table";
 import { Badge } from "@/components/ui/badge";
-import { useCortes, useCorteResumen, type CorteFilters } from "@/hooks/use-cortes";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  useCortes,
+  useReporteCortes,
+  type CorteFilters,
+  type ReporteCortesFilters,
+} from "@/hooks/use-cortes";
+import { useJornadas } from "@/hooks/use-inventarios";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConcessions } from "@/hooks/use-concessions";
 import { useSucursales } from "@/hooks/use-sucursales";
+import {
+  downloadReporteConcesionPdf,
+  downloadReporteConsolidadoPdf,
+} from "@/lib/cortes-pdf";
 import { formatPrice } from "@/lib/format";
 import type { Corte } from "@/lib/types";
 
@@ -34,28 +36,61 @@ const nullableMoney = (value?: number | null) =>
 
 export default function CortesPage() {
   const perms = usePermissions();
-  const canManage = perms.canManageCortes;
   const canFilter = perms.isSuperAdmin || perms.isAdmin;
 
   const [concesionId, setConcesionId] = useState("");
   const [sucursalId, setSucursalId] = useState("");
+  const [fechaJornada, setFechaJornada] = useState("");
+  const [numeroJornada, setNumeroJornada] = useState("");
+
+  const { jornadaActiva, loading: jornadaLoading } = useJornadas();
+  const { concessions } = useConcessions();
+  const { sucursales } = useSucursales();
+
+  const jornadaBanner = useMemo(() => {
+    const entries = Object.values(jornadaActiva);
+    return entries.find((j) => j.activo) ?? entries[0] ?? null;
+  }, [jornadaActiva]);
+
+  useEffect(() => {
+    if (fechaJornada || !jornadaBanner?.fecha) return;
+    setFechaJornada(String(jornadaBanner.fecha));
+    if (jornadaBanner.jornada != null) {
+      setNumeroJornada(String(jornadaBanner.jornada));
+    }
+  }, [jornadaBanner, fechaJornada]);
+
+  const effectiveConcesionId = useMemo(() => {
+    if (perms.isSuperAdmin && concesionId) return concesionId;
+    if (perms.concesionId) return perms.concesionId;
+    if (concesionId) return concesionId;
+    return "";
+  }, [perms.isSuperAdmin, perms.concesionId, concesionId]);
 
   const filters = useMemo<CorteFilters>(() => {
     const f: CorteFilters = {};
-    if (perms.isSuperAdmin && concesionId) f.concesionId = concesionId;
+    if (effectiveConcesionId) f.concesionId = effectiveConcesionId;
     if (sucursalId) f.sucursalId = sucursalId;
     return f;
-  }, [perms.isSuperAdmin, concesionId, sucursalId]);
+  }, [effectiveConcesionId, sucursalId]);
 
-  const { cortes, loading, error, refetch, createCorte } = useCortes(filters);
+  const reporteFilters = useMemo<ReporteCortesFilters>(() => {
+    const f: ReporteCortesFilters = { ...filters };
+    if (fechaJornada) f.fecha = fechaJornada;
+    const jornadaNum = Number(numeroJornada);
+    if (numeroJornada !== "" && !Number.isNaN(jornadaNum)) {
+      f.jornada = jornadaNum;
+    }
+    return f;
+  }, [filters, fechaJornada, numeroJornada]);
+
+  const { cortes, loading, error, refetch } = useCortes(filters);
   const {
-    resumen,
-    loading: loadingResumen,
-    error: errorResumen,
-    refetch: refetchResumen,
-  } = useCorteResumen(filters);
-  const { concessions } = useConcessions();
-  const { sucursales } = useSucursales();
+    reporte,
+    loading: loadingReporte,
+    error: errorReporte,
+    refetch: refetchReporte,
+  } = useReporteCortes(reporteFilters);
 
   const sucursalesFiltradas = useMemo(() => {
     if (perms.isSuperAdmin && concesionId) {
@@ -64,20 +99,16 @@ export default function CortesPage() {
     return sucursales;
   }, [sucursales, perms.isSuperAdmin, concesionId]);
 
+  const concesionActual = useMemo(
+    () => concessions.find((c) => c.id === effectiveConcesionId),
+    [concessions, effectiveConcesionId],
+  );
+
   const [detalleCorte, setDetalleCorte] = useState<Corte | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({
-    fecha: new Date().toISOString().slice(0, 10),
-    estatus: "CERRADO",
-    totalReal: "",
-    totalCaja: "",
-    comentarios: "",
-  });
-  const [submitting, setSubmitting] = useState(false);
 
   const refreshAll = () => {
     void refetch();
-    void refetchResumen();
+    void refetchReporte();
   };
 
   const handleConcesionChange = (value: string) => {
@@ -85,62 +116,40 @@ export default function CortesPage() {
     setSucursalId("");
   };
 
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setForm({
-      fecha: new Date().toISOString().slice(0, 10),
-      estatus: "CERRADO",
-      totalReal: "",
-      totalCaja: "",
-      comentarios: "",
-    });
+  const handlePdfConcesion = () => {
+    if (!reporte || !effectiveConcesionId) return;
+    const nombre =
+      concesionActual?.nombre ??
+      reporte.resumen[0]?.nombre ??
+      effectiveConcesionId;
+    downloadReporteConcesionPdf(reporte, nombre);
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      await createCorte({
-        fecha: form.fecha,
-        estatus: form.estatus,
-        totalReal: Number(form.totalReal),
-        totalCaja: Number(form.totalCaja),
-        comentarios: form.comentarios || undefined,
-      });
-      toast.success("Corte registrado");
-      closeDialog();
-      void refetchResumen();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al registrar corte");
-    } finally {
-      setSubmitting(false);
-    }
+  const handlePdfConsolidado = () => {
+    if (!reporte) return;
+    downloadReporteConsolidadoPdf(reporte);
   };
+
+  const showProductosTable = Boolean(effectiveConcesionId);
+  const canPdfConcesion = Boolean(effectiveConcesionId && reporte);
+  const canPdfConsolidado =
+    perms.isSuperAdmin && !effectiveConcesionId && Boolean(reporte);
 
   return (
     <RequireRole authenticated>
       <PageHeader
         title="Cortes de caja"
-        description="Reporte de ventas por concesión y sucursal: desglose de lo vendido, venta neta y puntos canjeados."
+        description="Reporte por producto, comisión por concesión y exportación a PDF."
         actions={
-          <div className="flex flex-wrap gap-2">
-            {canManage && (
-              <Button size="sm" onClick={() => setDialogOpen(true)}>
-                <Plus className="size-4" />
-                Agregar
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={refreshAll}>
-              <RefreshCw className="size-4" />
-              Actualizar
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={refreshAll}>
+            <RefreshCw className="size-4" />
+            Actualizar
+          </Button>
         }
       />
 
-      {canFilter && (
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:max-w-2xl">
-          {perms.isSuperAdmin && (
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {canFilter && perms.isSuperAdmin && (
             <Field label="Concesión" htmlFor="filtro-concesion">
               <NativeSelect
                 id="filtro-concesion"
@@ -156,54 +165,111 @@ export default function CortesPage() {
               </NativeSelect>
             </Field>
           )}
-          <Field label="Sucursal" htmlFor="filtro-sucursal">
-            <NativeSelect
-              id="filtro-sucursal"
-              value={sucursalId}
-              onChange={(e) => setSucursalId(e.target.value)}
-            >
-              <option value="">Todas las sucursales</option>
-              {sucursalesFiltradas.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nombre ?? s.id}
-                </option>
-              ))}
-            </NativeSelect>
+          {canFilter && (
+            <Field label="Sucursal" htmlFor="filtro-sucursal">
+              <NativeSelect
+                id="filtro-sucursal"
+                value={sucursalId}
+                onChange={(e) => setSucursalId(e.target.value)}
+              >
+                <option value="">Todas las sucursales</option>
+                {sucursalesFiltradas.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nombre ?? s.id}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+          )}
+          <Field label="Fecha jornada" htmlFor="filtro-fecha-jornada">
+            <Input
+              id="filtro-fecha-jornada"
+              type="date"
+              value={fechaJornada}
+              onChange={(e) => setFechaJornada(e.target.value)}
+              disabled={jornadaLoading && !fechaJornada}
+            />
+          </Field>
+          <Field label="Número jornada" htmlFor="filtro-num-jornada">
+            <Input
+              id="filtro-num-jornada"
+              type="number"
+              min={1}
+              step={1}
+              value={numeroJornada}
+              onChange={(e) => setNumeroJornada(e.target.value)}
+              placeholder="Ej. 1"
+            />
           </Field>
         </div>
-      )}
 
       <section className="mb-8">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <h2 className="text-[1.8rem] font-semibold text-green-dark">
-            Resumen del corte actual
-          </h2>
-          {resumen && (
-            <Badge variant={resumen.corteCerrado ? "secondary" : "default"}>
-              {resumen.corteCerrado ? "Corte cerrado" : "En curso"}
-            </Badge>
-          )}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-[1.8rem] font-semibold text-green-dark">
+              Reporte de ventas
+            </h2>
+            {reporte && (
+              <Badge variant="secondary">
+                Jornada {reporte.jornada.numero} · {reporte.jornada.fecha}
+              </Badge>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {canPdfConcesion && (
+              <Button size="sm" variant="outline" onClick={handlePdfConcesion}>
+                <FileDown className="size-4" />
+                PDF concesión
+              </Button>
+            )}
+            {canPdfConsolidado && (
+              <Button size="sm" variant="outline" onClick={handlePdfConsolidado}>
+                <FileDown className="size-4" />
+                PDF consolidado
+              </Button>
+            )}
+          </div>
         </div>
 
-        {errorResumen && (
-          <div className="rounded-sm border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
-            {errorResumen}
+        {errorReporte && (
+          <div className="mb-4 rounded-sm border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
+            {errorReporte}
           </div>
         )}
 
-        {loadingResumen ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-md" />
-            ))}
+        {loadingReporte ? (
+          <div className="space-y-4">
+            <Skeleton className="h-40 w-full rounded-md" />
+            <Skeleton className="h-32 w-full rounded-md" />
           </div>
-        ) : resumen ? (
-          <CorteResumenPanel resumen={resumen} />
+        ) : reporte ? (
+          <div className="space-y-8">
+            {showProductosTable && (
+              <div>
+                <h3 className="mb-3 text-[1.6rem] font-semibold text-green-dark">
+                  Desglose por producto
+                </h3>
+                <CorteReporteProductosTable data={reporte.productos ?? []} />
+              </div>
+            )}
+
+            <div>
+              <h3 className="mb-3 text-[1.6rem] font-semibold text-green-dark">
+                {showProductosTable
+                  ? "Resumen de comisión"
+                  : "Resumen por concesión"}
+              </h3>
+              <CorteReporteComisionTable
+                data={reporte.resumen}
+                showTotals={!showProductosTable}
+              />
+            </div>
+          </div>
         ) : (
-          !errorResumen && (
+          !errorReporte && (
             <div className="dashboard-card p-8 text-center">
               <p className="text-[1.4rem] text-muted-foreground">
-                No hay datos de ventas para el periodo actual.
+                No hay datos de reporte para los filtros seleccionados.
               </p>
             </div>
           )
@@ -228,6 +294,11 @@ export default function CortesPage() {
           emptyMessage="No hay cortes registrados."
           columns={[
             { key: "fecha", header: "Fecha", cell: (c) => c.fecha },
+            {
+              key: "caja",
+              header: "Caja",
+              cell: (c) => c.cajaNombre ?? c.cajaId ?? "—",
+            },
             {
               key: "estatus",
               header: "Estatus",
@@ -283,84 +354,6 @@ export default function CortesPage() {
         open={Boolean(detalleCorte)}
         onOpenChange={(open) => !open && setDetalleCorte(null)}
       />
-
-      {canManage && (
-        <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Nuevo corte</DialogTitle>
-              <DialogDescription>
-                Registra el cierre de caja de la jornada.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={(e) => void handleSubmit(e)} className="grid gap-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Fecha" htmlFor="fecha">
-                  <Input
-                    id="fecha"
-                    type="date"
-                    value={form.fecha}
-                    onChange={(e) => setForm({ ...form, fecha: e.target.value })}
-                    required
-                  />
-                </Field>
-                <Field label="Estatus" htmlFor="estatus">
-                  <NativeSelect
-                    id="estatus"
-                    value={form.estatus}
-                    onChange={(e) => setForm({ ...form, estatus: e.target.value })}
-                    required
-                  >
-                    <option value="CERRADO">CERRADO</option>
-                    <option value="ABIERTO">ABIERTO</option>
-                  </NativeSelect>
-                </Field>
-                <Field label="Total real" htmlFor="totalReal">
-                  <Input
-                    id="totalReal"
-                    type="number"
-                    step="0.01"
-                    value={form.totalReal}
-                    onChange={(e) =>
-                      setForm({ ...form, totalReal: e.target.value })
-                    }
-                    required
-                  />
-                </Field>
-                <Field label="Total caja" htmlFor="totalCaja">
-                  <Input
-                    id="totalCaja"
-                    type="number"
-                    step="0.01"
-                    value={form.totalCaja}
-                    onChange={(e) =>
-                      setForm({ ...form, totalCaja: e.target.value })
-                    }
-                    required
-                  />
-                </Field>
-              </div>
-              <Field label="Comentarios" htmlFor="comentarios" hint="Opcional">
-                <Input
-                  id="comentarios"
-                  value={form.comentarios}
-                  onChange={(e) =>
-                    setForm({ ...form, comentarios: e.target.value })
-                  }
-                />
-              </Field>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={closeDialog}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? "Guardando…" : "Registrar"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
     </RequireRole>
   );
 }
