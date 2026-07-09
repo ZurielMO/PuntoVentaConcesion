@@ -9,7 +9,7 @@ export type CreateUserPayload = {
   nombre: string;
   email: string;
   password: string;
-  fecha_nacimiento: string;
+  fecha_nacimiento?: string;
   rol: UserRole | string;
   concesionId: string;
   sucursalId?: string;
@@ -29,14 +29,15 @@ export type UpdateUserPayload = {
   activo?: boolean;
 };
 
-export function useUsers(concesionId?: string) {
+export function useUsers(concesionId?: string, options?: { enabled?: boolean }) {
   const { token } = useAuth();
+  const enabled = options?.enabled !== false;
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
-    if (!token) {
+    if (!token || !enabled) {
       setUsers([]);
       setLoading(false);
       return;
@@ -51,14 +52,20 @@ export function useUsers(concesionId?: string) {
         `${apiPaths.users}${qs}`,
         token,
       );
-      setUsers(res.data ?? []);
+      const data = res.data ?? [];
+      // Si hay filtro, solo conservar usuarios de esa concesión.
+      setUsers(
+        concesionId
+          ? data.filter((u) => u.concesionId === concesionId)
+          : data,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar usuarios");
       setUsers([]);
     } finally {
       setLoading(false);
     }
-  }, [token, concesionId]);
+  }, [token, concesionId, enabled]);
 
   const createUser = useCallback(
     async (payload: CreateUserPayload) => {
@@ -72,7 +79,16 @@ export function useUsers(concesionId?: string) {
   const updateUser = useCallback(
     async (id: string, payload: UpdateUserPayload) => {
       if (!token) throw new Error("Sin sesión");
-      await api.put(`${apiPaths.users}/${id}`, payload, token);
+      const body: UpdateUserPayload = { ...payload };
+      if (typeof body.password === "string") {
+        const trimmed = body.password.trim();
+        if (!trimmed) {
+          delete body.password;
+        } else {
+          body.password = trimmed;
+        }
+      }
+      await api.put(`${apiPaths.users}/${id}`, body, token);
       await fetchUsers();
     },
     [token, fetchUsers],

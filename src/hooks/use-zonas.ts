@@ -7,11 +7,13 @@ import type { Zona } from "@/lib/types";
 
 export type ZonaPayload = { zona: string; activo?: boolean };
 
-export function useZonas() {
+export function useZonas(options?: { includeInactive?: boolean }) {
   const { token } = useAuth();
   const [zonas, setZonas] = useState<Zona[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const includeInactive = options?.includeInactive === true;
 
   const fetchZonas = useCallback(async () => {
     if (!token) {
@@ -23,7 +25,13 @@ export function useZonas() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<ApiResponse<Zona[]>>(apiPaths.zonas, token);
+      const qs = new URLSearchParams();
+      if (includeInactive) qs.set("includeInactive", "true");
+      const query = qs.toString();
+      const res = await api.get<ApiResponse<Zona[]>>(
+        query ? `${apiPaths.zonas}?${query}` : apiPaths.zonas,
+        token,
+      );
       setZonas(res.data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar zonas");
@@ -31,7 +39,7 @@ export function useZonas() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, includeInactive]);
 
   const createZona = useCallback(
     async (payload: ZonaPayload) => {

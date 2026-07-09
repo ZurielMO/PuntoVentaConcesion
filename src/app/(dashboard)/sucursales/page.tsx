@@ -1,9 +1,15 @@
 "use client";
 
-import { useMemo, useEffect, useState, type FormEvent } from "react";
-import { Plus, RefreshCw } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
+import {
+  Plus,
+  RefreshCw,
+  Pencil,
+  Power,
+  PowerOff,
+  Unlock,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Field } from "@/components/ui/field";
@@ -11,22 +17,36 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { RequireRole } from "@/components/auth/require-role";
-import { DataTable } from "@/components/dashboard/data-table";
-import { PageHeader } from "@/components/dashboard/page-header";
-import { Badge } from "@/components/ui/badge";
 import { useSucursales } from "@/hooks/use-sucursales";
 import { useZonas } from "@/hooks/use-zonas";
 import { useConcessions } from "@/hooks/use-concessions";
 import { useEquipoVendedores } from "@/hooks/use-equipo";
 import { useConcesionFilterParam } from "@/hooks/use-concesion-filter-param";
+import { useSucursalDeepLink } from "@/hooks/use-deep-link-params";
 import { useActiveConcesionOptional } from "@/hooks/use-active-concesion";
 import { usePermissions } from "@/hooks/use-permissions";
 import type { Caja, User } from "@/lib/types";
+import "@/styles/wizard-alta.css";
+
+/** Máximo de cajas por sucursal (activas + desactivadas), igual que el asistente. */
+const MAX_CAJAS = 3;
+
+/** Número corto para el badge del menú (p. ej. "Caja 2" → "2"). */
+function cajaBadgeNumber(nombre: string | undefined, fallbackIndex: number): string {
+  const match = (nombre ?? "").match(/(\d+)/);
+  return match?.[1] ?? String(fallbackIndex + 1);
+}
 
 export default function SucursalesPage() {
   const perms = usePermissions();
@@ -40,6 +60,7 @@ export default function SucursalesPage() {
     createCaja,
     updateCaja,
     deleteCaja,
+    updateSucursal,
     deleteSucursal,
   } = useSucursales();
   const { zonas } = useZonas();
@@ -56,24 +77,14 @@ export default function SucursalesPage() {
     { enabled: !perms.isSuperAdmin || Boolean(concesionFilter) },
   );
 
-  // Sucursal modal
   const [sucursalDialogOpen, setSucursalDialogOpen] = useState(false);
   const [nombre, setNombre] = useState("");
   const [zonaId, setZonaId] = useState("");
-  const [sucursalConcesionId, setSucursalConcesionId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Cajas
-  const [selectedSucursalId, setSelectedSucursalId] = useState("");
   const [cajaDialogOpen, setCajaDialogOpen] = useState(false);
   const [editingCaja, setEditingCaja] = useState<Caja | null>(null);
   const [cajaNombre, setCajaNombre] = useState("");
-
-  // Equipo
-  const [equipoDialogOpen, setEquipoDialogOpen] = useState(false);
-  const [assignUserId, setAssignUserId] = useState("");
-  const [assignSucursalId, setAssignSucursalId] = useState("");
-  const [assignCajaId, setAssignCajaId] = useState("");
 
   const zonaNombre = (id: string) =>
     zonas.find((z) => z.id === id)?.zona ?? id;
@@ -82,31 +93,31 @@ export default function SucursalesPage() {
     concessions.find((c) => c.id === id)?.nombre ?? id;
 
   const sucursalesVisibles = useMemo(() => {
-    if (perms.isSuperAdmin && concesionFilter) {
+    if (perms.isSuperAdmin) {
+      if (!concesionFilter) return [];
       return sucursales.filter((s) => s.concesion_id === concesionFilter);
     }
     return sucursales;
   }, [sucursales, perms.isSuperAdmin, concesionFilter]);
 
-  const selectedSucursal = sucursales.find((s) => s.id === selectedSucursalId);
-  const cajasActivas = useMemo(
-    () => (selectedSucursal?.cajas ?? []).filter((c) => c.activo !== false),
-    [selectedSucursal],
+  const visibleSucursalIds = useMemo(
+    () => sucursalesVisibles.map((s) => s.id),
+    [sucursalesVisibles],
   );
 
-  const cajasDeAsignacion =
-    sucursales.find((s) => s.id === assignSucursalId)?.cajas ?? [];
+  const {
+    selectedSucursalId,
+    setSelectedSucursalId,
+    detailTab,
+    setDetailTab,
+  } = useSucursalDeepLink(visibleSucursalIds);
 
-  useEffect(() => {
-    if (sucursalesVisibles.length === 0) {
-      setSelectedSucursalId("");
-      return;
-    }
-    const stillVisible = sucursalesVisibles.some((s) => s.id === selectedSucursalId);
-    if (!stillVisible) {
-      setSelectedSucursalId(sucursalesVisibles[0].id);
-    }
-  }, [sucursalesVisibles, selectedSucursalId]);
+  const selectedSucursal = sucursalesVisibles.find(
+    (s) => s.id === selectedSucursalId,
+  );
+  const cajasDeSucursal = selectedSucursal?.cajas ?? [];
+  const puedeAgregarCaja = cajasDeSucursal.length < MAX_CAJAS;
+  const sucursalActiva = selectedSucursal?.activo !== false;
 
   const equipoDeSucursal = useMemo(
     () =>
@@ -116,20 +127,87 @@ export default function SucursalesPage() {
     [vendedores, selectedSucursalId],
   );
 
+  const cajasActivasSucursal = useMemo(
+    () => cajasDeSucursal.filter((c) => c.activo !== false),
+    [cajasDeSucursal],
+  );
+
+  /** Cajas activas libres de la sucursal seleccionada. 1 vendedor por caja. */
+  const cajasLibresSucursal = useMemo(
+    () =>
+      cajasActivasSucursal.filter(
+        (c) =>
+          !vendedores.some(
+            (v) => v.cajaId === c.id && v.activo !== false,
+          ),
+      ),
+    [cajasActivasSucursal, vendedores],
+  );
+
+  const cajasConVendedorCount = useMemo(
+    () =>
+      cajasActivasSucursal.filter((c) =>
+        equipoDeSucursal.some(
+          (v) => v.cajaId === c.id && v.activo !== false,
+        ),
+      ).length,
+    [cajasActivasSucursal, equipoDeSucursal],
+  );
+
+  const equipoCompleto =
+    cajasActivasSucursal.length > 0 &&
+    cajasConVendedorCount >= cajasActivasSucursal.length;
+  const puedeAsignarVendedor = sucursalActiva && !equipoCompleto;
+
+  const nextStepHint = (() => {
+    if (!selectedSucursal) return null;
+    if (!sucursalActiva) {
+      return "Sucursal desactivada. Reactívala para agregar cajas o asignar vendedores.";
+    }
+    if (detailTab === "cajas") {
+      if (cajasDeSucursal.length === 0) {
+        return "Agrega al menos una caja (máx. 3).";
+      }
+      if (cajasDeSucursal.length < MAX_CAJAS) {
+        return `Puedes agregar hasta ${MAX_CAJAS} cajas. Luego asigna vendedores en Equipo.`;
+      }
+      return "Máximo de cajas alcanzado. Ve a Equipo para asignar vendedores.";
+    }
+    if (cajasDeSucursal.length === 0) {
+      return "Primero agrega cajas en la pestaña Cajas.";
+    }
+    if (!equipoCompleto) {
+      return "Asigna cada caja activa a un vendedor.";
+    }
+    return "Equipo completo. Puedes liberar o reasignar cuando haga falta.";
+  })();
+
+  const setConcesion = (value: string) => {
+    setConcesionFilter(value);
+    activeCtx?.setActiveConcesionId(value || null);
+  };
+
   const closeSucursalDialog = () => {
     setSucursalDialogOpen(false);
     setNombre("");
     setZonaId("");
-    setSucursalConcesionId("");
+  };
+
+  const openCreateSucursal = () => {
+    if (perms.isSuperAdmin && !concesionFilter) {
+      toast.error("Selecciona una concesión primero");
+      return;
+    }
+    setSucursalDialogOpen(true);
   };
 
   const handleCreateSucursal = async (e: FormEvent) => {
     e.preventDefault();
     const concesionId = perms.isSuperAdmin
-      ? sucursalConcesionId || concesionFilter
+      ? concesionFilter
       : perms.concesionId;
     if (!concesionId) {
-      toast.error("Selecciona la concesión de la sucursal");
+      toast.error("Selecciona una concesión primero");
       return;
     }
     setSubmitting(true);
@@ -140,16 +218,70 @@ export default function SucursalesPage() {
       toast.success("Sucursal creada");
       closeSucursalDialog();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al crear sucursal");
+      toast.error(
+        err instanceof Error ? err.message : "Error al crear sucursal",
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
   const openCajaCreate = () => {
+    if (!sucursalActiva) {
+      toast.error("Reactiva la sucursal para agregar cajas");
+      return;
+    }
+    if (!puedeAgregarCaja) {
+      toast.error(`Máximo ${MAX_CAJAS} cajas por sucursal`);
+      return;
+    }
     setEditingCaja(null);
-    setCajaNombre("");
+    setCajaNombre(`Caja ${cajasDeSucursal.length + 1}`);
     setCajaDialogOpen(true);
+  };
+
+  const handleToggleCajaActivo = async (caja: Caja) => {
+    if (!selectedSucursalId) return;
+    const activar = caja.activo === false;
+    try {
+      if (activar) {
+        await updateCaja(selectedSucursalId, caja.id, { activo: true });
+        toast.success("Caja reactivada");
+      } else {
+        await deleteCaja(selectedSucursalId, caja.id);
+        toast.success("Caja desactivada");
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : activar
+            ? "Error al reactivar caja"
+            : "Error al desactivar caja",
+      );
+    }
+  };
+
+  const handleToggleSucursalActivo = async () => {
+    if (!selectedSucursal) return;
+    const activar = selectedSucursal.activo === false;
+    try {
+      if (activar) {
+        await updateSucursal(selectedSucursal.id, { activo: true });
+        toast.success("Sucursal reactivada");
+      } else {
+        await deleteSucursal(selectedSucursal.id);
+        toast.success("Sucursal desactivada");
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : activar
+            ? "Error al reactivar sucursal"
+            : "Error al desactivar sucursal",
+      );
+    }
   };
 
   const openCajaEdit = (caja: Caja) => {
@@ -182,478 +314,770 @@ export default function SucursalesPage() {
     }
   };
 
-  const handleAssign = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!assignUserId || !assignSucursalId) return;
+  const handleAsignarCajaInline = async (v: User, cajaId: string) => {
+    const userId = v.uid ?? v.id;
+    const sucursalId = v.sucursalId ?? selectedSucursalId;
+    if (!userId || !sucursalId || !cajaId) return;
+
+    if (!puedeAsignarVendedor) {
+      toast.error(
+        equipoCompleto
+          ? "Todas las cajas ya tienen vendedor asignado"
+          : "Reactiva la sucursal para asignar cajas",
+      );
+      return;
+    }
+
+    const ocupada = vendedores.find(
+      (other) =>
+        other.cajaId === cajaId &&
+        (other.uid ?? other.id) !== userId &&
+        other.activo !== false,
+    );
+    if (ocupada) {
+      toast.error(
+        `Esta caja ya está asignada a ${ocupada.nombre}. Solo 1 vendedor por caja.`,
+      );
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await assignVendedor(assignUserId, assignSucursalId, assignCajaId || null);
-      toast.success("Vendedor asignado");
-      setEquipoDialogOpen(false);
-      setAssignUserId("");
-      setAssignCajaId("");
+      await assignVendedor(userId, sucursalId, cajaId);
+      toast.success("Caja asignada");
       await refetchEquipo();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al asignar vendedor");
+      toast.error(
+        err instanceof Error ? err.message : "Error al asignar caja",
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleLiberarCaja = async (v: User) => {
+    const userId = v.uid ?? v.id;
+    const sucursalId = v.sucursalId ?? selectedSucursalId;
+    if (!userId || !sucursalId || !v.cajaId) return;
+
+    setSubmitting(true);
+    try {
+      await assignVendedor(userId, sucursalId, null);
+      toast.success("Caja liberada");
+      await refetchEquipo();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Error al liberar caja",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const canCreateSucursal =
+    perms.canManageSucursales &&
+    (!perms.isSuperAdmin || Boolean(concesionFilter));
+
+  const canAssignEquipo =
+    perms.canManageEquipo &&
+    (!perms.isSuperAdmin || Boolean(concesionFilter));
+
+  const showSidebarContent = !(perms.isSuperAdmin && !concesionFilter);
+
   return (
     <RequireRole adminOrAbove>
-      <PageHeader
-        title="Sucursales"
-        description={
-          perms.canManageSucursales
-            ? "1. Crea la sucursal → 2. Agrega cajas → 3. Asigna vendedores."
-            : "Consulta las sucursales, cajas y equipo de tu concesión."
-        }
-        actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              void refetch();
-              void refetchEquipo();
-            }}
-          >
-            <RefreshCw className="size-4" />
-            Actualizar
-          </Button>
-        }
-      />
-
-      {error && (
-        <div className="mb-4 rounded-[8px] border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
-          {error}
-        </div>
-      )}
-
-      {perms.isSuperAdmin && (
-        <div className="mb-6 w-full max-w-xs">
-          <Field label="Concesión" htmlFor="concesionFilter">
-            <NativeSelect
-              id="concesionFilter"
-              value={concesionFilter}
-              onChange={(e) => {
-                const value = e.target.value;
-                setConcesionFilter(value);
-                activeCtx?.setActiveConcesionId(value || null);
-              }}
-            >
-              <option value="">Todas las concesiones</option>
-              {concessions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
-        </div>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(260px,320px)_1fr]">
-        {/* Panel izquierdo: lista de sucursales */}
-        <div className="dashboard-card flex flex-col p-4">
-          <div className="mb-4 flex items-center justify-between gap-2">
-            <h2 className="text-[1.6rem] font-semibold text-green-dark">
-              Sucursales
-            </h2>
-            {perms.canManageSucursales &&
-              (!perms.isSuperAdmin || Boolean(concesionFilter)) && (
-                <Button size="sm" onClick={() => setSucursalDialogOpen(true)}>
-                  <Plus className="size-4" />
-                </Button>
-              )}
-          </div>
-
-          {perms.isSuperAdmin && !concesionFilter ? (
-            <p className="text-[1.3rem] text-muted-foreground">
-              Selecciona una concesión arriba para ver sus sucursales.
-            </p>
-          ) : loading ? (
-            <p className="text-[1.3rem] text-muted-foreground">Cargando…</p>
-          ) : sucursalesVisibles.length === 0 ? (
-            <p className="text-[1.3rem] text-muted-foreground">
-              No hay sucursales. Crea la primera para continuar.
-            </p>
-          ) : (
-            <ul className="space-y-1">
-              {sucursalesVisibles.map((s) => {
-                const isSelected = s.id === selectedSucursalId;
-                const cajasCount = (s.cajas ?? []).filter(
-                  (c) => c.activo !== false,
-                ).length;
-                return (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedSucursalId(s.id)}
-                      className={`w-full rounded-[8px] px-3 py-3 text-left transition-colors ${
-                        isSelected
-                          ? "bg-green-soft text-green-dark"
-                          : "hover:bg-neutral-cool"
-                      }`}
-                    >
-                      <p className="text-[1.4rem] font-medium">
-                        {s.nombre ?? s.id}
-                      </p>
-                      <p className="text-[1.2rem] text-muted-foreground">
-                        {zonaNombre(s.zona_id)} · {cajasCount} caja(s)
-                      </p>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-
-        {/* Panel derecho: detalle sucursal → cajas + equipo */}
-        <div className="space-y-6">
-          {!selectedSucursal ? (
-            <div className="dashboard-card p-8 text-center">
-              <p className="text-[1.4rem] text-muted-foreground">
-                Selecciona una sucursal para administrar cajas y equipo.
+      <div className="wizard-alta wizard-alta__shell wizard-alta__shell--fill">
+        <header className="wizard-alta__hero">
+          <div className="wizard-alta__hero-inner">
+            <div>
+              <h1>Sucursales y cajas</h1>
+              <p>
+                {perms.canManageSucursales
+                  ? "Puntos de venta, cajas y asignación de vendedores."
+                  : "Consulta sucursales, cajas y equipo de tu concesión."}
               </p>
             </div>
-          ) : (
-            <>
-              <div className="dashboard-card p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-[1.8rem] font-semibold text-green-dark">
-                      {selectedSucursal.nombre ?? selectedSucursal.id}
-                    </h2>
-                    <p className="mt-1 text-[1.3rem] text-muted-foreground">
-                      Zona: {zonaNombre(selectedSucursal.zona_id)}
-                      {perms.isSuperAdmin &&
-                        ` · ${concesionNombre(selectedSucursal.concesion_id)}`}
-                    </p>
-                  </div>
-                  {perms.canManageSucursales && (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => void deleteSucursal(selectedSucursal.id)}
-                    >
-                      Desactivar sucursal
-                    </Button>
-                  )}
-                </div>
-              </div>
+            <div className="wizard-alta__hero-actions">
+              <button
+                type="button"
+                className="wizard-alta__exit"
+                onClick={() => {
+                  void refetch();
+                  void refetchEquipo();
+                }}
+              >
+                <RefreshCw className="size-4" />
+                Actualizar
+              </button>
+            </div>
+          </div>
+        </header>
 
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-[1.6rem] font-semibold text-green-dark">
-                    Paso 2 · Cajas
-                  </h3>
-                  {perms.canManageSucursales && (
-                    <Button size="sm" onClick={openCajaCreate}>
-                      <Plus className="size-4" />
-                      Agregar caja
-                    </Button>
-                  )}
-                </div>
-                <DataTable<Caja>
-                  loading={loading}
-                  data={cajasActivas}
-                  getRowKey={(c) => c.id}
-                  emptyMessage="Sin cajas. Agrega la primera caja de esta sucursal."
-                  columns={[
-                    {
-                      key: "nombre",
-                      header: "Nombre",
-                      cell: (c) => c.nombre ?? c.id,
-                    },
-                    {
-                      key: "estado",
-                      header: "Estado",
-                      cell: (c) => (
-                        <Badge
-                          variant={c.activo !== false ? "default" : "secondary"}
-                        >
-                          {c.activo !== false ? "Activa" : "Inactiva"}
-                        </Badge>
-                      ),
-                    },
-                    ...(perms.canManageSucursales
-                      ? [
-                          {
-                            key: "acciones",
-                            header: "Acciones",
-                            cell: (c: Caja) => (
-                              <div className="flex flex-wrap gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => openCajaEdit(c)}
-                                >
-                                  Editar
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() =>
-                                    void deleteCaja(selectedSucursalId, c.id)
-                                  }
-                                >
-                                  Desactivar
-                                </Button>
-                              </div>
-                            ),
-                          },
-                        ]
-                      : []),
-                  ]}
-                />
-              </div>
+        {error && (
+          <div className="mt-4 rounded-[8px] border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
+            {error}
+          </div>
+        )}
 
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-[1.6rem] font-semibold text-green-dark">
-                    Paso 3 · Equipo en esta sucursal
-                  </h3>
-                  {perms.canManageEquipo &&
-                    (!perms.isSuperAdmin || Boolean(concesionFilter)) && (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setAssignSucursalId(selectedSucursalId);
-                          setEquipoDialogOpen(true);
-                        }}
-                      >
-                        <Plus className="size-4" />
-                        Asignar vendedor
-                      </Button>
-                    )}
+        <div className="wizard-alta__layout">
+          <aside className="wizard-alta__sidebar">
+            {perms.isSuperAdmin && (
+              <div className="wizard-alta__sidebar-filter">
+                <Field label="1) Elige concesión" htmlFor="concesionFilter">
+                  <NativeSelect
+                    id="concesionFilter"
+                    value={concesionFilter}
+                    onChange={(e) => setConcesion(e.target.value)}
+                  >
+                    <option value="">Selecciona una concesión</option>
+                    {concessions
+                      .filter((c) => c.activo !== false)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nombre}
+                        </option>
+                      ))}
+                  </NativeSelect>
+                </Field>
+              </div>
+            )}
+
+            {!showSidebarContent ? (
+              <p className="wizard-alta__empty">
+                Primero elige la concesión. Después podrás crear o elegir sus
+                sucursales.
+              </p>
+            ) : (
+              <>
+                {canCreateSucursal && (
+                  <button
+                    type="button"
+                    className="wizard-alta__btn wizard-alta__btn--primary w-full"
+                    onClick={openCreateSucursal}
+                  >
+                    <Plus className="size-4" />
+                    Nueva sucursal
+                  </button>
+                )}
+
+                <div className="wizard-alta__sidebar-head mt-2">
+                  <h2 className="wizard-alta__sidebar-title">Sucursales</h2>
                 </div>
-                {perms.isSuperAdmin && !concesionFilter ? (
-                  <div className="dashboard-card p-6 text-center">
-                    <p className="text-[1.4rem] text-muted-foreground">
-                      Selecciona una concesión para asignar equipo.
-                    </p>
-                  </div>
+
+                {loading ? (
+                  <p className="wizard-alta__empty">Cargando…</p>
+                ) : sucursalesVisibles.length === 0 ? (
+                  <p className="wizard-alta__empty">
+                    Aún no hay sucursales. Pulsa{" "}
+                    <strong>Nueva sucursal</strong> para crear la primera.
+                  </p>
                 ) : (
-                  <DataTable<User>
-                    loading={false}
-                    data={equipoDeSucursal}
-                    getRowKey={(v) => v.id}
-                    emptyMessage="No hay vendedores asignados a esta sucursal."
-                    columns={[
-                      { key: "nombre", header: "Nombre", cell: (v) => v.nombre },
-                      { key: "email", header: "Email", cell: (v) => v.email },
-                      {
-                        key: "caja",
-                        header: "Caja",
-                        cell: (v) => {
-                          if (!v.cajaId) return "—";
-                          return (
-                            selectedSucursal.cajas?.find((c) => c.id === v.cajaId)
-                              ?.nombre ?? v.cajaId
-                          );
-                        },
-                      },
-                    ]}
-                  />
+                  <ul className="wizard-alta__sidebar-list">
+                    {sucursalesVisibles.map((s) => {
+                      const isSelected = s.id === selectedSucursalId;
+                      const cajasCount = (s.cajas ?? []).length;
+                      const desactivada = s.activo === false;
+                      return (
+                        <li key={s.id}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSucursalId(s.id)}
+                            className={`wizard-alta__sidebar-item${
+                              isSelected
+                                ? " wizard-alta__sidebar-item--active"
+                                : ""
+                            }`}
+                          >
+                            <div className="wizard-alta__sidebar-item-top">
+                              <p className="wizard-alta__sidebar-item-name">
+                                {s.nombre ?? s.id}
+                              </p>
+                              {desactivada && (
+                                <span className="wizard-alta__status-pill wizard-alta__status-pill--off">
+                                  Desactivada
+                                </span>
+                              )}
+                            </div>
+                            <p className="wizard-alta__sidebar-item-meta">
+                              {zonaNombre(s.zona_id)} · {cajasCount}/{MAX_CAJAS}{" "}
+                              caja(s)
+                            </p>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </>
+            )}
+          </aside>
+
+          <div className="wizard-alta__panel">
+            {perms.isSuperAdmin && !concesionFilter ? (
+              <div className="wizard-alta__panel-body">
+                <p className="wizard-alta__hint">
+                  1) Elige la concesión a la izquierda → 2) Pulsa{" "}
+                  <strong>Nueva sucursal</strong> → 3) Agrega cajas → 4) Asigna
+                  vendedores.
+                </p>
+                <p className="wizard-alta__empty">
+                  Selecciona una concesión para ver sus sucursales.
+                </p>
+              </div>
+            ) : !selectedSucursal ? (
+              <div className="wizard-alta__panel-body">
+                <p className="wizard-alta__hint">
+                  Elige una sucursal a la izquierda o pulsa{" "}
+                  <strong>Nueva sucursal</strong> para crear la primera.
+                </p>
+                <p className="wizard-alta__empty">
+                  Cuando haya una sucursal, aquí administrarás cajas y equipo.
+                </p>
+                {canCreateSucursal && !loading && (
+                  <button
+                    type="button"
+                    className="wizard-alta__btn wizard-alta__btn--primary mt-3"
+                    onClick={openCreateSucursal}
+                  >
+                    <Plus className="size-4" />
+                    Crear sucursal
+                  </button>
                 )}
               </div>
-            </>
-          )}
+            ) : (
+              <>
+                <div className="wizard-alta__panel-head">
+                  <div className="wizard-alta__identity">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="wizard-alta__panel-title">
+                          {selectedSucursal.nombre ?? selectedSucursal.id}
+                        </h2>
+                        <span
+                          className={`wizard-alta__status-pill ${
+                            sucursalActiva
+                              ? "wizard-alta__status-pill--on"
+                              : "wizard-alta__status-pill--off"
+                          }`}
+                        >
+                          {sucursalActiva ? "Activa" : "Desactivada"}
+                        </span>
+                      </div>
+                      <p className="wizard-alta__panel-sub">
+                        Zona: {zonaNombre(selectedSucursal.zona_id)}
+                        {perms.isSuperAdmin &&
+                          ` · ${concesionNombre(selectedSucursal.concesion_id)}`}
+                        {` · ${cajasActivasSucursal.length} caja(s) activa(s) · ${equipoDeSucursal.length} vendedor(es)`}
+                      </p>
+                    </div>
+                    {perms.canManageSucursales &&
+                      (sucursalActiva ? (
+                        <button
+                          type="button"
+                          className="wizard-alta__btn wizard-alta__btn--danger wizard-alta__btn--sm"
+                          onClick={() => void handleToggleSucursalActivo()}
+                        >
+                          <PowerOff className="size-4" />
+                          Desactivar
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
+                          onClick={() => void handleToggleSucursalActivo()}
+                        >
+                          <Power className="size-4" />
+                          Reactivar
+                        </button>
+                      ))}
+                  </div>
+
+                  <nav
+                    className="wizard-alta__panel-tabs"
+                    aria-label="Secciones de la sucursal"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={detailTab === "equipo"}
+                      className={`wizard-alta__panel-tab${
+                        detailTab === "equipo"
+                          ? " wizard-alta__panel-tab--active"
+                          : ""
+                      }`}
+                      onClick={() => setDetailTab("equipo")}
+                    >
+                      Equipo
+                      <span className="wizard-alta__panel-tab-count">
+                        {cajasConVendedorCount}/
+                        {cajasActivasSucursal.length || 0}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={detailTab === "cajas"}
+                      className={`wizard-alta__panel-tab${
+                        detailTab === "cajas"
+                          ? " wizard-alta__panel-tab--active"
+                          : ""
+                      }`}
+                      onClick={() => setDetailTab("cajas")}
+                    >
+                      Cajas
+                      <span className="wizard-alta__panel-tab-count">
+                        {cajasDeSucursal.length}/{MAX_CAJAS}
+                      </span>
+                    </button>
+                  </nav>
+                </div>
+
+                <div className="wizard-alta__panel-body wizard-alta__panel-body--stack">
+                  {nextStepHint && (
+                    <p className="wizard-alta__hint">{nextStepHint}</p>
+                  )}
+
+                  {detailTab === "equipo" ? (
+                    <section className="wizard-alta__section">
+                      <div className="wizard-alta__section-head">
+                        <div>
+                          <h3 className="wizard-alta__section-title">Equipo</h3>
+                          <p className="wizard-alta__section-sub">
+                            1 vendedor por caja activa ·{" "}
+                            {cajasConVendedorCount}/
+                            {cajasActivasSucursal.length || 0} asignadas
+                          </p>
+                        </div>
+                      </div>
+
+                      {equipoDeSucursal.length === 0 ? (
+                        <p className="wizard-alta__empty">
+                          Nadie en el equipo de esta sucursal. Asigna vendedores
+                          desde Usuarios y luego elige una caja libre en la
+                          tabla.
+                        </p>
+                      ) : (
+                        <div
+                          className={`wizard-alta__table-wrap${
+                            equipoDeSucursal.length > 6
+                              ? " wizard-alta__table-wrap--scroll"
+                              : ""
+                          }`}
+                        >
+                          <table className="wizard-alta__table">
+                            <thead>
+                              <tr>
+                                <th>Nombre</th>
+                                <th>Correo</th>
+                                <th>Caja</th>
+                                {canAssignEquipo && (
+                                  <th className="wizard-alta__table-actions-col">
+                                    Acciones
+                                  </th>
+                                )}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {equipoDeSucursal.map((v: User) => {
+                                const cajaNombreAsignada = v.cajaId
+                                  ? (selectedSucursal.cajas?.find(
+                                      (c) => c.id === v.cajaId,
+                                    )?.nombre ?? v.cajaId)
+                                  : "Sin caja";
+                                const activo = v.activo !== false;
+                                const puedeAsignarFila =
+                                  canAssignEquipo &&
+                                  activo &&
+                                  !v.cajaId &&
+                                  puedeAsignarVendedor &&
+                                  cajasLibresSucursal.length > 0;
+                                return (
+                                  <tr
+                                    key={v.id}
+                                    className={
+                                      activo
+                                        ? undefined
+                                        : "wizard-alta__table-row--off"
+                                    }
+                                  >
+                                    <td>
+                                      <span className="wizard-alta__table-name">
+                                        {v.nombre}
+                                      </span>
+                                    </td>
+                                    <td className="wizard-alta__table-muted">
+                                      {v.email}
+                                    </td>
+                                    <td>
+                                      <span className="wizard-alta__chip">
+                                        {cajaNombreAsignada}
+                                      </span>
+                                    </td>
+                                    {canAssignEquipo && (
+                                      <td className="wizard-alta__table-actions-col">
+                                        <div className="wizard-alta__table-actions">
+                                          {v.cajaId ? (
+                                            <button
+                                              type="button"
+                                              className="wizard-alta__btn wizard-alta__btn--danger wizard-alta__btn--sm"
+                                              onClick={() =>
+                                                void handleLiberarCaja(v)
+                                              }
+                                              disabled={submitting}
+                                              title="Liberar caja del vendedor"
+                                            >
+                                              <Unlock className="size-3.5" />
+                                              Liberar caja
+                                            </button>
+                                          ) : puedeAsignarFila ? (
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <button
+                                                  type="button"
+                                                  className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
+                                                  disabled={submitting}
+                                                  aria-label={`Asignar caja a ${v.nombre}`}
+                                                  title="Asignar caja libre"
+                                                >
+                                                  <Plus className="size-3.5" />
+                                                  Asignar
+                                                </button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent
+                                                align="end"
+                                                sideOffset={8}
+                                                className="wizard-alta wizard-alta__assign-menu"
+                                              >
+                                                <DropdownMenuLabel className="wizard-alta__assign-menu-label">
+                                                  Elegir caja
+                                                </DropdownMenuLabel>
+                                                {cajasLibresSucursal.length ===
+                                                0 ? (
+                                                  <div
+                                                    className="wizard-alta__assign-menu-empty"
+                                                    role="status"
+                                                  >
+                                                    No hay cajas libres
+                                                  </div>
+                                                ) : (
+                                                  cajasLibresSucursal.map(
+                                                    (c, idx) => (
+                                                      <DropdownMenuItem
+                                                        key={c.id}
+                                                        disabled={submitting}
+                                                        className="wizard-alta__assign-menu-item"
+                                                        onSelect={() => {
+                                                          void handleAsignarCajaInline(
+                                                            v,
+                                                            c.id,
+                                                          );
+                                                        }}
+                                                      >
+                                                        <span
+                                                          className="wizard-alta__assign-menu-badge"
+                                                          aria-hidden
+                                                        >
+                                                          {cajaBadgeNumber(
+                                                            c.nombre,
+                                                            idx,
+                                                          )}
+                                                        </span>
+                                                        <span className="wizard-alta__assign-menu-item-text">
+                                                          {c.nombre ?? c.id}
+                                                        </span>
+                                                      </DropdownMenuItem>
+                                                    ),
+                                                  )
+                                                )}
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
+                                              disabled
+                                              title={
+                                                !sucursalActiva
+                                                  ? "Reactiva la sucursal para asignar cajas"
+                                                  : equipoCompleto ||
+                                                      cajasLibresSucursal.length ===
+                                                        0
+                                                    ? "No hay cajas libres"
+                                                    : !activo
+                                                      ? "Vendedor inactivo"
+                                                      : "No se puede asignar"
+                                              }
+                                            >
+                                              <Plus className="size-3.5" />
+                                              Asignar
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    )}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </section>
+                  ) : (
+                    <section className="wizard-alta__section">
+                      <div className="wizard-alta__section-head">
+                        <div>
+                          <h3 className="wizard-alta__section-title">Cajas</h3>
+                          <p className="wizard-alta__section-sub">
+                            Máximo {MAX_CAJAS} por sucursal
+                          </p>
+                        </div>
+                        {perms.canManageSucursales && (
+                          <button
+                            type="button"
+                            className="wizard-alta__btn wizard-alta__btn--primary wizard-alta__btn--sm"
+                            onClick={openCajaCreate}
+                            disabled={!puedeAgregarCaja || !sucursalActiva}
+                            title={
+                              !sucursalActiva
+                                ? "Reactiva la sucursal para agregar cajas"
+                                : puedeAgregarCaja
+                                  ? undefined
+                                  : `Máximo ${MAX_CAJAS} cajas por sucursal`
+                            }
+                          >
+                            <Plus className="size-4" />
+                            Agregar caja ({cajasDeSucursal.length}/{MAX_CAJAS})
+                          </button>
+                        )}
+                      </div>
+
+                      {cajasDeSucursal.length === 0 ? (
+                        <p className="wizard-alta__empty">
+                          Sin cajas. Pulsa <strong>Agregar caja</strong> para
+                          crear la primera.
+                        </p>
+                      ) : (
+                        <div
+                          className={`wizard-alta__table-wrap${
+                            cajasDeSucursal.length > 5
+                              ? " wizard-alta__table-wrap--scroll"
+                              : ""
+                          }`}
+                        >
+                          <table className="wizard-alta__table">
+                            <thead>
+                              <tr>
+                                <th>Nombre</th>
+                                <th>Estado</th>
+                                {perms.canManageSucursales && (
+                                  <th className="wizard-alta__table-actions-col">
+                                    Acciones
+                                  </th>
+                                )}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {cajasDeSucursal.map((c) => {
+                                const activa = c.activo !== false;
+                                return (
+                                  <tr
+                                    key={c.id}
+                                    className={
+                                      activa
+                                        ? undefined
+                                        : "wizard-alta__table-row--off"
+                                    }
+                                  >
+                                    <td>
+                                      <span className="wizard-alta__table-name">
+                                        {c.nombre ?? c.id}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span
+                                        className={`wizard-alta__status-pill ${
+                                          activa
+                                            ? "wizard-alta__status-pill--on"
+                                            : "wizard-alta__status-pill--off"
+                                        }`}
+                                      >
+                                        {activa ? "Activa" : "Desactivada"}
+                                      </span>
+                                    </td>
+                                    {perms.canManageSucursales && (
+                                      <td className="wizard-alta__table-actions-col">
+                                        <div className="wizard-alta__table-actions">
+                                          <button
+                                            type="button"
+                                            className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
+                                            onClick={() => openCajaEdit(c)}
+                                          >
+                                            <Pencil className="size-3.5" />
+                                            Editar
+                                          </button>
+                                          {activa ? (
+                                            <button
+                                              type="button"
+                                              className="wizard-alta__btn wizard-alta__btn--danger wizard-alta__btn--sm"
+                                              onClick={() =>
+                                                void handleToggleCajaActivo(c)
+                                              }
+                                            >
+                                              <PowerOff className="size-3.5" />
+                                              Desactivar
+                                            </button>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
+                                              onClick={() =>
+                                                void handleToggleCajaActivo(c)
+                                              }
+                                            >
+                                              <Power className="size-3.5" />
+                                              Reactivar
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    )}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </section>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Modal sucursal */}
       <Dialog
         open={sucursalDialogOpen}
         onOpenChange={(open) => !open && closeSucursalDialog()}
       >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nueva sucursal</DialogTitle>
-            <DialogDescription>
-              Paso 1: crea el punto de venta sobre una zona del estadio.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="wizard-alta wizard-alta__dialog !max-w-[42rem] !gap-0 !p-0">
+          <div className="wizard-alta__dialog-head">
+            <DialogHeader className="text-left">
+              <DialogTitle className="wizard-alta__dialog-title">
+                Nueva sucursal
+              </DialogTitle>
+              <DialogDescription className="wizard-alta__dialog-sub">
+                {perms.isSuperAdmin && concesionFilter
+                  ? `Punto de venta de ${concesionNombre(concesionFilter)}. Elige zona y un nombre claro.`
+                  : "Define el punto de venta físico dentro del estadio (ej. Norte)."}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
           <form
             onSubmit={(e) => void handleCreateSucursal(e)}
-            className="grid gap-4"
+            className="wizard-alta__dialog-body"
           >
-            {perms.isSuperAdmin && (
-              <Field label="Concesión" htmlFor="sucursalConcesion">
+            <div className="wizard-alta__dialog-fields">
+              <Field label="Nombre de sucursal" htmlFor="nombre">
+                <Input
+                  id="nombre"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Ej. Punto Norte"
+                  required
+                />
+              </Field>
+              <Field label="Zona del estadio" htmlFor="zona">
                 <NativeSelect
-                  id="sucursalConcesion"
-                  value={sucursalConcesionId || concesionFilter}
-                  onChange={(e) => setSucursalConcesionId(e.target.value)}
+                  id="zona"
+                  value={zonaId}
+                  onChange={(e) => setZonaId(e.target.value)}
                   required
                 >
-                  <option value="">Selecciona concesión</option>
-                  {concessions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombre}
-                    </option>
-                  ))}
+                  <option value="">Selecciona zona</option>
+                  {zonas
+                    .filter((z) => z.activo !== false)
+                    .map((z) => (
+                      <option key={z.id} value={z.id}>
+                        {z.zona}
+                      </option>
+                    ))}
                 </NativeSelect>
               </Field>
-            )}
-            <Field label="Nombre" htmlFor="nombre">
-              <Input
-                id="nombre"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Nombre de sucursal"
-                required
-              />
-            </Field>
-            <Field label="Zona" htmlFor="zona">
-              <NativeSelect
-                id="zona"
-                value={zonaId}
-                onChange={(e) => setZonaId(e.target.value)}
-                required
-              >
-                <option value="">Selecciona zona</option>
-                {zonas.map((z) => (
-                  <option key={z.id} value={z.id}>
-                    {z.zona}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <DialogFooter>
-              <Button
+            </div>
+            <div className="wizard-alta__footer">
+              <button
                 type="button"
-                variant="outline"
+                className="wizard-alta__btn wizard-alta__btn--secondary"
                 onClick={closeSucursalDialog}
               >
                 Cancelar
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Guardando…" : "Crear"}
-              </Button>
-            </DialogFooter>
+              </button>
+              <button
+                type="submit"
+                className="wizard-alta__btn wizard-alta__btn--primary"
+                disabled={submitting}
+              >
+                {submitting ? "Guardando…" : "Crear sucursal"}
+              </button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Modal caja */}
       <Dialog
         open={cajaDialogOpen}
         onOpenChange={(open) => !open && setCajaDialogOpen(false)}
       >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingCaja ? "Editar caja" : "Nueva caja"}
-            </DialogTitle>
-            <DialogDescription>
-              Paso 2: agrega cajas a la sucursal seleccionada.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="wizard-alta wizard-alta__dialog !max-w-[42rem] !gap-0 !p-0">
+          <div className="wizard-alta__dialog-head">
+            <DialogHeader className="text-left">
+              <DialogTitle className="wizard-alta__dialog-title">
+                {editingCaja ? "Editar caja" : "Nueva caja"}
+              </DialogTitle>
+              <DialogDescription className="wizard-alta__dialog-sub">
+                Cada caja es un punto de venta. Máximo {MAX_CAJAS} por
+                sucursal.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
           <form
             onSubmit={(e) => void handleCajaSubmit(e)}
-            className="grid gap-4"
+            className="wizard-alta__dialog-body"
           >
-            <Field label="Nombre" htmlFor="cajaNombre">
-              <Input
-                id="cajaNombre"
-                value={cajaNombre}
-                onChange={(e) => setCajaNombre(e.target.value)}
-                placeholder="Nombre de la caja"
-                required
-              />
-            </Field>
-            <DialogFooter>
-              <Button
+            <div className="wizard-alta__dialog-fields">
+              <Field label="Nombre de la caja" htmlFor="cajaNombre">
+                <Input
+                  id="cajaNombre"
+                  value={cajaNombre}
+                  onChange={(e) => setCajaNombre(e.target.value)}
+                  placeholder="Ej. Caja 1"
+                  required
+                />
+              </Field>
+            </div>
+            <div className="wizard-alta__footer">
+              <button
                 type="button"
-                variant="outline"
+                className="wizard-alta__btn wizard-alta__btn--secondary"
                 onClick={() => setCajaDialogOpen(false)}
               >
                 Cancelar
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Guardando…" : editingCaja ? "Guardar" : "Crear"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal equipo */}
-      <Dialog
-        open={equipoDialogOpen}
-        onOpenChange={(open) => !open && setEquipoDialogOpen(false)}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Asignar vendedor</DialogTitle>
-            <DialogDescription>
-              Paso 3: vincula un vendedor a sucursal y caja.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={(e) => void handleAssign(e)} className="grid gap-4">
-            <Field label="Vendedor" htmlFor="vendedor">
-              <NativeSelect
-                id="vendedor"
-                value={assignUserId}
-                onChange={(e) => setAssignUserId(e.target.value)}
-                required
+              </button>
+              <button
+                type="submit"
+                className="wizard-alta__btn wizard-alta__btn--primary"
+                disabled={submitting}
               >
-                <option value="">Selecciona vendedor</option>
-                {vendedores.map((v) => (
-                  <option key={v.id} value={v.uid ?? v.id}>
-                    {v.nombre} ({v.email})
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="Sucursal" htmlFor="asigSuc">
-              <NativeSelect
-                id="asigSuc"
-                value={assignSucursalId}
-                onChange={(e) => {
-                  setAssignSucursalId(e.target.value);
-                  setAssignCajaId("");
-                }}
-                required
-              >
-                <option value="">Selecciona sucursal</option>
-                {sucursalesVisibles.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nombre ?? s.id}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="Caja" htmlFor="asigCaja" hint="Opcional">
-              <NativeSelect
-                id="asigCaja"
-                value={assignCajaId}
-                onChange={(e) => setAssignCajaId(e.target.value)}
-              >
-                <option value="">Sin caja</option>
-                {cajasDeAsignacion
-                  .filter((c) => c.activo !== false)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombre ?? c.id}
-                    </option>
-                  ))}
-              </NativeSelect>
-            </Field>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEquipoDialogOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Guardando…" : "Asignar"}
-              </Button>
-            </DialogFooter>
+                {submitting
+                  ? "Guardando…"
+                  : editingCaja
+                    ? "Guardar"
+                    : "Crear caja"}
+              </button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

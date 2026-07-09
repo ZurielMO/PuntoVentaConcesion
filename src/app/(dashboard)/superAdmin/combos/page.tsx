@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,7 +31,6 @@ const emptyLinea = (): ComboLinea => ({ producto_id: "", cantidad: "1" });
 
 export default function CombosPage() {
   const [concesionFilter, setConcesionFilter] = useState("");
-  const [showInactive, setShowInactive] = useState(false);
 
   const {
     combos,
@@ -45,7 +43,7 @@ export default function CombosPage() {
     hardDeleteCombo,
   } = useCombos({
     concesionId: concesionFilter || undefined,
-    includeInactive: showInactive,
+    includeInactive: true,
   });
   const { concessions } = useConcessions();
   const { products } = useProducts();
@@ -175,12 +173,19 @@ export default function CombosPage() {
     }
   };
 
-  const handleSoftDelete = async (combo: Combo) => {
+  const handleToggleActivo = async (combo: Combo) => {
     try {
-      await softDeleteCombo(combo.id);
-      toast.success(`"${combo.titulo}" desactivado`);
+      if (combo.activo === false) {
+        await updateCombo(combo.id, { activo: true });
+        toast.success("Combo reactivado");
+      } else {
+        await softDeleteCombo(combo.id);
+        toast.success("Combo desactivado");
+      }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "No se pudo desactivar");
+      toast.error(
+        err instanceof Error ? err.message : "Error al cambiar estado",
+      );
     }
   };
 
@@ -227,25 +232,16 @@ export default function CombosPage() {
               onChange={(e) => setConcesionFilter(e.target.value)}
             >
               <option value="">Todas las concesiones</option>
-              {concessions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre}
-                </option>
-              ))}
+              {concessions
+                .filter((c) => c.activo !== false)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                  </option>
+                ))}
             </NativeSelect>
           </Field>
         </div>
-        <label
-          className="flex items-center gap-3 pb-3 text-[1.4rem]"
-          htmlFor="showInactive"
-        >
-          <Checkbox
-            id="showInactive"
-            checked={showInactive}
-            onChange={(e) => setShowInactive(e.target.checked)}
-          />
-          Mostrar desactivados
-        </label>
       </div>
 
       {error && (
@@ -330,13 +326,21 @@ export default function CombosPage() {
                 <Button size="sm" variant="outline" onClick={() => openEdit(c)}>
                   Editar
                 </Button>
-                {c.activo !== false && (
+                {c.activo !== false ? (
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={() => void handleSoftDelete(c)}
+                    onClick={() => void handleToggleActivo(c)}
                   >
                     Desactivar
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void handleToggleActivo(c)}
+                  >
+                    Reactivar
                   </Button>
                 )}
                 <Button
@@ -380,11 +384,13 @@ export default function CombosPage() {
                   required
                 >
                   <option value="">Selecciona concesión</option>
-                  {concessions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombre}
-                    </option>
-                  ))}
+                  {concessions
+                    .filter((c) => c.activo !== false)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre}
+                      </option>
+                    ))}
                 </NativeSelect>
               </Field>
             ) : (

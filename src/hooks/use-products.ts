@@ -46,11 +46,13 @@ function buildProductFormData(payload: ProductPayload, files?: File[]): FormData
   return form;
 }
 
-export function useProducts() {
+export function useProducts(options?: { includeInactive?: boolean }) {
   const { token } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const includeInactive = options?.includeInactive === true;
 
   const fetchProducts = useCallback(async () => {
     if (!token) {
@@ -62,7 +64,13 @@ export function useProducts() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<ApiResponse<Product[]>>(apiPaths.products, token);
+      const qs = new URLSearchParams();
+      if (includeInactive) qs.set("includeInactive", "true");
+      const query = qs.toString();
+      const res = await api.get<ApiResponse<Product[]>>(
+        query ? `${apiPaths.products}?${query}` : apiPaths.products,
+        token,
+      );
       setProducts(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar productos");
@@ -70,7 +78,7 @@ export function useProducts() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, includeInactive]);
 
   const createProduct = useCallback(
     async (product: ProductPayload) => {
@@ -171,9 +179,15 @@ export function useProducts() {
     async (id: string) => {
       if (!token) throw new Error("Sin sesión");
       await api.delete(`${apiPaths.products}/${id}`, token);
-      setProducts((prev) => prev.filter((item) => item.id !== id));
+      if (includeInactive) {
+        setProducts((prev) =>
+          prev.map((item) => (item.id === id ? { ...item, activo: false } : item)),
+        );
+      } else {
+        setProducts((prev) => prev.filter((item) => item.id !== id));
+      }
     },
-    [token],
+    [token, includeInactive],
   );
 
   useEffect(() => {

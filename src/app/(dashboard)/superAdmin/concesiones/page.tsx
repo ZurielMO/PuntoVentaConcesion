@@ -1,27 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ImagePlus, Plus, RefreshCw, Settings2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  ImagePlus,
+  Pencil,
+  Plus,
+  Power,
+  PowerOff,
+  RefreshCw,
+  Search,
+  Settings2,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Field } from "@/components/ui/field";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RequireRole } from "@/components/auth/require-role";
-import { DataTable } from "@/components/dashboard/data-table";
-import { PageHeader } from "@/components/dashboard/page-header";
-import { Badge } from "@/components/ui/badge";
 import { useConcessions } from "@/hooks/use-concessions";
-import { normalizeStorageImageUrl } from "@/lib/image-url";
+import { firstStoredImage } from "@/lib/image-url";
 import type { Concession } from "@/lib/types";
+import "@/styles/wizard-alta.css";
+
+type StatusFilter = "todos" | "activo" | "inactivo";
 
 export default function ConcesionesPage() {
   const {
@@ -40,8 +48,24 @@ export default function ConcesionesPage() {
   const [editing, setEditing] = useState<Concession | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [existingPreviewBroken, setExistingPreviewBroken] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const editingLogoUrl = firstStoredImage(editing?.imagenes);
+
+  const concessionsVisibles = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return concessions.filter((c) => {
+      const activo = c.activo !== false;
+      if (statusFilter === "activo" && !activo) return false;
+      if (statusFilter === "inactivo" && activo) return false;
+      if (!q) return true;
+      return (c.nombre ?? "").toLowerCase().includes(q);
+    });
+  }, [concessions, search, statusFilter]);
 
   useEffect(() => {
     if (imageFiles.length === 0) {
@@ -57,6 +81,7 @@ export default function ConcesionesPage() {
     setEditing(null);
     setNombre("");
     setImageFiles([]);
+    setExistingPreviewBroken(false);
     setDialogOpen(true);
   };
 
@@ -64,6 +89,7 @@ export default function ConcesionesPage() {
     setEditing(c);
     setNombre(c.nombre);
     setImageFiles([]);
+    setExistingPreviewBroken(false);
     setDialogOpen(true);
   };
 
@@ -72,6 +98,27 @@ export default function ConcesionesPage() {
     setEditing(null);
     setNombre("");
     setImageFiles([]);
+    setExistingPreviewBroken(false);
+  };
+
+  const handleToggleActivo = async (c: Concession) => {
+    try {
+      if (c.activo === false) {
+        // No enviar imagenes: el backend las preserva al omitirlas.
+        await updateConcession(c.id, {
+          nombre: c.nombre,
+          activo: true,
+        });
+        toast.success("Concesión reactivada");
+      } else {
+        await deleteConcession(c.id);
+        toast.success("Concesión desactivada");
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Error al cambiar estado",
+      );
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -108,155 +155,345 @@ export default function ConcesionesPage() {
 
   return (
     <RequireRole superAdminOnly>
-      <PageHeader
-        title="Concesiones"
-        description="Crea concesiones con el asistente paso a paso o administra la lista."
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Button asChild size="sm">
-              <Link href="/superAdmin/concesiones/nueva">
-                <Settings2 className="size-4" />
-                Asistente de configuración
-              </Link>
-            </Button>
-            <Button size="sm" variant="outline" onClick={openCreate}>
+      <div className="wizard-alta wizard-alta__shell wizard-alta__shell--fill">
+        <header className="wizard-alta__hero">
+          <div className="wizard-alta__hero-inner">
+            <div>
+              <h1>Concesiones</h1>
+              <p>
+                Una concesión es el negocio (ej. Cervecería). Desde aquí la
+                administras; el asistente te guía al crearla.
+              </p>
+            </div>
+            <div className="wizard-alta__hero-actions">
+              <button
+                type="button"
+                className="wizard-alta__exit"
+                onClick={() => void refetch()}
+              >
+                <RefreshCw className="size-4" />
+                Actualizar
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {error && (
+          <div className="mt-4 rounded-[8px] border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
+            {error}
+          </div>
+        )}
+
+        <div className="wizard-alta__layout">
+          <aside className="wizard-alta__sidebar">
+            <Link
+              href="/superAdmin/concesiones/nueva"
+              className="wizard-alta__btn wizard-alta__btn--primary w-full"
+            >
+              <Settings2 className="size-4" />
+              Asistente de configuración
+            </Link>
+            <button
+              type="button"
+              className="wizard-alta__btn wizard-alta__btn--outline mt-2 w-full"
+              onClick={openCreate}
+            >
               <Plus className="size-4" />
               Agregar rápido
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="size-4" />
-              Actualizar
-            </Button>
-          </div>
-        }
-      />
+            </button>
+            <p className="wizard-alta__hint wizard-alta__hint--optional mt-3">
+              Recomendado: usa el asistente la primera vez. Agregar rápido solo
+              crea el nombre (y logo).
+            </p>
+          </aside>
 
-      {error && (
-        <div className="mb-4 rounded-[8px] border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
-          {error}
-        </div>
-      )}
+          <div className="wizard-alta__panel">
+            <div className="wizard-alta__panel-head">
+              <h2 className="wizard-alta__panel-title">Listado</h2>
+              <p className="wizard-alta__panel-sub">
+                {loading
+                  ? "Cargando…"
+                  : `${concessions.length} concesión(es) · edita, configura o desactiva`}
+              </p>
+            </div>
 
-      <DataTable<Concession>
-        loading={loading}
-        data={concessions}
-        getRowKey={(c) => c.id}
-        emptyMessage="No hay concesiones registradas."
-        columns={[
-          {
-            key: "img",
-            header: "Logo",
-            cell: (c) => {
-              const img = normalizeStorageImageUrl(c.imagenes?.[0]);
-              return img ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={img} alt="" className="size-10 rounded-md object-cover" />
+            <div className="wizard-alta__panel-body">
+              {loading ? (
+                <p className="wizard-alta__empty">Cargando concesiones…</p>
+              ) : concessions.length === 0 ? (
+                <div>
+                  <p className="wizard-alta__hint">
+                    No hay concesiones. Pulsa{" "}
+                    <strong>Asistente de configuración</strong> (recomendado) o{" "}
+                    <strong>Agregar rápido</strong>.
+                  </p>
+                  <p className="wizard-alta__empty">
+                    Aún no hay concesiones registradas.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      href="/superAdmin/concesiones/nueva"
+                      className="wizard-alta__btn wizard-alta__btn--primary"
+                    >
+                      <Settings2 className="size-4" />
+                      Abrir asistente
+                    </Link>
+                    <button
+                      type="button"
+                      className="wizard-alta__btn wizard-alta__btn--outline"
+                      onClick={openCreate}
+                    >
+                      <Plus className="size-4" />
+                      Agregar rápido
+                    </button>
+                  </div>
+                </div>
               ) : (
-                "—"
-              );
-            },
-          },
-          {
-            key: "nombre",
-            header: "Nombre",
-            cell: (c) => <span className="font-medium">{c.nombre}</span>,
-          },
-          {
-            key: "estado",
-            header: "Estado",
-            cell: (c) => (
-              <Badge variant={c.activo !== false ? "default" : "secondary"}>
-                {c.activo !== false ? "Activa" : "Inactiva"}
-              </Badge>
-            ),
-          },
-          {
-            key: "acciones",
-            header: "Acciones",
-            cell: (c) => (
-              <div className="flex flex-wrap gap-2">
-                <Button asChild size="sm">
-                  <Link href={`/superAdmin/concesiones/${c.id}`}>Configurar</Link>
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => openEdit(c)}>
-                  Editar
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => void deleteConcession(c.id)}
-                >
-                  Desactivar
-                </Button>
-              </div>
-            ),
-          },
-        ]}
-      />
+                <>
+                  <p className="wizard-alta__hint">
+                    Después de crear una concesión: configura sucursales,
+                    productos y usuarios desde sus módulos o con Configurar.
+                  </p>
+                  <div className="wizard-alta__toolbar">
+                    <div className="wizard-alta__toolbar-search">
+                      <Search className="wizard-alta__toolbar-search-icon size-4" />
+                      <Input
+                        id="concessionSearch"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Buscar por nombre…"
+                        aria-label="Buscar concesiones"
+                      />
+                    </div>
+                    <div className="wizard-alta__toolbar-filter">
+                      <Field label="Estado" htmlFor="statusFilter">
+                        <NativeSelect
+                          id="statusFilter"
+                          value={statusFilter}
+                          onChange={(e) =>
+                            setStatusFilter(e.target.value as StatusFilter)
+                          }
+                        >
+                          <option value="todos">Todos</option>
+                          <option value="activo">Activo</option>
+                          <option value="inactivo">Inactivo</option>
+                        </NativeSelect>
+                      </Field>
+                    </div>
+                  </div>
+                  {concessionsVisibles.length === 0 ? (
+                    <p className="wizard-alta__empty">
+                      Ninguna concesión coincide con la búsqueda o el filtro.
+                      Prueba otro nombre o estado.
+                    </p>
+                  ) : (
+                    <div
+                      className={`wizard-alta__table-wrap${
+                        concessionsVisibles.length > 8
+                          ? " wizard-alta__table-wrap--scroll"
+                          : ""
+                      }`}
+                    >
+                      <table className="wizard-alta__table">
+                        <thead>
+                          <tr>
+                            <th>Nombre</th>
+                            <th>Estado</th>
+                            <th className="wizard-alta__table-actions-col">
+                              Acciones
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {concessionsVisibles.map((c) => {
+                            const activo = c.activo !== false;
+                            const img = firstStoredImage(c.imagenes);
+                            return (
+                              <tr
+                                key={c.id}
+                                className={
+                                  activo
+                                    ? undefined
+                                    : "wizard-alta__table-row--off"
+                                }
+                              >
+                                <td>
+                                  <div className="flex items-center gap-3">
+                                    {img ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={img}
+                                        alt=""
+                                        className="size-8 shrink-0 rounded-md object-cover"
+                                        onError={(e) => {
+                                          e.currentTarget.style.display =
+                                            "none";
+                                        }}
+                                      />
+                                    ) : null}
+                                    <span className="wizard-alta__table-name">
+                                      {c.nombre}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span
+                                    className={`wizard-alta__status-pill ${
+                                      activo
+                                        ? "wizard-alta__status-pill--on"
+                                        : "wizard-alta__status-pill--off"
+                                    }`}
+                                  >
+                                    {activo ? "Activa" : "Inactiva"}
+                                  </span>
+                                </td>
+                                <td className="wizard-alta__table-actions-col">
+                                  <div className="wizard-alta__table-actions">
+                                    <Link
+                                      href={`/superAdmin/concesiones/${c.id}`}
+                                      className="wizard-alta__btn wizard-alta__btn--primary wizard-alta__btn--sm"
+                                    >
+                                      <Settings2 className="size-3.5" />
+                                      Configurar
+                                    </Link>
+                                    <button
+                                      type="button"
+                                      className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
+                                      onClick={() => openEdit(c)}
+                                    >
+                                      <Pencil className="size-3.5" />
+                                      Editar
+                                    </button>
+                                    {activo ? (
+                                      <button
+                                        type="button"
+                                        className="wizard-alta__btn wizard-alta__btn--danger wizard-alta__btn--sm"
+                                        onClick={() =>
+                                          void handleToggleActivo(c)
+                                        }
+                                      >
+                                        <PowerOff className="size-3.5" />
+                                        Desactivar
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
+                                        onClick={() =>
+                                          void handleToggleActivo(c)
+                                        }
+                                      >
+                                        <Power className="size-3.5" />
+                                        Reactivar
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editing ? "Editar concesión" : "Nueva concesión"}
-            </DialogTitle>
-            <DialogDescription>
-              Completa los datos de la concesión.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={(e) => void handleSubmit(e)} className="grid gap-4">
-            <Field label="Nombre" htmlFor="nombre">
-              <Input
-                id="nombre"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Nombre de la concesión"
-                required
-              />
-            </Field>
-            <Field
-              label="Logo / imagen"
-              hint="JPEG, PNG o WebP"
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) =>
-                  setImageFiles(e.target.files ? Array.from(e.target.files) : [])
-                }
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="w-fit"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <ImagePlus className="size-4" />
-                Elegir imagen
-              </Button>
-              {(previewUrl || editing?.imagenes?.[0]) && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={
-                    previewUrl ??
-                    normalizeStorageImageUrl(editing?.imagenes?.[0]) ??
-                    ""
-                  }
-                  alt="Vista previa"
-                  className="mt-1 max-h-40 rounded-[8px] border object-cover"
+        <DialogContent className="wizard-alta wizard-alta__dialog !flex !max-w-[42rem] !flex-col !gap-0 !p-0">
+          <div className="wizard-alta__dialog-head">
+            <DialogHeader className="text-left">
+              <DialogTitle className="wizard-alta__dialog-title">
+                {editing ? "Editar concesión" : "Nueva concesión"}
+              </DialogTitle>
+              <DialogDescription className="wizard-alta__dialog-sub">
+                {editing
+                  ? "Cambia el nombre o el logo. Para armar todo el negocio usa el asistente."
+                  : "Alta rápida: solo nombre y logo. Para sucursales, productos y equipo usa el asistente."}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <form
+            onSubmit={(e) => void handleSubmit(e)}
+            className="wizard-alta__dialog-body"
+          >
+            <div className="wizard-alta__dialog-fields">
+              <Field label="Nombre" htmlFor="nombre">
+                <Input
+                  id="nombre"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Nombre de la concesión"
+                  required
                 />
-              )}
-            </Field>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={closeDialog}>
+              </Field>
+              <Field label="Logo / imagen" hint="JPEG, PNG o WebP">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) =>
+                    setImageFiles(
+                      e.target.files ? Array.from(e.target.files) : [],
+                    )
+                  }
+                />
+                <button
+                  type="button"
+                  className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm w-fit"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <ImagePlus className="size-4" />
+                  Elegir imagen
+                </button>
+                {(previewUrl ||
+                  (editingLogoUrl && !existingPreviewBroken)) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={previewUrl ?? editingLogoUrl ?? ""}
+                    alt="Vista previa"
+                    className="mt-2 max-h-40 rounded-[8px] border object-cover"
+                    onError={() => {
+                      if (!previewUrl) setExistingPreviewBroken(true);
+                    }}
+                  />
+                )}
+                {editing &&
+                  !previewUrl &&
+                  !editingLogoUrl &&
+                  !existingPreviewBroken && (
+                    <p className="mt-2 text-[1.3rem] text-[#6b7280]">
+                      Sin logo. Elige una imagen para agregarlo.
+                    </p>
+                  )}
+              </Field>
+            </div>
+            <div className="wizard-alta__footer">
+              <button
+                type="button"
+                className="wizard-alta__btn wizard-alta__btn--secondary"
+                onClick={closeDialog}
+                disabled={submitting}
+              >
                 Cancelar
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Guardando…" : editing ? "Guardar" : "Crear"}
-              </Button>
-            </DialogFooter>
+              </button>
+              <button
+                type="submit"
+                className="wizard-alta__btn wizard-alta__btn--primary"
+                disabled={submitting}
+              >
+                {submitting
+                  ? "Guardando…"
+                  : editing
+                    ? "Guardar cambios"
+                    : "Crear concesión"}
+              </button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

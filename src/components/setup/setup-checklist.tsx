@@ -1,15 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Circle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ArrowRight, Check, Package } from "lucide-react";
 import type { ConcesionSetupStatus } from "@/lib/concesion-setup";
 import { cn } from "@/lib/utils";
 
@@ -26,92 +18,123 @@ export function SetupChecklist({
 }: SetupChecklistProps) {
   const { steps, completedCount, totalCount, progressPercent, readyForJornada } =
     status;
+  const pendingCount = totalCount - completedCount;
 
   return (
-    <Card className={cn(className)}>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle>Configuración</CardTitle>
-            <CardDescription>
+    <div className={cn(className)}>
+      {showProgress && (
+        <div className="wizard-alta__setup-progress">
+          <div className="wizard-alta__setup-progress-meta">
+            <span className="wizard-alta__setup-progress-count">
+              {completedCount}/{totalCount}
+            </span>
+            <span className="wizard-alta__setup-progress-label">
               {readyForJornada
-                ? "Lista para operar en jornada de partido."
-                : "Completa cada paso para dejar la concesión operativa."}
-            </CardDescription>
+                ? "configuración completa"
+                : pendingCount === 1
+                  ? "1 paso pendiente"
+                  : `${pendingCount} pasos pendientes`}
+            </span>
           </div>
-          {showProgress && (
-            <div className="text-right">
-              <p className="text-[2.4rem] font-bold text-green-dark">
-                {completedCount}/{totalCount}
-              </p>
-              <p className="text-[1.2rem] text-muted-foreground">pasos</p>
-            </div>
-          )}
-        </div>
-        {showProgress && (
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-cool">
+          <div
+            className="wizard-alta__setup-progress-track"
+            role="progressbar"
+            aria-valuenow={progressPercent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Progreso de configuración"
+          >
             <div
-              className="h-full rounded-full bg-green-accent transition-all duration-500"
+              className="wizard-alta__setup-progress-fill"
               style={{ width: `${progressPercent}%` }}
-              role="progressbar"
-              aria-valuenow={progressPercent}
-              aria-valuemin={0}
-              aria-valuemax={100}
             />
           </div>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {steps.map((step) => (
-          <div
-            key={step.id}
-            className={cn(
-              "flex items-center justify-between gap-3 rounded-[8px] border px-4 py-3",
-              step.done
-                ? "border-green-soft bg-green-muted/50"
-                : "border-border bg-white",
-            )}
-          >
-            <div className="flex min-w-0 items-start gap-3">
-              {step.done ? (
-                <Check
-                  className="mt-0.5 size-5 shrink-0 text-green-accent"
-                  aria-hidden
-                />
-              ) : (
-                <Circle
-                  className="mt-0.5 size-5 shrink-0 text-muted-foreground"
-                  aria-hidden
-                />
-              )}
-              <div className="min-w-0">
-                <p className="text-[1.4rem] font-medium">{step.title}</p>
-                <p className="text-[1.2rem] text-muted-foreground">
-                  {step.description}
-                </p>
-              </div>
-            </div>
-            {step.href && step.actionLabel && (
-              <Button asChild size="sm" variant={step.done ? "outline" : "default"}>
-                <Link href={step.href}>{step.actionLabel}</Link>
-              </Button>
-            )}
-          </div>
-        ))}
-        {readyForJornada && (
-          <div className="mt-4 rounded-[8px] border border-green-soft bg-green-muted p-4">
-            <p className="text-[1.4rem] font-medium text-green-dark">
+        </div>
+      )}
+
+      <div className="wizard-alta__table-wrap">
+        <table className="wizard-alta__table">
+          <thead>
+            <tr>
+              <th>Paso</th>
+              <th>Estado</th>
+              <th>Detalle</th>
+              <th className="wizard-alta__table-actions-col">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {steps.map((step, index) => (
+              <tr key={step.id}>
+                <td>
+                  <div className="wizard-alta__setup-step-cell">
+                    <span
+                      className={cn(
+                        "wizard-alta__setup-step-num",
+                        step.done && "wizard-alta__setup-step-num--done",
+                      )}
+                      aria-hidden
+                    >
+                      {step.done ? <Check className="size-3.5" /> : index + 1}
+                    </span>
+                    <span className="wizard-alta__table-name">{step.title}</span>
+                  </div>
+                </td>
+                <td>
+                  <span
+                    className={cn(
+                      "wizard-alta__status-pill",
+                      step.done
+                        ? "wizard-alta__status-pill--on"
+                        : "wizard-alta__status-pill--pending",
+                    )}
+                  >
+                    {step.done ? "Completo" : "Pendiente"}
+                  </span>
+                </td>
+                <td className="wizard-alta__table-muted">{step.description}</td>
+                <td className="wizard-alta__table-actions-col">
+                  {step.href && step.actionLabel ? (
+                    <div className="wizard-alta__table-actions">
+                      <Link
+                        href={step.href}
+                        className={cn(
+                          "wizard-alta__btn wizard-alta__btn--sm",
+                          step.done
+                            ? "wizard-alta__btn--outline"
+                            : "wizard-alta__btn--primary",
+                        )}
+                      >
+                        {step.actionLabel}
+                        {!step.done && <ArrowRight className="size-3.5" />}
+                      </Link>
+                    </div>
+                  ) : null}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {readyForJornada ? (
+        <div className="wizard-alta__setup-complete">
+          <div>
+            <p className="wizard-alta__setup-complete-title">
               Configuración completa
             </p>
-            <p className="mt-1 text-[1.2rem] text-muted-foreground">
+            <p className="wizard-alta__setup-complete-sub">
               El día del partido, abre el inventario desde la jornada activa.
             </p>
-            <Button asChild size="sm" className="mt-3" variant="outline">
-              <Link href="/inventarios">Ir a inventarios</Link>
-            </Button>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          <Link
+            href={status.inventariosHref}
+            className="wizard-alta__btn wizard-alta__btn--primary wizard-alta__btn--sm"
+          >
+            <Package className="size-4" />
+            Ir a inventarios
+          </Link>
+        </div>
+      ) : null}
+    </div>
   );
 }

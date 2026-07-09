@@ -31,6 +31,8 @@ export type ConcesionSetupStatus = {
   totalCount: number;
   progressPercent: number;
   readyForJornada: boolean;
+  /** Deep-link a inventarios con la concesión preseleccionada */
+  inventariosHref: string;
 };
 
 function productConcesionId(p: SetupProduct): string | undefined {
@@ -41,6 +43,45 @@ function isAdminRole(rol?: string): boolean {
   if (!rol) return false;
   const upper = rol.toUpperCase();
   return upper === UserRole.ADMIN || upper === "CONCESION_ADMIN";
+}
+
+function buildQuery(params: Record<string, string | undefined | null>): string {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) qs.set(key, value);
+  }
+  const s = qs.toString();
+  return s ? `?${s}` : "";
+}
+
+function cajasActivas(s: Sucursal): number {
+  return s.cajas?.filter((c) => c.activo !== false).length ?? 0;
+}
+
+/** Primera sucursal sin cajas activas, o la primera disponible. */
+function pickSucursalForCajas(sucursales: Sucursal[]): string | undefined {
+  if (sucursales.length === 0) return undefined;
+  const sinCajas = sucursales.find((s) => cajasActivas(s) === 0);
+  return (sinCajas ?? sucursales[0]).id;
+}
+
+/** Primera sucursal con cajas incompletas de equipo, o la primera con cajas. */
+function pickSucursalForEquipo(
+  sucursales: Sucursal[],
+  vendedoresAsignados: User[],
+): string | undefined {
+  if (sucursales.length === 0) return undefined;
+  const incompleta = sucursales.find((s) => {
+    const nCajas = cajasActivas(s);
+    if (nCajas === 0) return false;
+    const asignados = vendedoresAsignados.filter(
+      (v) => v.sucursalId === s.id,
+    ).length;
+    return asignados < nCajas;
+  });
+  if (incompleta) return incompleta.id;
+  const conCajas = sucursales.find((s) => cajasActivas(s) > 0);
+  return (conCajas ?? sucursales[0]).id;
 }
 
 export function computeConcesionSetupStatus(input: {
@@ -64,7 +105,7 @@ export function computeConcesionSetupStatus(input: {
     (s) => s.concesion_id === concesionId && s.activo !== false,
   );
   const totalCajas = concessionSucursales.reduce(
-    (acc, s) => acc + (s.cajas?.filter((c) => c.activo !== false).length ?? 0),
+    (acc, s) => acc + cajasActivas(s),
     0,
   );
   const hasAdmin = concessionUsers.some((u) => isAdminRole(String(u.rol)));
@@ -76,7 +117,13 @@ export function computeConcesionSetupStatus(input: {
       Boolean(v.cajaId),
   );
 
-  const q = `?concesionId=${encodeURIComponent(concesionId)}`;
+  const qConcesion = buildQuery({ concesionId });
+  const sucursalForCajas = pickSucursalForCajas(concessionSucursales);
+  const sucursalForEquipo = pickSucursalForEquipo(
+    concessionSucursales,
+    vendedoresAsignados,
+  );
+  const firstSucursalId = concessionSucursales[0]?.id;
 
   const steps: SetupStep[] = [
     {
@@ -97,7 +144,10 @@ export function computeConcesionSetupStatus(input: {
           ? `${concessionSucursales.length} punto(s) de venta`
           : "Crea el primer punto de venta en una zona",
       done: concessionSucursales.length > 0,
-      href: `/sucursales${q}`,
+      href: `/sucursales${buildQuery({
+        concesionId,
+        sucursalId: firstSucursalId,
+      })}`,
       actionLabel:
         concessionSucursales.length > 0 ? "Ver sucursales" : "Crear sucursal",
     },
@@ -108,7 +158,7 @@ export function computeConcesionSetupStatus(input: {
         ? "Admin de concesión asignado"
         : "Crea un usuario con rol Admin para esta concesión",
       done: hasAdmin,
-      href: `/superAdmin/usuarios${q}`,
+      href: `/superAdmin/usuarios${qConcesion}`,
       actionLabel: hasAdmin ? "Ver usuarios" : "Crear admin",
     },
     {
@@ -119,7 +169,11 @@ export function computeConcesionSetupStatus(input: {
           ? `${totalCajas} caja(s) activa(s)`
           : "Agrega al menos una caja por sucursal",
       done: totalCajas > 0,
-      href: `/sucursales${q}`,
+      href: `/sucursales${buildQuery({
+        concesionId,
+        sucursalId: sucursalForCajas,
+        tab: "cajas",
+      })}`,
       actionLabel: totalCajas > 0 ? "Gestionar cajas" : "Agregar cajas",
     },
     {
@@ -130,7 +184,7 @@ export function computeConcesionSetupStatus(input: {
           ? `${concessionProducts.length} producto(s) en catálogo`
           : "Agrega al menos un producto para vender",
       done: concessionProducts.length > 0,
-      href: `/products${q}`,
+      href: `/products${qConcesion}`,
       actionLabel: concessionProducts.length > 0 ? "Ver productos" : "Agregar producto",
     },
     {
@@ -141,7 +195,11 @@ export function computeConcesionSetupStatus(input: {
           ? `${vendedoresAsignados.length} vendedor(es) asignado(s)`
           : "Asigna vendedores a sucursal y caja",
       done: vendedoresAsignados.length > 0,
-      href: `/sucursales${q}`,
+      href: `/sucursales${buildQuery({
+        concesionId,
+        sucursalId: sucursalForEquipo,
+        tab: "equipo",
+      })}`,
       actionLabel: "Asignar vendedor",
     },
   ];
@@ -164,6 +222,10 @@ export function computeConcesionSetupStatus(input: {
     totalCount,
     progressPercent,
     readyForJornada,
+    inventariosHref: `/inventarios${buildQuery({
+      concesionId,
+      sucursalId: firstSucursalId,
+    })}`,
   };
 }
 

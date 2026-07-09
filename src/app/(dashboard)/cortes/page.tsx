@@ -58,10 +58,11 @@ export default function CortesPage() {
   const { sucursales } = useSucursales();
 
   const sucursalesFiltradas = useMemo(() => {
+    const activas = sucursales.filter((s) => s.activo !== false);
     if (perms.isSuperAdmin && concesionId) {
-      return sucursales.filter((s) => s.concesion_id === concesionId);
+      return activas.filter((s) => s.concesion_id === concesionId);
     }
-    return sucursales;
+    return activas;
   }, [sucursales, perms.isSuperAdmin, concesionId]);
 
   const [detalleCorte, setDetalleCorte] = useState<Corte | null>(null);
@@ -148,11 +149,13 @@ export default function CortesPage() {
                 onChange={(e) => handleConcesionChange(e.target.value)}
               >
                 <option value="">Todas las concesiones</option>
-                {concessions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nombre}
-                  </option>
-                ))}
+                {concessions
+                  .filter((c) => c.activo !== false)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nombre}
+                    </option>
+                  ))}
               </NativeSelect>
             </Field>
           )}

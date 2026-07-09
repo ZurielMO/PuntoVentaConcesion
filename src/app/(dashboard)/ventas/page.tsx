@@ -111,10 +111,11 @@ export default function VentasPage() {
   const showPos = perms.canManageVentas && !perms.isSuperAdmin;
 
   const sucursalesFiltradas = useMemo(() => {
+    const activas = sucursales.filter((s) => s.activo !== false);
     if (perms.isSuperAdmin && filterConcesionId) {
-      return sucursales.filter((s) => s.concesion_id === filterConcesionId);
+      return activas.filter((s) => s.concesion_id === filterConcesionId);
     }
-    return sucursales;
+    return activas;
   }, [sucursales, perms.isSuperAdmin, filterConcesionId]);
 
   const cajasFiltradas = useMemo(() => {
@@ -347,11 +348,13 @@ export default function VentasPage() {
                 }}
               >
                 <option value="">Todas las concesiones</option>
-                {concessions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nombre}
-                  </option>
-                ))}
+                {concessions
+                  .filter((c) => c.activo !== false)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nombre}
+                    </option>
+                  ))}
               </NativeSelect>
             )}
             {(perms.isAdmin || perms.isSuperAdmin) && (

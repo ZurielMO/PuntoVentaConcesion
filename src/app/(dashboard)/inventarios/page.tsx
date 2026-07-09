@@ -1,31 +1,30 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
-import { RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { PackagePlus, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Field } from "@/components/ui/field";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RequireRole } from "@/components/auth/require-role";
-import { DataTable } from "@/components/dashboard/data-table";
-import { PageHeader } from "@/components/dashboard/page-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventarioJornadaActiva, useJornadas } from "@/hooks/use-inventarios";
 import { useProducts } from "@/hooks/use-products";
 import { useSucursales } from "@/hooks/use-sucursales";
 import { useConcessions } from "@/hooks/use-concessions";
-import { useEquipoVendedores } from "@/hooks/use-equipo";
-import { useAsignacionesCajas } from "@/hooks/use-asignaciones-cajas";
+import { useConcesionFilterParam } from "@/hooks/use-concesion-filter-param";
+import { useDeepLinkParam } from "@/hooks/use-deep-link-params";
+import { useActiveConcesionOptional } from "@/hooks/use-active-concesion";
 import { usePermissions } from "@/hooks/use-permissions";
-import { buildJornadaId } from "@/lib/jornada";
 import type { InventarioMovimiento, InventarioProducto } from "@/lib/types";
+import "@/styles/wizard-alta.css";
+
+type DetailTab = "stock" | "movimientos";
 
 function stockRow(p: InventarioProducto) {
   const inicial = Number(p.cantidad_inicial ?? 0);
@@ -42,23 +41,58 @@ function movimientoLabel(m: InventarioMovimiento) {
 
 export default function InventariosPage() {
   const perms = usePermissions();
+  const activeCtx = useActiveConcesionOptional();
   const { jornadaActiva, loading: jornadaLoading } = useJornadas();
   const { products } = useProducts();
   const { sucursales } = useSucursales();
   const { concessions } = useConcessions();
-  const { saveAsignaciones, loading: savingAsignaciones } = useAsignacionesCajas();
 
-  // Selección: SuperAdmin filtra por concesión y elige sucursal;
-  // Admin elige sucursal de su concesión; Vendedor usa su sucursal asignada.
-  const [concesionSel, setConcesionSel] = useState("");
+  const [concesionSel, setConcesionSel] = useConcesionFilterParam();
+  const deepSucursalId = useDeepLinkParam("sucursalId");
   const [sucursalSel, setSucursalSel] = useState("");
+  const deepSucursalApplied = useRef(false);
+  const autoOpenAttemptedFor = useRef<string | null>(null);
+  const [detailTab, setDetailTab] = useState<DetailTab>("stock");
+  const [cargaOpen, setCargaOpen] = useState(false);
+  const [productoId, setProductoId] = useState("");
+  const [cantidadInicial, setCantidadInicial] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const sucursalesVisibles = useMemo(() => {
+    const activas = sucursales.filter((s) => s.activo !== false);
     if (perms.isSuperAdmin && concesionSel) {
-      return sucursales.filter((s) => s.concesion_id === concesionSel);
+      return activas.filter((s) => s.concesion_id === concesionSel);
     }
-    return sucursales;
+    return activas;
   }, [sucursales, perms.isSuperAdmin, concesionSel]);
+
+  useEffect(() => {
+    if (perms.isVendedor) return;
+    if (sucursalesVisibles.length === 0) {
+      setSucursalSel("");
+      return;
+    }
+    if (
+      !deepSucursalApplied.current &&
+      deepSucursalId &&
+      sucursalesVisibles.some((s) => s.id === deepSucursalId)
+    ) {
+      deepSucursalApplied.current = true;
+      setSucursalSel(deepSucursalId);
+      return;
+    }
+    // Sin deep-link: no auto-seleccionar; solo limpiar si ya no es válida.
+    if (sucursalSel && !sucursalesVisibles.some((s) => s.id === sucursalSel)) {
+      setSucursalSel("");
+    }
+  }, [perms.isVendedor, sucursalesVisibles, deepSucursalId, sucursalSel]);
+
+  const setConcesion = (value: string) => {
+    setConcesionSel(value);
+    activeCtx?.setActiveConcesionId(value || null);
+    setSucursalSel("");
+  };
 
   const effectiveSucursalId = perms.isVendedor
     ? perms.sucursalId ?? ""
@@ -79,20 +113,6 @@ export default function InventariosPage() {
     enabled: Boolean(effectiveSucursalId),
   });
 
-  const equipoConcesionId = perms.isSuperAdmin
-    ? sucursalActual?.concesion_id ?? concesionSel
-    : undefined;
-  const { vendedores } = useEquipoVendedores(equipoConcesionId || undefined, {
-    enabled: !perms.isSuperAdmin || Boolean(equipoConcesionId),
-  });
-
-  const [productoId, setProductoId] = useState("");
-  const [cantidadInicial, setCantidadInicial] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [cajaVendedorMap, setCajaVendedorMap] = useState<Record<string, string>>({});
-
   const jornadaBanner = useMemo(() => {
     const fromApi = jornada;
     if (fromApi) return fromApi;
@@ -100,15 +120,59 @@ export default function InventariosPage() {
     return entries.find((j) => j.activo) ?? entries[0];
   }, [jornada, jornadaActiva]);
 
+  // Al elegir sucursal: abrir inventario automáticamente (getOrCreate; no-op si ya existe).
+  useEffect(() => {
+    autoOpenAttemptedFor.current = null;
+    setActionError(null);
+    setSubmitting(false);
+  }, [effectiveSucursalId]);
+
+  useEffect(() => {
+    if (!perms.canManageInventario) return;
+    if (!effectiveSucursalId) return;
+    if (loading || jornadaLoading || submitting) return;
+    if (inventario) return;
+    if (!jornadaBanner) return;
+    if (autoOpenAttemptedFor.current === effectiveSucursalId) return;
+
+    const openingFor = effectiveSucursalId;
+    autoOpenAttemptedFor.current = openingFor;
+    setSubmitting(true);
+    setActionError(null);
+
+    void openInventarioJornadaActiva()
+      .catch((err) => {
+        if (autoOpenAttemptedFor.current !== openingFor) return;
+        setActionError(
+          err instanceof Error ? err.message : "Error al abrir inventario",
+        );
+      })
+      .finally(() => {
+        if (autoOpenAttemptedFor.current !== openingFor) return;
+        setSubmitting(false);
+      });
+  }, [
+    perms.canManageInventario,
+    effectiveSucursalId,
+    loading,
+    jornadaLoading,
+    submitting,
+    inventario,
+    jornadaBanner,
+    openInventarioJornadaActiva,
+  ]);
+
   const productoNombre = (id: string) =>
     products.find((p) => p.id === id)?.nombre ?? id;
 
   const sucursalNombre = (id?: string | null) =>
     sucursales.find((s) => s.id === id)?.nombre ?? id ?? "—";
 
+  const concesionNombre = (id?: string | null) =>
+    concessions.find((c) => c.id === id)?.nombre ?? id ?? "—";
+
   const productosEnInventario = inventario?.productos ?? [];
 
-  // Catálogo cargable: productos de la concesión de la sucursal seleccionada
   const productosCatalogo = useMemo(() => {
     const concesionId = sucursalActual?.concesion_id;
     if (perms.isSuperAdmin && concesionId) {
@@ -117,61 +181,25 @@ export default function InventariosPage() {
     return products;
   }, [products, perms.isSuperAdmin, sucursalActual?.concesion_id]);
 
-  const jornadaId = useMemo(() => {
-    if (inventario?.jornada_fecha && inventario.jornada_numero != null) {
-      return buildJornadaId(inventario.jornada_fecha, inventario.jornada_numero);
-    }
-    if (jornadaBanner?.fecha && jornadaBanner.jornada != null) {
-      return buildJornadaId(String(jornadaBanner.fecha), Number(jornadaBanner.jornada));
-    }
-    return null;
-  }, [inventario, jornadaBanner]);
+  const needsConcesionPick = perms.isSuperAdmin && !concesionSel;
+  const showSidebarContent = !perms.isSuperAdmin || Boolean(concesionSel);
 
-  const cajasSucursal = useMemo(
-    () =>
-      (sucursalActual?.cajas ?? []).filter((c) => c.activo !== false),
-    [sucursalActual],
-  );
-
-  const openAssignModal = () => {
-    const defaults: Record<string, string> = {};
-    for (const v of vendedores.filter(
-      (v) => v.sucursalId === effectiveSucursalId && v.cajaId,
-    )) {
-      defaults[v.cajaId as string] = (v.uid ?? v.id) as string;
-    }
-    setCajaVendedorMap(defaults);
-    setAssignOpen(true);
+  const handleRefresh = () => {
+    autoOpenAttemptedFor.current = null;
+    setActionError(null);
+    void refetch();
   };
 
-  const handleOpen = async () => {
-    setSubmitting(true);
-    setActionError(null);
-    try {
-      await openInventarioJornadaActiva();
-      if (perms.canManageInventario) {
-        openAssignModal();
-      }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Error al abrir inventario");
-    } finally {
-      setSubmitting(false);
-    }
+  const openCarga = () => {
+    setProductoId("");
+    setCantidadInicial("");
+    setCargaOpen(true);
   };
 
-  const handleSaveAsignaciones = async () => {
-    if (!jornadaId || !effectiveSucursalId) return;
-    setActionError(null);
-    try {
-      const asignaciones = cajasSucursal.map((caja) => ({
-        cajaId: caja.id,
-        vendedorUid: cajaVendedorMap[caja.id] || null,
-      }));
-      await saveAsignaciones(jornadaId, effectiveSucursalId, asignaciones);
-      setAssignOpen(false);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Error al guardar asignaciones");
-    }
+  const closeCarga = () => {
+    setCargaOpen(false);
+    setProductoId("");
+    setCantidadInicial("");
   };
 
   const handleCarga = async (e: FormEvent) => {
@@ -183,304 +211,486 @@ export default function InventariosPage() {
       await upsertProducto(productoId, {
         cantidad_inicial: Number(cantidadInicial),
       });
-      setProductoId("");
-      setCantidadInicial("");
+      closeCarga();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Error al cargar producto");
+      setActionError(
+        err instanceof Error ? err.message : "Error al cargar producto",
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
+  const heroDescription = perms.canManageInventario
+    ? "Stock por sucursal para la jornada activa. Elige una sucursal y carga productos."
+    : perms.isVendedor
+      ? "Stock de tu sucursal para la jornada activa."
+      : "Consulta el inventario por sucursal (solo lectura).";
+
   return (
     <RequireRole authenticated>
-      <PageHeader
-        title="Inventario"
-        description={
-          perms.canManageInventario
-            ? "Gestiona el inventario por sucursal para la jornada activa."
-            : perms.isVendedor
-              ? "Stock de tu sucursal para la jornada activa."
-              : "Consulta el inventario por sucursal (solo lectura)."
-        }
-        actions={
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={loading}>
-            <RefreshCw className="size-4" />
-            Actualizar
-          </Button>
-        }
-      />
+      <div className="wizard-alta wizard-alta__shell wizard-alta__shell--fill">
+        <header className="wizard-alta__hero">
+          <div className="wizard-alta__hero-inner">
+            <div>
+              <h1>Inventario</h1>
+              <p>{heroDescription}</p>
+            </div>
+            <div className="wizard-alta__hero-actions">
+              <button
+                type="button"
+                className="wizard-alta__exit"
+                onClick={handleRefresh}
+                disabled={loading || submitting}
+              >
+                <RefreshCw className="size-4" />
+                Actualizar
+              </button>
+            </div>
+          </div>
+        </header>
 
-      {!perms.isVendedor && (
-        <div className="mb-6 flex flex-wrap gap-4">
-          {perms.isSuperAdmin && (
-            <div className="w-full max-w-xs">
-              <Field label="Concesión" htmlFor="concesionSel">
+        {(error || actionError) && (
+          <div className="mt-4 rounded-[8px] border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
+            {error ?? actionError}
+          </div>
+        )}
+
+        <div className="wizard-alta__layout">
+          <aside className="wizard-alta__sidebar">
+            {perms.isSuperAdmin && (
+              <div className="wizard-alta__sidebar-filter">
+                <Field label="1) Elige concesión" htmlFor="concesionSel">
+                  <NativeSelect
+                    id="concesionSel"
+                    value={concesionSel}
+                    onChange={(e) => setConcesion(e.target.value)}
+                  >
+                    <option value="">Selecciona una concesión</option>
+                    {concessions
+                      .filter((c) => c.activo !== false)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nombre}
+                        </option>
+                      ))}
+                  </NativeSelect>
+                </Field>
+              </div>
+            )}
+
+            {perms.isVendedor ? (
+              <div className="wizard-alta__sidebar-head mt-2">
+                <h2 className="wizard-alta__sidebar-title">Tu sucursal</h2>
+                <p className="wizard-alta__hint mt-2">
+                  {effectiveSucursalId
+                    ? sucursalNombre(effectiveSucursalId)
+                    : "Sin sucursal asignada"}
+                </p>
+              </div>
+            ) : !showSidebarContent ? (
+              <p className="wizard-alta__empty">
+                Primero elige la concesión. Después verás sus sucursales e
+                inventario.
+              </p>
+            ) : (
+              <>
+                <div className="wizard-alta__sidebar-head mt-2">
+                  <h2 className="wizard-alta__sidebar-title">Sucursales</h2>
+                </div>
+
+                {sucursalesVisibles.length === 0 ? (
+                  <p className="wizard-alta__empty">
+                    No hay sucursales activas
+                    {perms.isSuperAdmin ? " en esta concesión" : ""}.
+                  </p>
+                ) : (
+                  <ul className="wizard-alta__sidebar-list">
+                    {sucursalesVisibles.map((s) => {
+                      const isSelected = s.id === sucursalSel;
+                      return (
+                        <li key={s.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSucursalSel(s.id);
+                              setDetailTab("stock");
+                              setActionError(null);
+                            }}
+                            className={`wizard-alta__sidebar-item${
+                              isSelected
+                                ? " wizard-alta__sidebar-item--active"
+                                : ""
+                            }`}
+                          >
+                            <div className="wizard-alta__sidebar-item-top">
+                              <p className="wizard-alta__sidebar-item-name">
+                                {s.nombre ?? s.id}
+                              </p>
+                            </div>
+                            {perms.isSuperAdmin && (
+                              <p className="wizard-alta__sidebar-item-meta">
+                                {concesionNombre(s.concesion_id)}
+                              </p>
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </>
+            )}
+          </aside>
+
+          <div className="wizard-alta__panel">
+            {needsConcesionPick ? (
+              <div className="wizard-alta__panel-body">
+                <p className="wizard-alta__hint">
+                  1) Elige la concesión a la izquierda → 2) Selecciona una
+                  sucursal para ver su inventario.
+                </p>
+                <p className="wizard-alta__empty">
+                  Selecciona una concesión para ver el inventario.
+                </p>
+              </div>
+            ) : !effectiveSucursalId ? (
+              <div className="wizard-alta__panel-body">
+                <p className="wizard-alta__hint">
+                  {perms.isVendedor
+                    ? "Tu usuario no tiene una sucursal asignada. Contacta al administrador."
+                    : "Elige una sucursal a la izquierda para ver su inventario de jornada."}
+                </p>
+                <p className="wizard-alta__empty">
+                  {perms.isVendedor
+                    ? "Sin sucursal asignada."
+                    : "Cuando elijas una sucursal, aquí verás stock y movimientos."}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="wizard-alta__panel-head">
+                  <div className="wizard-alta__identity">
+                    <div>
+                      <h2 className="wizard-alta__panel-title">
+                        {sucursalNombre(effectiveSucursalId)}
+                      </h2>
+                      <p className="wizard-alta__panel-sub">
+                        {jornadaLoading && !jornadaBanner
+                          ? "Cargando jornada…"
+                          : jornadaBanner
+                            ? `Jornada ${jornadaBanner.jornada ?? "—"}${
+                                jornadaBanner.fecha
+                                  ? ` · ${jornadaBanner.fecha}`
+                                  : ""
+                              }${
+                                jornadaBanner.hora
+                                  ? ` · ${jornadaBanner.hora}`
+                                  : ""
+                              }${
+                                jornadaBanner.equipo_local ||
+                                jornadaBanner.equipo_visitante
+                                  ? ` · ${jornadaBanner.equipo_local ?? "—"} vs ${jornadaBanner.equipo_visitante ?? "—"}`
+                                  : ""
+                              }${
+                                jornadaBanner.estadio
+                                  ? ` · ${jornadaBanner.estadio}`
+                                  : ""
+                              }`
+                            : "No hay jornada activa configurada"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {inventario && (
+                    <nav
+                      className="wizard-alta__panel-tabs"
+                      aria-label="Secciones del inventario"
+                    >
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={detailTab === "stock"}
+                        className={`wizard-alta__panel-tab${
+                          detailTab === "stock"
+                            ? " wizard-alta__panel-tab--active"
+                            : ""
+                        }`}
+                        onClick={() => setDetailTab("stock")}
+                      >
+                        Stock
+                        <span className="wizard-alta__panel-tab-count">
+                          {productosEnInventario.length}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={detailTab === "movimientos"}
+                        className={`wizard-alta__panel-tab${
+                          detailTab === "movimientos"
+                            ? " wizard-alta__panel-tab--active"
+                            : ""
+                        }`}
+                        onClick={() => setDetailTab("movimientos")}
+                      >
+                        Movimientos
+                        <span className="wizard-alta__panel-tab-count">
+                          {movimientos.length}
+                        </span>
+                      </button>
+                    </nav>
+                  )}
+                </div>
+
+                <div className="wizard-alta__panel-body wizard-alta__panel-body--stack">
+                  {loading ? (
+                    <p className="wizard-alta__empty">Cargando inventario…</p>
+                  ) : submitting && !inventario ? (
+                    <p className="wizard-alta__empty">Abriendo inventario…</p>
+                  ) : !inventario && jornadaBanner ? (
+                    <div>
+                      <p className="wizard-alta__hint">
+                        {perms.canManageInventario
+                          ? "No se pudo abrir el inventario de esta sucursal. Usa Actualizar para reintentar."
+                          : "Aún no se ha abierto el inventario de esta sucursal para la jornada."}
+                      </p>
+                      <p className="wizard-alta__empty">
+                        Sin inventario abierto.
+                      </p>
+                    </div>
+                  ) : !inventario ? (
+                    <p className="wizard-alta__empty">
+                      No hay jornada activa ni inventario disponible.
+                    </p>
+                  ) : detailTab === "stock" ? (
+                    <section className="wizard-alta__section">
+                      <div className="wizard-alta__section-head">
+                        <div>
+                          <h3 className="wizard-alta__section-title">Stock</h3>
+                          <p className="wizard-alta__section-sub">
+                            Productos cargados para la jornada
+                          </p>
+                        </div>
+                        {perms.canManageInventario && (
+                          <button
+                            type="button"
+                            className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
+                            onClick={openCarga}
+                          >
+                            <PackagePlus className="size-3.5" />
+                            Cargar producto
+                          </button>
+                        )}
+                      </div>
+
+                      {productosEnInventario.length === 0 ? (
+                        <div>
+                          <p className="wizard-alta__hint">
+                            {perms.canManageInventario
+                              ? "El inventario está vacío. Carga el primer producto con su cantidad inicial."
+                              : "No hay productos cargados en este inventario."}
+                          </p>
+                          <p className="wizard-alta__empty">
+                            Sin productos cargados.
+                          </p>
+                        </div>
+                      ) : (
+                        <div
+                          className={`wizard-alta__table-wrap${
+                            productosEnInventario.length > 8
+                              ? " wizard-alta__table-wrap--scroll"
+                              : ""
+                          }`}
+                        >
+                          <table className="wizard-alta__table">
+                            <thead>
+                              <tr>
+                                <th>Producto</th>
+                                <th>Inicial</th>
+                                <th>Vendido</th>
+                                <th>Disponible</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {productosEnInventario.map((p) => {
+                                const row = stockRow(p);
+                                return (
+                                  <tr key={p.id ?? p.producto_id}>
+                                    <td>
+                                      <span className="wizard-alta__table-name">
+                                        {productoNombre(p.producto_id)}
+                                      </span>
+                                    </td>
+                                    <td className="wizard-alta__table-muted">
+                                      {row.inicial}
+                                    </td>
+                                    <td>
+                                      <span className="wizard-alta__chip">
+                                        {row.vendido}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span
+                                        className={`wizard-alta__status-pill ${
+                                          row.disponible > 0
+                                            ? "wizard-alta__status-pill--on"
+                                            : "wizard-alta__status-pill--off"
+                                        }`}
+                                      >
+                                        {row.disponible}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </section>
+                  ) : (
+                    <section className="wizard-alta__section">
+                      <div className="wizard-alta__section-head">
+                        <div>
+                          <h3 className="wizard-alta__section-title">
+                            Movimientos
+                          </h3>
+                          <p className="wizard-alta__section-sub">
+                            Cargas, ventas y ajustes de la jornada
+                          </p>
+                        </div>
+                      </div>
+
+                      {movimientos.length === 0 ? (
+                        <p className="wizard-alta__empty">
+                          Sin movimientos registrados.
+                        </p>
+                      ) : (
+                        <div
+                          className={`wizard-alta__table-wrap${
+                            movimientos.length > 8
+                              ? " wizard-alta__table-wrap--scroll"
+                              : ""
+                          }`}
+                        >
+                          <table className="wizard-alta__table">
+                            <thead>
+                              <tr>
+                                <th>Tipo</th>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Detalle</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {movimientos.map((m) => (
+                                <tr key={m.id}>
+                                  <td>
+                                    <span className="wizard-alta__chip">
+                                      {movimientoLabel(m)}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span className="wizard-alta__table-name">
+                                      {productoNombre(m.producto_id)}
+                                    </span>
+                                  </td>
+                                  <td className="wizard-alta__table-muted">
+                                    {m.cantidad > 0 ? "+" : ""}
+                                    {m.cantidad} ({m.cantidad_anterior} →{" "}
+                                    {m.cantidad_nueva})
+                                  </td>
+                                  <td className="wizard-alta__table-muted">
+                                    {[
+                                      m.tipo === "VENTA" && m.sucursal_id
+                                        ? `Sucursal ${sucursalNombre(m.sucursal_id)}`
+                                        : null,
+                                      m.cajaNombre
+                                        ? `Caja ${m.cajaNombre}`
+                                        : null,
+                                      m.ventaId ? `Venta ${m.ventaId}` : null,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" · ") || "—"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </section>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Dialog open={cargaOpen} onOpenChange={(open) => !open && closeCarga()}>
+        <DialogContent className="wizard-alta wizard-alta__dialog !flex !max-w-[42rem] !flex-col !gap-0 !p-0">
+          <div className="wizard-alta__dialog-head">
+            <DialogHeader className="text-left">
+              <DialogTitle className="wizard-alta__dialog-title">
+                Cargar producto
+              </DialogTitle>
+              <DialogDescription className="wizard-alta__dialog-sub">
+                Agrega un producto al inventario de{" "}
+                {sucursalNombre(effectiveSucursalId)} con su cantidad inicial.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <form onSubmit={handleCarga} className="wizard-alta__dialog-body">
+            <div className="wizard-alta__dialog-fields">
+              <Field label="Producto" htmlFor="cargaProducto">
                 <NativeSelect
-                  id="concesionSel"
-                  value={concesionSel}
-                  onChange={(e) => {
-                    setConcesionSel(e.target.value);
-                    setSucursalSel("");
-                  }}
+                  id="cargaProducto"
+                  value={productoId}
+                  onChange={(e) => setProductoId(e.target.value)}
+                  required
                 >
-                  <option value="">Todas las concesiones</option>
-                  {concessions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombre}
+                  <option value="">Selecciona producto</option>
+                  {productosCatalogo.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre}
                     </option>
                   ))}
                 </NativeSelect>
               </Field>
+              <Field label="Cantidad inicial" htmlFor="cargaCantidad">
+                <Input
+                  id="cargaCantidad"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={cantidadInicial}
+                  onChange={(e) => setCantidadInicial(e.target.value)}
+                  required
+                />
+              </Field>
             </div>
-          )}
-          <div className="w-full max-w-xs">
-            <Field label="Sucursal" htmlFor="sucursalSel">
-              <NativeSelect
-                id="sucursalSel"
-                value={sucursalSel}
-                onChange={(e) => setSucursalSel(e.target.value)}
+            <div className="wizard-alta__footer">
+              <button
+                type="button"
+                className="wizard-alta__btn wizard-alta__btn--secondary"
+                onClick={closeCarga}
+                disabled={submitting}
               >
-                <option value="">Selecciona sucursal</option>
-                {sucursalesVisibles.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nombre ?? s.id}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-          </div>
-        </div>
-      )}
-
-      {!effectiveSucursalId ? (
-        <p className="mb-6 text-[1.4rem] text-muted-foreground">
-          {perms.isVendedor
-            ? "Tu usuario no tiene una sucursal asignada. Contacta al administrador."
-            : "Selecciona una sucursal para ver su inventario de jornada."}
-        </p>
-      ) : (
-      <>
-      <div className="dashboard-card mb-6 p-5">
-        <h2 className="mb-3 text-[1.6rem] font-semibold">
-          Jornada activa · {sucursalNombre(effectiveSucursalId)}
-        </h2>
-        {jornadaLoading && !jornadaBanner ? (
-          <p className="text-[1.4rem] text-muted-foreground">Cargando jornada…</p>
-        ) : jornadaBanner ? (
-          <div className="grid gap-1 text-[1.4rem]">
-            <p>
-              <span className="font-medium">Jornada {jornadaBanner.jornada ?? "—"}</span>
-              {jornadaBanner.fecha ? ` · ${jornadaBanner.fecha}` : ""}
-              {jornadaBanner.hora ? ` · ${jornadaBanner.hora}` : ""}
-            </p>
-            {(jornadaBanner.equipo_local || jornadaBanner.equipo_visitante) && (
-              <p className="text-muted-foreground">
-                {jornadaBanner.equipo_local} vs {jornadaBanner.equipo_visitante}
-                {jornadaBanner.estadio ? ` · ${jornadaBanner.estadio}` : ""}
-              </p>
-            )}
-          </div>
-        ) : (
-          <p className="text-destructive">No hay jornada activa configurada.</p>
-        )}
-
-        {perms.canManageInventario && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={() => void handleOpen()} disabled={submitting || !jornadaBanner}>
-              Abrir inventario de jornada
-            </Button>
-            {inventario && jornadaId && (
-              <Button variant="outline" onClick={() => openAssignModal()}>
-                Asignar cajeros a cajas
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {(error || actionError) && (
-        <div className="mb-4 rounded-[8px] border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
-          {error ?? actionError}
-        </div>
-      )}
-
-      {!loading && !inventario && jornadaBanner && (
-        <p className="mb-6 text-[1.4rem] text-muted-foreground">
-          {perms.canManageInventario
-            ? "Aún no hay inventario para esta sucursal en la jornada. Usa el botón de arriba para abrirlo."
-            : "Aún no se ha abierto el inventario de esta sucursal para la jornada."}
-        </p>
-      )}
-
-      {inventario && (
-        <Tabs defaultValue="stock" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="stock">Stock</TabsTrigger>
-            <TabsTrigger value="movimientos">Movimientos</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="stock" className="space-y-6">
-            <DataTable<InventarioProducto>
-              loading={loading}
-              data={productosEnInventario}
-              getRowKey={(p) => p.id ?? p.producto_id}
-              emptyMessage="Sin productos cargados."
-              columns={[
-                {
-                  key: "producto",
-                  header: "Producto",
-                  cell: (p) => productoNombre(p.producto_id),
-                },
-                {
-                  key: "inicial",
-                  header: "Inicial",
-                  cell: (p) => stockRow(p).inicial,
-                },
-                {
-                  key: "vendido",
-                  header: "Vendido",
-                  cell: (p) => stockRow(p).vendido,
-                },
-                {
-                  key: "disponible",
-                  header: "Disponible",
-                  cell: (p) => stockRow(p).disponible,
-                },
-              ]}
-            />
-
-            {perms.canManageInventario && (
-              <div className="dashboard-card p-5">
-                <h3 className="mb-4 text-[1.5rem] font-semibold">Cargar producto</h3>
-                <form onSubmit={handleCarga} className="grid gap-4 md:grid-cols-3">
-                  <Field label="Producto" htmlFor="cargaProducto">
-                    <NativeSelect
-                      id="cargaProducto"
-                      value={productoId}
-                      onChange={(e) => setProductoId(e.target.value)}
-                      required
-                    >
-                      <option value="">Selecciona producto</option>
-                      {productosCatalogo.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.nombre}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  </Field>
-                  <Field label="Cantidad inicial" htmlFor="cargaCantidad">
-                    <Input
-                      id="cargaCantidad"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      value={cantidadInicial}
-                      onChange={(e) => setCantidadInicial(e.target.value)}
-                      required
-                    />
-                  </Field>
-                  <Button type="submit" disabled={submitting} className="self-end">
-                    Cargar producto
-                  </Button>
-                </form>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="movimientos">
-            {movimientos.length === 0 ? (
-              <div className="dashboard-card p-8 text-center">
-                <p className="text-[1.4rem] text-muted-foreground">
-                  Sin movimientos registrados.
-                </p>
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {movimientos.map((m) => (
-                  <li
-                    key={m.id}
-                    className="dashboard-card rounded-[var(--card-radius)] px-4 py-3 text-[1.4rem]"
-                  >
-                    <p className="font-medium">
-                      {movimientoLabel(m)} · {productoNombre(m.producto_id)}
-                    </p>
-                    <p className="text-muted-foreground">
-                      Cantidad: {m.cantidad > 0 ? "+" : ""}
-                      {m.cantidad} ({m.cantidad_anterior} → {m.cantidad_nueva})
-                      {m.tipo === "VENTA" && m.sucursal_id
-                        ? ` · Sucursal ${sucursalNombre(m.sucursal_id)}`
-                        : ""}
-                      {m.cajaNombre ? ` · Caja ${m.cajaNombre}` : ""}
-                      {m.ventaId ? ` · Venta ${m.ventaId}` : ""}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </TabsContent>
-        </Tabs>
-      )}
-
-        <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>
-                Asignar cajeros · {sucursalNombre(effectiveSucursalId)}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              {cajasSucursal.length === 0 ? (
-                <p className="text-[1.4rem] text-muted-foreground">
-                  Esta sucursal no tiene cajas. Créalas en Sucursales.
-                </p>
-              ) : (
-                cajasSucursal.map((caja) => (
-                  <div key={caja.id} className="grid gap-2 md:grid-cols-2">
-                    <span className="self-center text-[1.4rem] font-medium">
-                      {caja.nombre ?? caja.id}
-                    </span>
-                    <NativeSelect
-                      value={cajaVendedorMap[caja.id] ?? ""}
-                      aria-label={`Vendedor para ${caja.nombre ?? caja.id}`}
-                      onChange={(e) =>
-                        setCajaVendedorMap((prev) => ({
-                          ...prev,
-                          [caja.id]: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">Sin vendedor</option>
-                      {vendedores
-                        .filter(
-                          (v) =>
-                            v.sucursalId === effectiveSucursalId || !v.sucursalId,
-                        )
-                        .map((v) => (
-                          <option key={v.id} value={v.uid ?? v.id}>
-                            {v.nombre}
-                          </option>
-                        ))}
-                    </NativeSelect>
-                  </div>
-                ))
-              )}
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="wizard-alta__btn wizard-alta__btn--primary"
+                disabled={submitting}
+              >
+                {submitting ? "Cargando…" : "Cargar producto"}
+              </button>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAssignOpen(false)}>
-                Cerrar
-              </Button>
-              <Button
-                disabled={savingAsignaciones || !jornadaId || cajasSucursal.length === 0}
-                onClick={() => void handleSaveAsignaciones()}
-              >
-                {savingAsignaciones ? "Guardando…" : "Guardar asignaciones"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </>
-      )}
+          </form>
+        </DialogContent>
+      </Dialog>
     </RequireRole>
   );
 }
