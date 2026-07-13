@@ -1,84 +1,118 @@
-import { DataTable } from "@/components/dashboard/data-table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatPrice } from "@/lib/format";
-import type { ReporteProductoRow } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import type { ReporteProductoRow, ReporteProductoTotales } from "@/lib/types";
 
 type CorteReporteProductosTableProps = {
   data: ReporteProductoRow[];
+  totales?: ReporteProductoTotales | null;
   loading?: boolean;
-  showHint?: boolean;
 };
+
+const money = (value: number) => (value > 0 ? formatPrice(value) : "—");
+const qty = (value: number) => (value > 0 ? value.toLocaleString("es-MX") : "—");
 
 export function CorteReporteProductosTable({
   data,
+  totales,
   loading,
-  showHint = false,
 }: CorteReporteProductosTableProps) {
-  return (
-    <div className="space-y-2">
-      {showHint && (
-        <p className="text-[1.3rem] text-muted-foreground">
-          Total vendido incluye el valor cobrado (efectivo, tarjeta y puntos). La
-          comisión se calcula solo con efectivo + tarjeta.
-        </p>
-      )}
-      <div className="-mx-1 overflow-x-auto px-1">
-      <DataTable<ReporteProductoRow>
-        loading={loading}
-        className="min-w-[56rem]"
-        data={data}
-        getRowKey={(row) => row.productoId}
-        emptyMessage="Sin productos en el reporte de esta jornada."
-        columns={[
-          {
-            key: "nombre",
-            header: "Producto",
-            cell: (row) => (
-              <span className="block max-w-[14rem] truncate font-medium sm:max-w-none">
-                {row.nombre}
-              </span>
-            ),
-          },
-          {
-            key: "inicial",
-            header: "Inv. inicial",
-            className: "whitespace-nowrap text-right",
-            cell: (row) => row.inventarioInicial.toLocaleString("es-MX"),
-          },
-          {
-            key: "cantidad",
-            header: "Cant. vendida",
-            className: "whitespace-nowrap text-right",
-            cell: (row) => row.cantidadVendida.toLocaleString("es-MX"),
-          },
-          {
-            key: "precio",
-            header: "Precio unit.",
-            className: "whitespace-nowrap text-right",
-            cell: (row) => formatPrice(row.precioUnitario),
-          },
-          {
-            key: "final",
-            header: "Inv. final",
-            className: "whitespace-nowrap text-right",
-            cell: (row) => row.inventarioFinal.toLocaleString("es-MX"),
-          },
-          {
-            key: "cortesias",
-            header: "Cortesías ($0)",
-            className: "whitespace-nowrap text-right",
-            cell: (row) => row.cortesias.toLocaleString("es-MX"),
-          },
-          {
-            key: "total",
-            header: "Total vendido",
-            className: "whitespace-nowrap text-right",
-            cell: (row) => (
-              <span className="font-medium">{formatPrice(row.totalVendido)}</span>
-            ),
-          },
-        ]}
-      />
+  if (loading) {
+    return <Skeleton className="h-48 w-full rounded-md" />;
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="dashboard-card p-8 text-center text-[1.4rem] text-muted-foreground">
+        Sin productos en el reporte de esta jornada.
       </div>
+    );
+  }
+
+  const thClass =
+    "whitespace-nowrap px-3 py-2 text-left text-[1.2rem] font-semibold uppercase tracking-wide text-muted-foreground";
+  const tdClass = "whitespace-nowrap px-3 py-2.5 text-[1.35rem]";
+  const tdRight = cn(tdClass, "text-right");
+
+  return (
+    <div className="-mx-1 overflow-x-auto px-1">
+      <table className="w-full min-w-[72rem] border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-border">
+            <th className={thClass}>Producto</th>
+            <th className={cn(thClass, "text-right")}>Inv. inicial</th>
+            <th className={cn(thClass, "text-right")}>Inv. final</th>
+            <th className={cn(thClass, "text-right")}>Ventas regulares</th>
+            <th className={cn(thClass, "text-right")}>Ventas de abonados</th>
+            <th className={cn(thClass, "text-right")}>Precio regular</th>
+            <th className={cn(thClass, "text-right")}>Precio abonado</th>
+            <th className={cn(thClass, "text-right")}>Cortesías</th>
+            <th className={cn(thClass, "text-right")}>Puntos ($)</th>
+            <th className={cn(thClass, "text-right")}>Ventas totales</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <tr key={row.productoId} className="border-b border-border/60">
+              <td className={cn(tdClass, "max-w-[14rem] font-medium")}>
+                <span className="block truncate">{row.nombre}</span>
+              </td>
+              <td className={tdRight}>{qty(row.inventarioInicial)}</td>
+              <td className={tdRight}>{qty(row.inventarioFinal)}</td>
+              <td className={tdRight}>{qty(row.cantidadRegular)}</td>
+              <td className={tdRight}>{qty(row.cantidadAbonado)}</td>
+              <td className={tdRight}>{money(row.ventasRegular)}</td>
+              <td className={tdRight}>{money(row.ventasAbonado)}</td>
+              <td className={tdRight}>{qty(row.cortesias)}</td>
+              <td className={tdRight}>{money(row.puntosCanjeados)}</td>
+              <td className={cn(tdRight, "font-medium")}>
+                {money(row.ventasTotales)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        {totales && (
+          <tfoot>
+            <tr className="border-t-2 border-border bg-muted/30 font-semibold">
+              <td className={tdClass}>Totales</td>
+              <td className={tdRight}>—</td>
+              <td className={tdRight}>—</td>
+              <td className={tdRight}>{qty(totales.cantidadRegular)}</td>
+              <td className={tdRight}>{qty(totales.cantidadAbonado)}</td>
+              <td className={tdRight}>{money(totales.ventasRegular)}</td>
+              <td className={tdRight}>{money(totales.ventasAbonado)}</td>
+              <td className={tdRight}>{qty(totales.cortesias)}</td>
+              <td className={tdRight}>{money(totales.puntosCanjeados)}</td>
+              <td className={cn(tdRight, "font-bold text-green-dark")}>
+                {money(totales.ventasTotales)}
+              </td>
+            </tr>
+            <tr className="bg-muted/20">
+              <td className={tdClass} colSpan={9}>
+                Menos puntos canjeados
+              </td>
+              <td className={cn(tdRight, "text-destructive")}>
+                {totales.puntosCanjeados > 0
+                  ? `-${formatPrice(totales.puntosCanjeados)}`
+                  : "—"}
+              </td>
+            </tr>
+            <tr className="bg-green-muted font-bold">
+              <td className={cn(tdClass, "text-green-dark")} colSpan={9}>
+                Dinero real
+              </td>
+              <td
+                className={cn(
+                  tdRight,
+                  "text-[1.5rem] font-bold text-green-dark",
+                )}
+              >
+                {money(totales.dineroReal)}
+              </td>
+            </tr>
+          </tfoot>
+        )}
+      </table>
     </div>
   );
 }

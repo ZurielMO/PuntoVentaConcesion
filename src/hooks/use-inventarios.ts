@@ -9,6 +9,7 @@ import type {
   InventarioMovimiento,
   InventarioProducto,
   JornadaActivaValue,
+  JornadaDisponible,
 } from "@/lib/types";
 
 export function useJornadas() {
@@ -41,6 +42,48 @@ export function useJornadas() {
   }, [fetchJornada]);
 
   return { jornadaActiva, loading, refetch: fetchJornada };
+}
+
+export function useJornadasDisponibles(filters?: {
+  concesionId?: string;
+  sucursalId?: string;
+}) {
+  const { token } = useAuth();
+  const [jornadas, setJornadas] = useState<JornadaDisponible[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const filterKey = JSON.stringify(filters ?? {});
+
+  const fetchJornadas = useCallback(async () => {
+    if (!token) {
+      setJornadas([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      if (filters?.concesionId) qs.set("concesionId", filters.concesionId);
+      if (filters?.sucursalId) qs.set("sucursalId", filters.sucursalId);
+      const query = qs.toString();
+      const path = query
+        ? `${apiPaths.jornadas}/disponibles?${query}`
+        : `${apiPaths.jornadas}/disponibles`;
+      const res = await api.get<ApiResponse<JornadaDisponible[]>>(path, token);
+      setJornadas(res.data ?? []);
+    } catch {
+      setJornadas([]);
+    } finally {
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, filterKey]);
+
+  useEffect(() => {
+    fetchJornadas();
+  }, [fetchJornadas]);
+
+  return { jornadas, loading, refetch: fetchJornadas };
 }
 
 export function useInventarioJornadaActiva(

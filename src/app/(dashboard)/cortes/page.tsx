@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Eye, FileDown, RefreshCw } from "lucide-react";
+import { Eye, FileDown, Info, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Field } from "@/components/ui/field";
 import { RequireRole } from "@/components/auth/require-role";
@@ -12,16 +11,15 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { CorteDetalleDialog } from "@/components/dashboard/corte-detalle-dialog";
 import { CorteReporteProductosTable } from "@/components/dashboard/corte-reporte-productos-table";
 import { CorteReporteComisionTable } from "@/components/dashboard/corte-reporte-comision-table";
-import { CorteReporteIngresosPanel } from "@/components/dashboard/corte-reporte-ingresos-panel";
+import { CorteReporteIngresosStats } from "@/components/dashboard/corte-reporte-ingresos-stats";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCortes,
   useReporteCortes,
   type CorteFilters,
-  type ReporteCortesFilters,
 } from "@/hooks/use-cortes";
-import { useJornadas } from "@/hooks/use-inventarios";
+import { useJornadasDisponibles } from "@/hooks/use-inventarios";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConcessions } from "@/hooks/use-concessions";
 import { useSucursales } from "@/hooks/use-sucursales";
@@ -35,31 +33,29 @@ import type { Corte } from "@/lib/types";
 const nullableMoney = (value?: number | null) =>
   value == null ? "—" : formatPrice(Number(value));
 
+const formatJornadaCorte = (corte: Corte) => {
+  if (corte.jornadaId) {
+    const match = corte.jornadaId.match(/^(\d{4}-\d{2}-\d{2})__J(\d+)$/);
+    if (match) {
+      const [, fecha, num] = match;
+      const [y, m, d] = fecha.split("-");
+      return `Jornada ${num} · ${d}/${m}/${y}`;
+    }
+    return corte.jornadaId;
+  }
+  return corte.fecha;
+};
+
 export default function CortesPage() {
   const perms = usePermissions();
   const canFilter = perms.isSuperAdmin || perms.isAdmin;
 
   const [concesionId, setConcesionId] = useState("");
   const [sucursalId, setSucursalId] = useState("");
-  const [fechaJornada, setFechaJornada] = useState("");
-  const [numeroJornada, setNumeroJornada] = useState("");
+  const [jornadaId, setJornadaId] = useState("");
 
-  const { jornadaActiva, loading: jornadaLoading } = useJornadas();
   const { concessions } = useConcessions();
   const { sucursales } = useSucursales();
-
-  const jornadaBanner = useMemo(() => {
-    const entries = Object.values(jornadaActiva);
-    return entries.find((j) => j.activo) ?? entries[0] ?? null;
-  }, [jornadaActiva]);
-
-  useEffect(() => {
-    if (fechaJornada || !jornadaBanner?.fecha) return;
-    setFechaJornada(String(jornadaBanner.fecha));
-    if (jornadaBanner.jornada != null) {
-      setNumeroJornada(String(jornadaBanner.jornada));
-    }
-  }, [jornadaBanner, fechaJornada]);
 
   const effectiveConcesionId = useMemo(() => {
     if (perms.isSuperAdmin && concesionId) return concesionId;
@@ -68,22 +64,26 @@ export default function CortesPage() {
     return "";
   }, [perms.isSuperAdmin, perms.concesionId, concesionId]);
 
+  const { jornadas, loading: jornadasLoading, refetch: refetchJornadas } =
+    useJornadasDisponibles({
+      concesionId: effectiveConcesionId || undefined,
+      sucursalId: sucursalId || undefined,
+    });
+
+  useEffect(() => {
+    if (jornadaId) return;
+    if (jornadas.length > 0) {
+      setJornadaId(jornadas[0].jornadaId);
+    }
+  }, [jornadas, jornadaId]);
+
   const filters = useMemo<CorteFilters>(() => {
     const f: CorteFilters = {};
     if (effectiveConcesionId) f.concesionId = effectiveConcesionId;
     if (sucursalId) f.sucursalId = sucursalId;
+    if (jornadaId) f.jornadaId = jornadaId;
     return f;
-  }, [effectiveConcesionId, sucursalId]);
-
-  const reporteFilters = useMemo<ReporteCortesFilters>(() => {
-    const f: ReporteCortesFilters = { ...filters };
-    if (fechaJornada) f.fecha = fechaJornada;
-    const jornadaNum = Number(numeroJornada);
-    if (numeroJornada !== "" && !Number.isNaN(jornadaNum)) {
-      f.jornada = jornadaNum;
-    }
-    return f;
-  }, [filters, fechaJornada, numeroJornada]);
+  }, [effectiveConcesionId, sucursalId, jornadaId]);
 
   const { cortes, loading, error, refetch } = useCortes(filters);
   const {
@@ -91,7 +91,7 @@ export default function CortesPage() {
     loading: loadingReporte,
     error: errorReporte,
     refetch: refetchReporte,
-  } = useReporteCortes(reporteFilters);
+  } = useReporteCortes(filters);
 
   const sucursalesFiltradas = useMemo(() => {
     const activas = sucursales.filter((s) => s.activo !== false);
@@ -106,9 +106,15 @@ export default function CortesPage() {
     [concessions, effectiveConcesionId],
   );
 
+  const jornadaSeleccionada = useMemo(
+    () => jornadas.find((j) => j.jornadaId === jornadaId),
+    [jornadas, jornadaId],
+  );
+
   const [detalleCorte, setDetalleCorte] = useState<Corte | null>(null);
 
   const refreshAll = () => {
+    void refetchJornadas();
     void refetch();
     void refetchReporte();
   };
@@ -116,6 +122,7 @@ export default function CortesPage() {
   const handleConcesionChange = (value: string) => {
     setConcesionId(value);
     setSucursalId("");
+    setJornadaId("");
   };
 
   const handlePdfConcesion = () => {
@@ -151,61 +158,58 @@ export default function CortesPage() {
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {canFilter && perms.isSuperAdmin && (
-            <Field label="Concesión" htmlFor="filtro-concesion">
-              <NativeSelect
-                id="filtro-concesion"
-                value={concesionId}
-                onChange={(e) => handleConcesionChange(e.target.value)}
-              >
-                <option value="">Todas las concesiones</option>
-                {concessions
-                  .filter((c) => c.activo !== false)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombre}
-                    </option>
-                  ))}
-              </NativeSelect>
-            </Field>
-          )}
-          {canFilter && (
-            <Field label="Sucursal" htmlFor="filtro-sucursal">
-              <NativeSelect
-                id="filtro-sucursal"
-                value={sucursalId}
-                onChange={(e) => setSucursalId(e.target.value)}
-              >
-                <option value="">Todas las sucursales</option>
-                {sucursalesFiltradas.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nombre ?? s.id}
+        {canFilter && perms.isSuperAdmin && (
+          <Field label="Concesión" htmlFor="filtro-concesion">
+            <NativeSelect
+              id="filtro-concesion"
+              value={concesionId}
+              onChange={(e) => handleConcesionChange(e.target.value)}
+            >
+              <option value="">Todas las concesiones</option>
+              {concessions
+                .filter((c) => c.activo !== false)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
                   </option>
                 ))}
-              </NativeSelect>
-            </Field>
-          )}
-          <Field label="Fecha jornada" htmlFor="filtro-fecha-jornada">
-            <Input
-              id="filtro-fecha-jornada"
-              type="date"
-              value={fechaJornada}
-              onChange={(e) => setFechaJornada(e.target.value)}
-              disabled={jornadaLoading && !fechaJornada}
-            />
+            </NativeSelect>
           </Field>
-          <Field label="Número jornada" htmlFor="filtro-num-jornada">
-            <Input
-              id="filtro-num-jornada"
-              type="number"
-              min={1}
-              step={1}
-              value={numeroJornada}
-              onChange={(e) => setNumeroJornada(e.target.value)}
-              placeholder="Ej. 1"
-            />
+        )}
+        {canFilter && (
+          <Field label="Sucursal" htmlFor="filtro-sucursal">
+            <NativeSelect
+              id="filtro-sucursal"
+              value={sucursalId}
+              onChange={(e) => setSucursalId(e.target.value)}
+            >
+              <option value="">Todas las sucursales</option>
+              {sucursalesFiltradas.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nombre ?? s.id}
+                </option>
+              ))}
+            </NativeSelect>
           </Field>
-        </div>
+        )}
+        <Field label="Jornada" htmlFor="filtro-jornada">
+          <NativeSelect
+            id="filtro-jornada"
+            value={jornadaId}
+            onChange={(e) => setJornadaId(e.target.value)}
+            disabled={jornadasLoading}
+          >
+            <option value="">
+              {jornadasLoading ? "Cargando jornadas…" : "Selecciona jornada"}
+            </option>
+            {jornadas.map((j) => (
+              <option key={j.jornadaId} value={j.jornadaId}>
+                {j.etiqueta}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+      </div>
 
       <section className="mb-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -213,9 +217,10 @@ export default function CortesPage() {
             <h2 className="text-[1.8rem] font-semibold text-green-dark">
               Reporte de ventas
             </h2>
-            {reporte && (
+            {(reporte || jornadaSeleccionada) && (
               <Badge variant="secondary">
-                Jornada {reporte.jornada.numero} · {reporte.jornada.fecha}
+                {jornadaSeleccionada?.etiqueta ??
+                  `Jornada ${reporte?.jornada.numero} · ${reporte?.jornada.fecha}`}
               </Badge>
             )}
           </div>
@@ -241,23 +246,32 @@ export default function CortesPage() {
           </div>
         )}
 
+        {!jornadaId && !jornadasLoading && (
+          <div className="dashboard-card mb-4 p-6 text-center text-[1.4rem] text-muted-foreground">
+            Selecciona una jornada para ver el reporte.
+          </div>
+        )}
+
         {loadingReporte ? (
           <div className="space-y-4">
-            <Skeleton className="h-40 w-full rounded-md" />
             <Skeleton className="h-32 w-full rounded-md" />
+            <Skeleton className="h-48 w-full rounded-md" />
           </div>
-        ) : reporte ? (
+        ) : reporte && jornadaId ? (
           <div className="space-y-8">
-            {reporte.ingresos && reporte.tiposVenta && reporte.promocionesAbonado && (
+            {reporte.ingresos && (
               <div>
                 <h3 className="mb-3 text-[1.6rem] font-semibold text-green-dark">
-                  Desglose de ingresos
+                  Resumen de ingresos
                 </h3>
-                <CorteReporteIngresosPanel
-                  ingresos={reporte.ingresos}
-                  tiposVenta={reporte.tiposVenta}
-                  promocionesAbonado={reporte.promocionesAbonado}
-                />
+                <CorteReporteIngresosStats ingresos={reporte.ingresos} />
+                <div className="mt-3 flex items-start gap-2 rounded-sm border border-green-soft bg-green-muted p-3 text-[1.3rem] text-green-dark">
+                  <Info className="mt-0.5 size-4 shrink-0 text-green-accent" />
+                  <p className="min-w-0 leading-snug">
+                    La venta neta es efectivo + tarjeta. Los puntos canjeados no
+                    son dinero real ni base de comisión.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -268,7 +282,7 @@ export default function CortesPage() {
                 </h3>
                 <CorteReporteProductosTable
                   data={reporte.productos ?? []}
-                  showHint
+                  totales={reporte.productoTotales}
                 />
               </div>
             )}
@@ -286,10 +300,11 @@ export default function CortesPage() {
             </div>
           </div>
         ) : (
+          jornadaId &&
           !errorReporte && (
             <div className="dashboard-card p-8 text-center">
               <p className="text-[1.4rem] text-muted-foreground">
-                No hay datos de reporte para los filtros seleccionados.
+                No hay datos de reporte para la jornada seleccionada.
               </p>
             </div>
           )
@@ -311,9 +326,17 @@ export default function CortesPage() {
           loading={loading}
           data={cortes}
           getRowKey={(c) => c.id}
-          emptyMessage="No hay cortes registrados."
+          emptyMessage={
+            jornadaId
+              ? "No hay cortes para esta jornada."
+              : "Selecciona una jornada para ver el historial."
+          }
           columns={[
-            { key: "fecha", header: "Fecha", cell: (c) => c.fecha },
+            {
+              key: "jornada",
+              header: "Jornada",
+              cell: (c) => formatJornadaCorte(c),
+            },
             {
               key: "caja",
               header: "Caja",

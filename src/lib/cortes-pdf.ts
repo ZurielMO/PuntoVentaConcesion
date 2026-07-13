@@ -4,14 +4,11 @@ import { formatPrice } from "@/lib/format";
 import type { ReporteCortes } from "@/lib/types";
 
 const money = (value: number) => formatPrice(value);
-
 const dashOrMoney = (value: number) => (value > 0 ? money(value) : "—");
+const dashOrQty = (value: number) =>
+  value > 0 ? value.toLocaleString("es-MX") : "—";
 
-const addHeader = (
-  doc: jsPDF,
-  title: string,
-  subtitle: string,
-) => {
+const addHeader = (doc: jsPDF, title: string, subtitle: string) => {
   doc.setFontSize(16);
   doc.text(title, 14, 18);
   doc.setFontSize(10);
@@ -22,6 +19,64 @@ const addHeader = (
 
 const getFinalY = (doc: jsPDF) =>
   (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+
+const productosTableBody = (reporte: ReporteCortes) => {
+  const rows =
+    reporte.productos?.map((row) => [
+      row.nombre,
+      String(row.inventarioInicial),
+      String(row.inventarioFinal),
+      dashOrQty(row.cantidadRegular),
+      dashOrQty(row.cantidadAbonado),
+      dashOrMoney(row.ventasRegular),
+      dashOrMoney(row.ventasAbonado),
+      dashOrQty(row.cortesias),
+      dashOrMoney(row.puntosCanjeados),
+      dashOrMoney(row.ventasTotales),
+    ]) ?? [];
+
+  const t = reporte.productoTotales;
+  if (t) {
+    rows.push([
+      "Totales",
+      "—",
+      "—",
+      dashOrQty(t.cantidadRegular),
+      dashOrQty(t.cantidadAbonado),
+      dashOrMoney(t.ventasRegular),
+      dashOrMoney(t.ventasAbonado),
+      dashOrQty(t.cortesias),
+      dashOrMoney(t.puntosCanjeados),
+      dashOrMoney(t.ventasTotales),
+    ]);
+    rows.push([
+      "Menos puntos canjeados",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      t.puntosCanjeados > 0 ? `-${money(t.puntosCanjeados)}` : "—",
+    ]);
+    rows.push([
+      "Dinero real",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      money(t.dineroReal),
+    ]);
+  }
+
+  return rows;
+};
 
 export function downloadReporteConcesionPdf(
   reporte: ReporteCortes,
@@ -40,87 +95,21 @@ export function downloadReporteConcesionPdf(
   let startY = 34;
 
   if (reporte.ingresos) {
-    doc.setFontSize(12);
-    doc.text("Desglose de ingresos", 14, startY);
-    startY += 4;
-
     autoTable(doc, {
-      startY: startY + 2,
+      startY,
       head: [["Concepto", "Monto"]],
       body: [
-        ["Venta neta (efectivo + tarjeta)", money(reporte.ingresos.ventaNeta)],
+        ["Venta neta", money(reporte.ingresos.ventaNeta)],
         ["Efectivo", money(reporte.ingresos.totalEfectivo)],
         ["Tarjeta", money(reporte.ingresos.totalTarjeta)],
         [
-          "Puntos canjeados (informativo)",
+          "Puntos canjeados",
           `${reporte.ingresos.totalPuntosCanjeados.toLocaleString("es-MX")} pts (${money(reporte.ingresos.totalPuntosMonto)})`,
         ],
-        ["Cantidad de ventas", String(reporte.ingresos.cantidadVentas)],
       ],
       styles: { fontSize: 9 },
       headStyles: { fillColor: [22, 101, 52] },
     });
-
-    startY = getFinalY(doc) + 10;
-  }
-
-  if (reporte.tiposVenta && reporte.tiposVenta.length > 0) {
-    doc.setFontSize(12);
-    doc.text("Tipos de venta", 14, startY);
-    startY += 4;
-
-    autoTable(doc, {
-      startY: startY + 2,
-      head: [
-        [
-          "Tipo",
-          "Trans.",
-          "Efectivo",
-          "Tarjeta",
-          "Puntos ($)",
-          "Valor total",
-          "Desc. abonado",
-        ],
-      ],
-      body: reporte.tiposVenta.map((row) => [
-        row.etiqueta,
-        String(row.transacciones),
-        dashOrMoney(row.efectivo),
-        dashOrMoney(row.tarjeta),
-        dashOrMoney(row.puntosMonto),
-        dashOrMoney(row.valorTotal),
-        dashOrMoney(row.descuentoAbonado),
-      ]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [22, 101, 52] },
-    });
-
-    startY = getFinalY(doc) + 10;
-  }
-
-  if (
-    reporte.promocionesAbonado &&
-    reporte.promocionesAbonado.cantidadTransacciones > 0
-  ) {
-    doc.setFontSize(12);
-    doc.text("Beneficios abonado", 14, startY);
-    startY += 4;
-
-    autoTable(doc, {
-      startY: startY + 2,
-      head: [["Transacciones", "Monto vendido", "Descuento", "Unidades gratis"]],
-      body: [
-        [
-          String(reporte.promocionesAbonado.cantidadTransacciones),
-          money(reporte.promocionesAbonado.montoTotal),
-          money(reporte.promocionesAbonado.montoDescuento),
-          String(reporte.promocionesAbonado.unidadesGratis),
-        ],
-      ],
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [22, 101, 52] },
-    });
-
     startY = getFinalY(doc) + 10;
   }
 
@@ -129,30 +118,38 @@ export function downloadReporteConcesionPdf(
     doc.text("Desglose por producto", 14, startY);
     startY += 4;
 
+    const body = productosTableBody(reporte);
+    const footerStart = reporte.productoTotales
+      ? body.length - 3
+      : body.length;
+
     autoTable(doc, {
       startY: startY + 2,
       head: [
         [
           "Producto",
-          "Inv. inicial",
-          "Cant. vendida",
-          "Precio unit.",
-          "Inv. final",
-          "Cortesías ($0)",
-          "Total vendido",
+          "Inv. ini.",
+          "Inv. fin.",
+          "Cant. reg.",
+          "Cant. abon.",
+          "V. regular",
+          "V. abonado",
+          "Cortesías",
+          "Puntos ($)",
+          "V. totales",
         ],
       ],
-      body: reporte.productos.map((row) => [
-        row.nombre,
-        String(row.inventarioInicial),
-        String(row.cantidadVendida),
-        money(row.precioUnitario),
-        String(row.inventarioFinal),
-        String(row.cortesias),
-        money(row.totalVendido),
-      ]),
-      styles: { fontSize: 9 },
+      body,
+      styles: { fontSize: 7 },
       headStyles: { fillColor: [22, 101, 52] },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.row.index >= footerStart) {
+          data.cell.styles.fontStyle = "bold";
+          if (data.row.index === body.length - 1) {
+            data.cell.styles.fillColor = [220, 252, 231];
+          }
+        }
+      },
     });
 
     startY = getFinalY(doc) + 10;
@@ -165,7 +162,9 @@ export function downloadReporteConcesionPdf(
 
     autoTable(doc, {
       startY: startY + 4,
-      head: [["Concesión", "Comisión %", "Venta total", "Comisión", "Total final"]],
+      head: [
+        ["Concesión", "Comisión %", "Venta total", "Comisión", "Total final"],
+      ],
       body: [
         [
           resumen.nombre,
@@ -224,7 +223,9 @@ export function downloadReporteConsolidadoPdf(reporte: ReporteCortes) {
 
   autoTable(doc, {
     startY: 34,
-    head: [["Concesión", "Comisión %", "Venta total", "Comisión", "Total final"]],
+    head: [
+      ["Concesión", "Comisión %", "Venta total", "Comisión", "Total final"],
+    ],
     body,
     styles: { fontSize: 9 },
     headStyles: { fillColor: [22, 101, 52] },

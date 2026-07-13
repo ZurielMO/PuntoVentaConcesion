@@ -14,17 +14,16 @@ import type {
 export type CorteFilters = {
   concesionId?: string;
   sucursalId?: string;
+  jornadaId?: string;
 };
 
-export type ReporteCortesFilters = CorteFilters & {
-  fecha?: string;
-  jornada?: number;
-};
+export type ReporteCortesFilters = CorteFilters;
 
 function buildCorteQuery(filters?: CorteFilters): string {
   const qs = new URLSearchParams();
   if (filters?.concesionId) qs.set("concesionId", filters.concesionId);
   if (filters?.sucursalId) qs.set("sucursalId", filters.sucursalId);
+  if (filters?.jornadaId) qs.set("jornadaId", filters.jornadaId);
   return qs.toString();
 }
 
@@ -119,8 +118,7 @@ function buildReporteQuery(filters?: ReporteCortesFilters): string {
   const qs = new URLSearchParams();
   if (filters?.concesionId) qs.set("concesionId", filters.concesionId);
   if (filters?.sucursalId) qs.set("sucursalId", filters.sucursalId);
-  if (filters?.fecha) qs.set("fecha", filters.fecha);
-  if (filters?.jornada != null) qs.set("jornada", String(filters.jornada));
+  if (filters?.jornadaId) qs.set("jornadaId", filters.jornadaId);
   return qs.toString();
 }
 

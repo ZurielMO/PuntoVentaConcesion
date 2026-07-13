@@ -255,11 +255,25 @@ export interface ReporteProductoRow {
   productoId: string;
   nombre: string;
   inventarioInicial: number;
-  cantidadVendida: number;
-  precioUnitario: number;
   inventarioFinal: number;
+  cantidadRegular: number;
+  cantidadAbonado: number;
+  ventasRegular: number;
+  ventasAbonado: number;
   cortesias: number;
-  totalVendido: number;
+  puntosCanjeados: number;
+  ventasTotales: number;
+}
+
+export interface ReporteProductoTotales {
+  cantidadRegular: number;
+  cantidadAbonado: number;
+  ventasRegular: number;
+  ventasAbonado: number;
+  cortesias: number;
+  puntosCanjeados: number;
+  ventasTotales: number;
+  dineroReal: number;
 }
 
 export interface ReporteIngresos {
@@ -270,32 +284,6 @@ export interface ReporteIngresos {
   totalPuntosCanjeados: number;
   ventasConPuntos: number;
   cantidadVentas: number;
-}
-
-export type ReporteTipoVentaTipo =
-  | "normal"
-  | "abonado"
-  | "abonado_puntos"
-  | "normal_puntos";
-
-export interface ReporteTipoVentaRow {
-  tipo: ReporteTipoVentaTipo;
-  etiqueta: string;
-  descripcion: string;
-  transacciones: number;
-  efectivo: number;
-  tarjeta: number;
-  puntosMonto: number;
-  puntosCanjeados: number;
-  valorTotal: number;
-  descuentoAbonado: number;
-}
-
-export interface ReportePromocionesAbonado {
-  cantidadTransacciones: number;
-  montoTotal: number;
-  montoDescuento: number;
-  unidadesGratis: number;
 }
 
 export interface ReporteConcesionRow {
@@ -310,10 +298,16 @@ export interface ReporteConcesionRow {
 export interface ReporteCortes {
   jornada: { fecha: string; numero: number; jornadaId: string };
   productos: ReporteProductoRow[] | null;
+  productoTotales: ReporteProductoTotales | null;
   resumen: ReporteConcesionRow[];
   ingresos: ReporteIngresos | null;
-  tiposVenta: ReporteTipoVentaRow[] | null;
-  promocionesAbonado: ReportePromocionesAbonado | null;
+}
+
+export interface JornadaDisponible {
+  jornadaId: string;
+  fecha: string;
+  numero: number;
+  etiqueta: string;
 }
 
 export interface JornadaActivaValue {
