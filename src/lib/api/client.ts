@@ -65,12 +65,23 @@ async function request<T>(
   const json = (await res.json().catch(() => ({}))) as T & {
     message?: string;
     code?: string;
+    errors?: { campo?: string; mensaje?: string }[];
+    fieldErrors?: { field?: string; message?: string }[];
   };
 
   if (!res.ok) {
+    const validationDetail =
+      json.errors
+        ?.map((e) => e.mensaje)
+        .filter(Boolean)
+        .join("; ") ||
+      json.fieldErrors
+        ?.map((e) => e.message)
+        .filter(Boolean)
+        .join("; ");
     throw new ApiError(
       res.status,
-      json.message ?? `Error ${res.status}`,
+      validationDetail || json.message || `Error ${res.status}`,
       json.code,
     );
   }

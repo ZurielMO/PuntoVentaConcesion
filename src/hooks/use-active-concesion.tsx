@@ -12,7 +12,7 @@ import {
 import { useConcessions } from "@/hooks/use-concessions";
 import { usePermissions } from "@/hooks/use-permissions";
 
-const STORAGE_KEY = "pos_active_concesion_id";
+const LEGACY_STORAGE_KEY = "pos_active_concesion_id";
 
 type ActiveConcesionContextValue = {
   activeConcesionId: string | null;
@@ -30,34 +30,21 @@ export function ActiveConcesionProvider({ children }: { children: ReactNode }) {
   const [activeConcesionId, setActiveConcesionIdState] = useState<string | null>(
     null,
   );
-  const [hydrated, setHydrated] = useState(false);
 
+  // Limpia persistencia legacy: la concesión no debe sobrevivir entre módulos.
   useEffect(() => {
+    try {
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
     if (!perms.isSuperAdmin) {
       setActiveConcesionIdState(null);
-      setHydrated(true);
-      return;
     }
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      setActiveConcesionIdState(stored || null);
-    } catch {
-      setActiveConcesionIdState(null);
-    }
-    setHydrated(true);
   }, [perms.isSuperAdmin]);
 
   const setActiveConcesionId = useCallback((id: string | null) => {
     setActiveConcesionIdState(id);
-    try {
-      if (id) {
-        localStorage.setItem(STORAGE_KEY, id);
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    } catch {
-      /* ignore */
-    }
   }, []);
 
   const activeConcesionNombre = useMemo(() => {
@@ -69,11 +56,11 @@ export function ActiveConcesionProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      activeConcesionId: hydrated ? activeConcesionId : null,
+      activeConcesionId,
       setActiveConcesionId,
       activeConcesionNombre,
     }),
-    [hydrated, activeConcesionId, setActiveConcesionId, activeConcesionNombre],
+    [activeConcesionId, setActiveConcesionId, activeConcesionNombre],
   );
 
   return (

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { NavGroup } from "@/lib/nav-config";
+import { useNavigationLock } from "@/hooks/use-navigation-lock";
 import { cn } from "@/lib/utils";
 
 type AppSidebarNavProps = {
@@ -28,10 +29,14 @@ function resolveActiveHref(pathname: string, groups: NavGroup[]): string | null 
 
 export function AppSidebarNav({ groups, onNavigate, className }: AppSidebarNavProps) {
   const pathname = usePathname();
+  const { isLocked } = useNavigationLock();
   const activeHref = resolveActiveHref(pathname, groups);
 
   return (
-    <nav className={cn("flex flex-col gap-6 p-4", className)}>
+    <nav
+      className={cn("flex flex-col gap-6 p-4", className)}
+      aria-disabled={isLocked || undefined}
+    >
       {groups.map((group) => (
         <div key={group.title}>
           <p className="mb-2 px-3 text-[1.1rem] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -45,7 +50,15 @@ export function AppSidebarNav({ groups, onNavigate, className }: AppSidebarNavPr
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    onClick={onNavigate}
+                    tabIndex={isLocked ? -1 : undefined}
+                    aria-disabled={isLocked || undefined}
+                    onClick={(e) => {
+                      if (isLocked) {
+                        e.preventDefault();
+                        return;
+                      }
+                      onNavigate?.();
+                    }}
                     className={cn("sidebar-link", active && "sidebar-link-active")}
                   >
                     <Icon className="size-5 shrink-0" />

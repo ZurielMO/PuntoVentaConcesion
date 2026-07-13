@@ -49,7 +49,8 @@ export default function SuperAdminDashboardPage() {
 
   const activeConcessions = concessions.filter((c) => c.activo !== false);
   const activeUsers = users.filter((u) => u.activo !== false);
-  const totalCajas = sucursales.reduce(
+  const sucursalesActivas = sucursales.filter((s) => s.activo !== false);
+  const totalCajas = sucursalesActivas.reduce(
     (acc, s) => acc + (s.cajas?.filter((c) => c.activo !== false).length ?? 0),
     0,
   );
@@ -162,7 +163,7 @@ export default function SuperAdminDashboardPage() {
           />
           <StatCard
             label="Sucursales / cajas"
-            value={loadingSuc ? "—" : `${sucursales.length} / ${totalCajas}`}
+            value={loadingSuc ? "—" : `${sucursalesActivas.length} / ${totalCajas}`}
             icon={Store}
             hint="Puntos de venta registrados"
           />

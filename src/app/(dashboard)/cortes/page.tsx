@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { CorteDetalleDialog } from "@/components/dashboard/corte-detalle-dialog";
 import { CorteReporteProductosTable } from "@/components/dashboard/corte-reporte-productos-table";
 import { CorteReporteComisionTable } from "@/components/dashboard/corte-reporte-comision-table";
+import { CorteReporteIngresosPanel } from "@/components/dashboard/corte-reporte-ingresos-panel";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -93,10 +94,11 @@ export default function CortesPage() {
   } = useReporteCortes(reporteFilters);
 
   const sucursalesFiltradas = useMemo(() => {
+    const activas = sucursales.filter((s) => s.activo !== false);
     if (perms.isSuperAdmin && concesionId) {
-      return sucursales.filter((s) => s.concesion_id === concesionId);
+      return activas.filter((s) => s.concesion_id === concesionId);
     }
-    return sucursales;
+    return activas;
   }, [sucursales, perms.isSuperAdmin, concesionId]);
 
   const concesionActual = useMemo(
@@ -157,11 +159,13 @@ export default function CortesPage() {
                 onChange={(e) => handleConcesionChange(e.target.value)}
               >
                 <option value="">Todas las concesiones</option>
-                {concessions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nombre}
-                  </option>
-                ))}
+                {concessions
+                  .filter((c) => c.activo !== false)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nombre}
+                    </option>
+                  ))}
               </NativeSelect>
             </Field>
           )}
@@ -244,12 +248,28 @@ export default function CortesPage() {
           </div>
         ) : reporte ? (
           <div className="space-y-8">
+            {reporte.ingresos && reporte.tiposVenta && reporte.promocionesAbonado && (
+              <div>
+                <h3 className="mb-3 text-[1.6rem] font-semibold text-green-dark">
+                  Desglose de ingresos
+                </h3>
+                <CorteReporteIngresosPanel
+                  ingresos={reporte.ingresos}
+                  tiposVenta={reporte.tiposVenta}
+                  promocionesAbonado={reporte.promocionesAbonado}
+                />
+              </div>
+            )}
+
             {showProductosTable && (
               <div>
                 <h3 className="mb-3 text-[1.6rem] font-semibold text-green-dark">
                   Desglose por producto
                 </h3>
-                <CorteReporteProductosTable data={reporte.productos ?? []} />
+                <CorteReporteProductosTable
+                  data={reporte.productos ?? []}
+                  showHint
+                />
               </div>
             )}
 

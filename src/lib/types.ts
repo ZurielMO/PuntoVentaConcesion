@@ -255,10 +255,47 @@ export interface ReporteProductoRow {
   productoId: string;
   nombre: string;
   inventarioInicial: number;
+  cantidadVendida: number;
   precioUnitario: number;
   inventarioFinal: number;
   cortesias: number;
   totalVendido: number;
+}
+
+export interface ReporteIngresos {
+  ventaNeta: number;
+  totalEfectivo: number;
+  totalTarjeta: number;
+  totalPuntosMonto: number;
+  totalPuntosCanjeados: number;
+  ventasConPuntos: number;
+  cantidadVentas: number;
+}
+
+export type ReporteTipoVentaTipo =
+  | "normal"
+  | "abonado"
+  | "abonado_puntos"
+  | "normal_puntos";
+
+export interface ReporteTipoVentaRow {
+  tipo: ReporteTipoVentaTipo;
+  etiqueta: string;
+  descripcion: string;
+  transacciones: number;
+  efectivo: number;
+  tarjeta: number;
+  puntosMonto: number;
+  puntosCanjeados: number;
+  valorTotal: number;
+  descuentoAbonado: number;
+}
+
+export interface ReportePromocionesAbonado {
+  cantidadTransacciones: number;
+  montoTotal: number;
+  montoDescuento: number;
+  unidadesGratis: number;
 }
 
 export interface ReporteConcesionRow {
@@ -274,6 +311,9 @@ export interface ReporteCortes {
   jornada: { fecha: string; numero: number; jornadaId: string };
   productos: ReporteProductoRow[] | null;
   resumen: ReporteConcesionRow[];
+  ingresos: ReporteIngresos | null;
+  tiposVenta: ReporteTipoVentaRow[] | null;
+  promocionesAbonado: ReportePromocionesAbonado | null;
 }
 
 export interface JornadaActivaValue {

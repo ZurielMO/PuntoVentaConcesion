@@ -47,7 +47,7 @@ export function CorteReporteComisionTable({
             },
             {
               key: "totalVenta",
-              header: "Total venta",
+              header: "Venta total",
               className: "whitespace-nowrap text-right",
               cell: (row) => formatPrice(row.totalVenta),
             },
@@ -59,7 +59,7 @@ export function CorteReporteComisionTable({
             },
             {
               key: "ganancia",
-              header: "Ganancia concesión",
+              header: "Total final",
               className: "whitespace-nowrap text-right",
               cell: (row) => (
                 <span className="font-medium">
@@ -74,7 +74,7 @@ export function CorteReporteComisionTable({
       {showTotals && data.length > 1 && (
         <div className="dashboard-card grid gap-3 p-4 sm:grid-cols-3">
           <div>
-            <p className="text-[1.2rem] text-muted-foreground">Total venta</p>
+            <p className="text-[1.2rem] text-muted-foreground">Venta total</p>
             <p className="text-[1.8rem] font-semibold text-green-dark">
               {formatPrice(totals.totalVenta)}
             </p>
@@ -86,9 +86,7 @@ export function CorteReporteComisionTable({
             </p>
           </div>
           <div>
-            <p className="text-[1.2rem] text-muted-foreground">
-              Total ganancia concesiones
-            </p>
+            <p className="text-[1.2rem] text-muted-foreground">Total final</p>
             <p className="text-[1.8rem] font-semibold text-green-dark">
               {formatPrice(totals.gananciaConcesion)}
             </p>

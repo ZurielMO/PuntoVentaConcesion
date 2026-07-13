@@ -15,11 +15,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/native-select";
 import { useAuth } from "@/hooks/use-auth";
-import { useConcessions } from "@/hooks/use-concessions";
+import { useNavigationLock } from "@/hooks/use-navigation-lock";
 import { usePermissions } from "@/hooks/use-permissions";
-import { useActiveConcesionOptional } from "@/hooks/use-active-concesion";
 import { filterNavGroups, getDashboardNav } from "@/lib/nav-config";
 import { AppSidebarNav } from "./app-sidebar-nav";
 
@@ -57,9 +55,8 @@ function getPageTitle(pathname: string): string {
 export function AppTopbar() {
   const pathname = usePathname();
   const { posUser, user, logout } = useAuth();
+  const { isLocked } = useNavigationLock();
   const perms = usePermissions();
-  const { concessions } = useConcessions();
-  const activeCtx = useActiveConcesionOptional();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navGroups = useMemo(
@@ -76,15 +73,34 @@ export function AppTopbar() {
       style={{ height: "var(--topbar-height)" }}
     >
       <div className="flex items-center gap-3">
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <Sheet
+          open={isLocked ? false : mobileOpen}
+          onOpenChange={(open) => {
+            if (isLocked) return;
+            setMobileOpen(open);
+          }}
+        >
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="md:hidden">
+            <Button
+              variant="outline"
+              size="icon"
+              className="md:hidden"
+              disabled={isLocked}
+            >
               <Menu className="size-5" />
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-[var(--sidebar-width)] p-0">
             <div className="border-b px-4 py-4">
-              <Link href="/" className="text-[1.8rem] font-bold tracking-tight text-green-dark">
+              <Link
+                href="/"
+                tabIndex={isLocked ? -1 : undefined}
+                aria-disabled={isLocked || undefined}
+                onClick={(e) => {
+                  if (isLocked) e.preventDefault();
+                }}
+                className="text-[1.8rem] font-bold tracking-tight text-green-dark"
+              >
                 PuntoVenta
               </Link>
             </div>

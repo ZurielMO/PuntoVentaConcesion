@@ -28,6 +28,7 @@ import { useUsers } from "@/hooks/use-users";
 import { useProducts, MAX_IMAGE_BYTES } from "@/hooks/use-products";
 import { useSucursales } from "@/hooks/use-sucursales";
 import { useActiveConcesion } from "@/hooks/use-active-concesion";
+import { useNavigationLock } from "@/hooks/use-navigation-lock";
 import { formatPrice } from "@/lib/format";
 import { UserRole } from "@/lib/types";
 import "@/styles/wizard-alta.css";
@@ -49,6 +50,25 @@ type DraftProduct = {
   imageFile?: File | null;
   imagePreview?: string | null;
 };
+
+const PRODUCTO_PRECIO_MIN = 0.01;
+
+function parseProductoPrecio(
+  raw: string,
+): { ok: true; value: number } | { ok: false; message: string } {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return { ok: false, message: "El precio es obligatorio" };
+  }
+  const precio = Number(trimmed);
+  if (Number.isNaN(precio) || precio < PRODUCTO_PRECIO_MIN) {
+    return {
+      ok: false,
+      message: "Ingresa un precio válido (mínimo $0.01)",
+    };
+  }
+  return { ok: true, value: precio };
+}
 
 type DraftVendedor = {
   cajaIndex: number;
@@ -72,6 +92,7 @@ const MAX_CAJAS = 3;
 export default function NuevaConcesionWizardPage() {
   const router = useRouter();
   const { setActiveConcesionId } = useActiveConcesion();
+  const { lock: lockNavigation, unlock: unlockNavigation } = useNavigationLock();
 
   const { concessions, createConcession, updateConcession, uploadConcessionImages } =
     useConcessions();
@@ -82,7 +103,14 @@ export default function NuevaConcesionWizardPage() {
 
   const [step, setStep] = useState<WizardStepId>("concesion");
   const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
   const [resumeId, setResumeId] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      unlockNavigation();
+    };
+  }, [unlockNavigation]);
 
   const [concesionNombre, setConcesionNombre] = useState("");
   const [concesionPorcentajeComision, setConcesionPorcentajeComision] = useState("0");
@@ -96,6 +124,9 @@ export default function NuevaConcesionWizardPage() {
   const [productosDraft, setProductosDraft] = useState<DraftProduct[]>([]);
   const [productoNombre, setProductoNombre] = useState("");
   const [productoPrecio, setProductoPrecio] = useState("");
+  const [productoPrecioError, setProductoPrecioError] = useState<string | null>(
+    null,
+  );
   const [productoUnidad, setProductoUnidad] = useState("pza");
   const [productoImage, setProductoImage] = useState<File | null>(null);
   const [vendedoresDraft, setVendedoresDraft] = useState<DraftVendedor[]>([]);
@@ -276,13 +307,14 @@ export default function NuevaConcesionWizardPage() {
   };
 
   const handleAddProducto = () => {
-    const precio = Number(productoPrecio);
     if (!productoNombre.trim()) {
       toast.error("Ingresa el nombre del producto");
       return;
     }
-    if (Number.isNaN(precio) || precio < 0) {
-      toast.error("Ingresa un precio válido");
+    const precioParsed = parseProductoPrecio(productoPrecio);
+    if (!precioParsed.ok) {
+      setProductoPrecioError(precioParsed.message);
+      toast.error(precioParsed.message);
       return;
     }
     if (productoImage && productoImage.size > MAX_IMAGE_BYTES) {
@@ -297,7 +329,7 @@ export default function NuevaConcesionWizardPage() {
       {
         id: crypto.randomUUID(),
         nombre: productoNombre.trim(),
-        precio,
+        precio: precioParsed.value,
         unidad_medida: productoUnidad.trim() || "pza",
         imageFile: productoImage,
         imagePreview: imagePreviewUrl,
@@ -305,16 +337,36 @@ export default function NuevaConcesionWizardPage() {
     ]);
     setProductoNombre("");
     setProductoPrecio("");
+    setProductoPrecioError(null);
     setProductoImage(null);
     toast.success("Producto agregado a la lista");
   };
 
   const handleStepProducto = (e: FormEvent) => {
     e.preventDefault();
-    if (productoNombre.trim() || productoPrecio || productoImage) {
+    const formStarted =
+      Boolean(productoNombre.trim()) ||
+      Boolean(productoPrecio.trim()) ||
+      Boolean(productoImage);
+    if (formStarted) {
+      const precioParsed = parseProductoPrecio(productoPrecio);
+      if (!precioParsed.ok) {
+        setProductoPrecioError(precioParsed.message);
+        toast.error(precioParsed.message);
+        return;
+      }
       toast.message("¿Agregar este producto?", {
-        description: "Tienes datos sin agregar. Usa «Agregar a la lista» o bórralos.",
+        description:
+          "Tienes datos sin agregar. Usa «Agregar al menú» o bórralos.",
       });
+      return;
+    }
+    const sinPrecio = productosDraft.some(
+      (p) =>
+        !Number.isFinite(p.precio) || p.precio < PRODUCTO_PRECIO_MIN,
+    );
+    if (sinPrecio) {
+      toast.error("Todos los productos deben tener un precio válido");
       return;
     }
     goNext();
@@ -335,7 +387,22 @@ export default function NuevaConcesionWizardPage() {
   };
 
   const handleFinalCreate = async () => {
+    if (creatingRef.current) return;
+    const productosSinPrecio = productosDraft.some(
+      (p) =>
+        !Number.isFinite(p.precio) || p.precio < PRODUCTO_PRECIO_MIN,
+    );
+    if (productosSinPrecio) {
+      toast.error("Todos los productos deben tener un precio válido");
+      return;
+    }
+    creatingRef.current = true;
     setCreating(true);
+    lockNavigation({
+      title: "Creando concesión…",
+      subtitle:
+        "Configurando sucursal, cajas y equipo. No cierres esta ventana.",
+    });
     try {
       const comision = parseConcesionPorcentajeComision();
       let concesionId = resumeId;
@@ -413,12 +480,16 @@ export default function NuevaConcesionWizardPage() {
       }
 
       setActiveConcesionId(concesionId);
+      unlockNavigation();
+      creatingRef.current = false;
+      setCreating(false);
       toast.success("Concesión configurada correctamente");
       router.push(`/superAdmin/concesiones/${concesionId}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al crear la configuración");
-    } finally {
+      unlockNavigation();
+      creatingRef.current = false;
       setCreating(false);
+      toast.error(err instanceof Error ? err.message : "Error al crear la configuración");
     }
   };
 
@@ -427,14 +498,25 @@ export default function NuevaConcesionWizardPage() {
 
   return (
     <RequireRole superAdminOnly>
-      <div className="wizard-alta wizard-alta__shell">
+      <div
+        className={`wizard-alta wizard-alta__shell${creating ? " wizard-alta__shell--busy" : ""}`}
+        aria-busy={creating || undefined}
+      >
         <header className="wizard-alta__hero">
           <div className="wizard-alta__hero-inner">
             <div>
               <h1>Asistente de alta</h1>
               <p>Todo se guarda únicamente al confirmar en el resumen.</p>
             </div>
-            <Link href="/superAdmin/concesiones" className="wizard-alta__exit">
+            <Link
+              href="/superAdmin/concesiones"
+              className="wizard-alta__exit"
+              tabIndex={creating ? -1 : undefined}
+              aria-disabled={creating || undefined}
+              onClick={(e) => {
+                if (creating) e.preventDefault();
+              }}
+            >
               <ArrowLeft className="size-4" />
               Salir
             </Link>
@@ -563,23 +645,23 @@ export default function NuevaConcesionWizardPage() {
                   la concesión.
                 </p>
                 <div className="wizard-alta__form-grid wizard-alta__form-grid--split">
-                <Field label="Nombre" htmlFor="adminNombre">
-                  <Input
-                    id="adminNombre"
-                    value={adminNombre}
-                    onChange={(e) => setAdminNombre(e.target.value)}
-                    required
-                  />
-                </Field>
-                <Field label="Email" htmlFor="adminEmail">
-                  <Input
-                    id="adminEmail"
-                    type="email"
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    required
-                  />
-                </Field>
+                  <Field label="Nombre" htmlFor="adminNombre">
+                    <Input
+                      id="adminNombre"
+                      value={adminNombre}
+                      onChange={(e) => setAdminNombre(e.target.value)}
+                      required
+                    />
+                  </Field>
+                  <Field label="Email" htmlFor="adminEmail">
+                    <Input
+                      id="adminEmail"
+                      type="email"
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      required
+                    />
+                  </Field>
                 </div>
                 <Field label="Contraseña" htmlFor="adminPassword">
                   <Input
@@ -602,34 +684,34 @@ export default function NuevaConcesionWizardPage() {
                   sucursal).
                 </p>
                 <div className="wizard-alta__cajas-grid">
-                {cajasNombres.map((nombre, i) => (
-                  <div key={i} className="wizard-alta__caja-card">
-                    <div className="wizard-alta__caja-icon">C{i + 1}</div>
-                    <Input
-                      className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0"
-                      value={nombre}
-                      onChange={(e) => {
-                        const next = [...cajasNombres];
-                        next[i] = e.target.value;
-                        setCajasNombres(next);
-                      }}
-                      placeholder={`Nombre caja ${i + 1}`}
-                      required={i === 0}
-                    />
-                    {cajasNombres.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          setCajasNombres(cajasNombres.filter((_, j) => j !== i))
-                        }
-                      >
-                        <Trash2 className="size-4 text-red-600" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                  {cajasNombres.map((nombre, i) => (
+                    <div key={i} className="wizard-alta__caja-card">
+                      <div className="wizard-alta__caja-icon">C{i + 1}</div>
+                      <Input
+                        className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0"
+                        value={nombre}
+                        onChange={(e) => {
+                          const next = [...cajasNombres];
+                          next[i] = e.target.value;
+                          setCajasNombres(next);
+                        }}
+                        placeholder={`Nombre caja ${i + 1}`}
+                        required={i === 0}
+                      />
+                      {cajasNombres.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setCajasNombres(cajasNombres.filter((_, j) => j !== i))
+                          }
+                        >
+                          <Trash2 className="size-4 text-red-600" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                 </div>
                 <Button
                   type="button"
@@ -714,15 +796,48 @@ export default function NuevaConcesionWizardPage() {
                         />
                       </Field>
                       <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label="Precio" htmlFor="productoPrecio">
+                        <Field
+                          label="Precio"
+                          htmlFor="productoPrecio"
+                          error={productoPrecioError}
+                        >
                           <Input
                             id="productoPrecio"
                             type="number"
-                            min="0"
+                            min={PRODUCTO_PRECIO_MIN}
                             step="0.01"
                             value={productoPrecio}
-                            onChange={(e) => setProductoPrecio(e.target.value)}
+                            onChange={(e) => {
+                              setProductoPrecio(e.target.value);
+                              if (productoPrecioError) {
+                                const next = parseProductoPrecio(e.target.value);
+                                setProductoPrecioError(
+                                  next.ok ? null : next.message,
+                                );
+                              }
+                            }}
+                            onBlur={() => {
+                              if (
+                                !productoPrecio.trim() &&
+                                !productoNombre.trim() &&
+                                !productoImage
+                              ) {
+                                setProductoPrecioError(null);
+                                return;
+                              }
+                              if (
+                                productoNombre.trim() ||
+                                productoPrecio.trim() ||
+                                productoImage
+                              ) {
+                                const next = parseProductoPrecio(productoPrecio);
+                                setProductoPrecioError(
+                                  next.ok ? null : next.message,
+                                );
+                              }
+                            }}
                             placeholder="0.00"
+                            aria-invalid={Boolean(productoPrecioError)}
                           />
                         </Field>
                         <Field label="Unidad" htmlFor="productoUnidad">
@@ -760,7 +875,32 @@ export default function NuevaConcesionWizardPage() {
                   onBack={goBack}
                   nextLabel="Continuar"
                   skipLabel="Omitir productos"
-                  onSkip={goNext}
+                  onSkip={() => {
+                    const sinPrecio = productosDraft.some(
+                      (p) =>
+                        !Number.isFinite(p.precio) ||
+                        p.precio < PRODUCTO_PRECIO_MIN,
+                    );
+                    if (sinPrecio) {
+                      toast.error(
+                        "Todos los productos deben tener un precio válido",
+                      );
+                      return;
+                    }
+                    const formStarted =
+                      Boolean(productoNombre.trim()) ||
+                      Boolean(productoPrecio.trim()) ||
+                      Boolean(productoImage);
+                    if (formStarted) {
+                      const precioParsed = parseProductoPrecio(productoPrecio);
+                      if (!precioParsed.ok) {
+                        setProductoPrecioError(precioParsed.message);
+                        toast.error(precioParsed.message);
+                        return;
+                      }
+                    }
+                    goNext();
+                  }}
                 />
               </form>
             )}
@@ -772,51 +912,51 @@ export default function NuevaConcesionWizardPage() {
                 </p>
 
                 <div className="wizard-alta__vendors-grid">
-                {cajasValidas.map(({ nombre, index }) => {
-                  const v = getVendedorForCaja(index);
-                  return (
-                    <div key={index} className="wizard-alta__vendor-card">
-                      <div className="wizard-alta__vendor-head">
-                        <Store className="size-5 text-[#006A54]" />
-                        {nombre}
+                  {cajasValidas.map(({ nombre, index }) => {
+                    const v = getVendedorForCaja(index);
+                    return (
+                      <div key={index} className="wizard-alta__vendor-card">
+                        <div className="wizard-alta__vendor-head">
+                          <Store className="size-5 text-[#006A54]" />
+                          {nombre}
+                        </div>
+                        <div className="space-y-3">
+                          <Field label="Nombre" htmlFor={`v-nombre-${index}`}>
+                            <Input
+                              id={`v-nombre-${index}`}
+                              value={v?.nombre ?? ""}
+                              onChange={(e) =>
+                                updateVendedor(index, "nombre", e.target.value)
+                              }
+                              placeholder="Opcional"
+                            />
+                          </Field>
+                          <Field label="Email" htmlFor={`v-email-${index}`}>
+                            <Input
+                              id={`v-email-${index}`}
+                              type="email"
+                              value={v?.email ?? ""}
+                              onChange={(e) =>
+                                updateVendedor(index, "email", e.target.value)
+                              }
+                              placeholder="Opcional"
+                            />
+                          </Field>
+                          <Field label="Contraseña" htmlFor={`v-pass-${index}`}>
+                            <Input
+                              id={`v-pass-${index}`}
+                              type="password"
+                              value={v?.password ?? ""}
+                              onChange={(e) =>
+                                updateVendedor(index, "password", e.target.value)
+                              }
+                              placeholder="Mín. 6 caracteres"
+                            />
+                          </Field>
+                        </div>
                       </div>
-                      <div className="space-y-3">
-                      <Field label="Nombre" htmlFor={`v-nombre-${index}`}>
-                        <Input
-                          id={`v-nombre-${index}`}
-                          value={v?.nombre ?? ""}
-                          onChange={(e) =>
-                            updateVendedor(index, "nombre", e.target.value)
-                          }
-                          placeholder="Opcional"
-                        />
-                      </Field>
-                      <Field label="Email" htmlFor={`v-email-${index}`}>
-                        <Input
-                          id={`v-email-${index}`}
-                          type="email"
-                          value={v?.email ?? ""}
-                          onChange={(e) =>
-                            updateVendedor(index, "email", e.target.value)
-                          }
-                          placeholder="Opcional"
-                        />
-                      </Field>
-                      <Field label="Contraseña" htmlFor={`v-pass-${index}`}>
-                        <Input
-                          id={`v-pass-${index}`}
-                          type="password"
-                          value={v?.password ?? ""}
-                          onChange={(e) =>
-                            updateVendedor(index, "password", e.target.value)
-                          }
-                          placeholder="Mín. 6 caracteres"
-                        />
-                      </Field>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
                 </div>
 
                 <WizardFooter
@@ -887,11 +1027,13 @@ function WizardResumen({
   onBack: () => void;
   onCreate: () => void;
 }) {
+  const sinProductos = productos.length === 0;
+  const sinVendedores = vendedores.length === 0;
+
   return (
     <div className="wizard-alta__checkout">
       <div className="wizard-alta__checkout-main">
-        <div className="wizard-alta__summary-block">
-          <p className="wizard-alta__summary-block-title">Concesión</p>
+        <header className="wizard-alta__resumen-hero">
           <div className="wizard-alta__summary-identity">
             {imagePreview ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -906,50 +1048,62 @@ function WizardResumen({
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-[1.7rem] font-bold text-[#206734]">{concesionNombre}</p>
-              <p className="text-[1.25rem] text-[#6b7280]">
-                Comisión {concesionPorcentajeComision}% · Lista para operar en el estadio
+              <p className="wizard-alta__resumen-kicker">Concesión</p>
+              <h3 className="wizard-alta__resumen-title">{concesionNombre}</h3>
+              <p className="wizard-alta__resumen-sub">
+                Lista para operar en el estadio
               </p>
             </div>
           </div>
+        </header>
+
+        <div className="wizard-alta__resumen-grid">
+          <section className="wizard-alta__resumen-section">
+            <p className="wizard-alta__resumen-label">Sucursal</p>
+            <p className="wizard-alta__resumen-value">{sucursalNombre}</p>
+            <p className="wizard-alta__resumen-meta">{zonaLabel}</p>
+          </section>
+          <section className="wizard-alta__resumen-section">
+            <p className="wizard-alta__resumen-label">Administrador</p>
+            <p className="wizard-alta__resumen-value">{adminNombre}</p>
+            <p className="wizard-alta__resumen-meta truncate">{adminEmail}</p>
+          </section>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="wizard-alta__summary-block">
-            <p className="wizard-alta__summary-block-title">Sucursal</p>
-            <p className="text-[1.45rem] font-semibold text-[#0B0B0B]">{sucursalNombre}</p>
-            <p className="text-[1.25rem] text-[#6b7280]">{zonaLabel}</p>
+        <section className="wizard-alta__resumen-section wizard-alta__resumen-section--stack">
+          <div className="wizard-alta__resumen-section-head">
+            <p className="wizard-alta__resumen-label mb-0">Cajas registradas</p>
+            <span className="wizard-alta__panel-tab-count">{cajas.length}</span>
           </div>
-          <div className="wizard-alta__summary-block">
-            <p className="wizard-alta__summary-block-title">Administrador</p>
-            <p className="text-[1.45rem] font-semibold text-[#0B0B0B]">{adminNombre}</p>
-            <p className="truncate text-[1.25rem] text-[#6b7280]">{adminEmail}</p>
-          </div>
-        </div>
-
-        <div className="wizard-alta__summary-block wizard-alta__summary-block--full">
-          <p className="wizard-alta__summary-block-title">Cajas registradas</p>
-          <div className="flex flex-wrap gap-2">
+          <div className="wizard-alta__resumen-chips">
             {cajas.map((c) => (
               <span key={c} className="wizard-alta__chip">
                 {c}
               </span>
             ))}
           </div>
-        </div>
+        </section>
 
-        <div className="wizard-alta__summary-block wizard-alta__summary-block--full">
-          <div className="mb-2 flex items-center gap-2">
-            <Package className="size-4 text-[#006A54]" />
-            <p className="wizard-alta__summary-block-title mb-0">Productos</p>
-            {productos.length === 0 && (
-              <span className="wizard-alta__chip wizard-alta__chip--gold ml-auto">
+        <section className="wizard-alta__resumen-section wizard-alta__resumen-section--stack">
+          <div className="wizard-alta__resumen-section-head">
+            <div className="wizard-alta__resumen-section-title-row">
+              <Package className="size-4 text-[var(--wz-primary)]" aria-hidden />
+              <p className="wizard-alta__resumen-label mb-0">Productos</p>
+            </div>
+            {sinProductos ? (
+              <span className="wizard-alta__chip wizard-alta__chip--gold">
                 Sin productos
+              </span>
+            ) : (
+              <span className="wizard-alta__panel-tab-count">
+                {productos.length}
               </span>
             )}
           </div>
-          {productos.length === 0 ? (
-            <p className="text-[1.3rem] text-[#6b7280]">Catálogo vacío por ahora.</p>
+          {sinProductos ? (
+            <p className="wizard-alta__resumen-warn">
+              Catálogo vacío por ahora. Podrás agregar productos después.
+            </p>
           ) : (
             <div className="wizard-alta__mini-products">
               {productos.map((p) => (
@@ -965,34 +1119,46 @@ function WizardResumen({
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="wizard-alta__summary-block wizard-alta__summary-block--full">
-          <div className="mb-2 flex items-center gap-2">
-            <Users className="size-4 text-[#006A54]" />
-            <p className="wizard-alta__summary-block-title mb-0">Vendedores</p>
-            {vendedores.length === 0 && (
-              <span className="wizard-alta__chip wizard-alta__chip--gold ml-auto">
+        <section className="wizard-alta__resumen-section wizard-alta__resumen-section--stack">
+          <div className="wizard-alta__resumen-section-head">
+            <div className="wizard-alta__resumen-section-title-row">
+              <Users className="size-4 text-[var(--wz-primary)]" aria-hidden />
+              <p className="wizard-alta__resumen-label mb-0">Vendedores</p>
+            </div>
+            {sinVendedores ? (
+              <span className="wizard-alta__chip wizard-alta__chip--gold">
                 Sin asignar
+              </span>
+            ) : (
+              <span className="wizard-alta__panel-tab-count">
+                {vendedores.length}
               </span>
             )}
           </div>
-          {vendedores.length === 0 ? (
-            <p className="text-[1.3rem] text-[#6b7280]">Ningún vendedor configurado.</p>
+          {sinVendedores ? (
+            <p className="wizard-alta__resumen-warn">
+              Ningún vendedor configurado. Podrás asignarlos después.
+            </p>
           ) : (
-            <div className="space-y-2">
+            <ul className="wizard-alta__resumen-vendors">
               {vendedores.map((v) => (
-                <div
+                <li
                   key={`${v.cajaNombre}-${v.email}`}
-                  className="flex items-center justify-between rounded-[8px] bg-[#f3f5f7] px-3 py-2 text-[1.25rem]"
+                  className="wizard-alta__resumen-vendor"
                 >
-                  <span className="font-medium">{v.nombre}</span>
-                  <span className="text-[#6b7280]">{v.cajaNombre}</span>
-                </div>
+                  <span className="wizard-alta__resumen-vendor-name">
+                    {v.nombre}
+                  </span>
+                  <span className="wizard-alta__resumen-vendor-caja">
+                    {v.cajaNombre}
+                  </span>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
-        </div>
+        </section>
       </div>
 
       <aside className="wizard-alta__checkout-sidebar">
@@ -1014,13 +1180,18 @@ function WizardResumen({
             <span>Estado</span>
             <span>Listo</span>
           </div>
+          {(sinProductos || sinVendedores) && (
+            <p className="wizard-alta__checkout-note">
+              Puedes crear ahora y completar catálogo o equipo después.
+            </p>
+          )}
           <button
             type="button"
             className="wizard-alta__btn wizard-alta__btn--primary wizard-alta__btn--lg mt-4 w-full"
             onClick={onCreate}
             disabled={creating}
           >
-            {creating ? "Creando…" : "Crear concesión"}
+            {creating ? "Creando concesión…" : "Crear concesión"}
             {!creating && <Check className="size-4" />}
           </button>
           <button

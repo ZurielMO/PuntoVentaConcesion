@@ -41,7 +41,6 @@ const tipoLabel = (d: Descuento) => {
 
 export default function DescuentosPage() {
   const [concesionFilter, setConcesionFilter] = useState("");
-  const [showInactive, setShowInactive] = useState(false);
 
   const {
     descuentos,
@@ -54,7 +53,7 @@ export default function DescuentosPage() {
     hardDeleteDescuento,
   } = useDescuentos({
     concesionId: concesionFilter || undefined,
-    includeInactive: showInactive,
+    includeInactive: true,
   });
   const { concessions } = useConcessions();
   const { products } = useProducts();
@@ -170,12 +169,19 @@ export default function DescuentosPage() {
     }
   };
 
-  const handleSoftDelete = async (descuento: Descuento) => {
+  const handleToggleActivo = async (descuento: Descuento) => {
     try {
-      await softDeleteDescuento(descuento.id);
-      toast.success(`"${descuento.titulo}" desactivado`);
+      if (descuento.activo === false) {
+        await updateDescuento(descuento.id, { activo: true });
+        toast.success("Descuento reactivado");
+      } else {
+        await softDeleteDescuento(descuento.id);
+        toast.success("Descuento desactivado");
+      }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "No se pudo desactivar");
+      toast.error(
+        err instanceof Error ? err.message : "Error al cambiar estado",
+      );
     }
   };
 
@@ -222,25 +228,16 @@ export default function DescuentosPage() {
               onChange={(e) => setConcesionFilter(e.target.value)}
             >
               <option value="">Todas las concesiones</option>
-              {concessions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre}
-                </option>
-              ))}
+              {concessions
+                .filter((c) => c.activo !== false)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                  </option>
+                ))}
             </NativeSelect>
           </Field>
         </div>
-        <label
-          className="flex items-center gap-3 pb-3 text-[1.4rem]"
-          htmlFor="showInactive"
-        >
-          <Checkbox
-            id="showInactive"
-            checked={showInactive}
-            onChange={(e) => setShowInactive(e.target.checked)}
-          />
-          Mostrar desactivados
-        </label>
       </div>
 
       {error && (
@@ -321,13 +318,21 @@ export default function DescuentosPage() {
                 <Button size="sm" variant="outline" onClick={() => openEdit(d)}>
                   Editar
                 </Button>
-                {d.activo !== false && (
+                {d.activo !== false ? (
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={() => void handleSoftDelete(d)}
+                    onClick={() => void handleToggleActivo(d)}
                   >
                     Desactivar
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void handleToggleActivo(d)}
+                  >
+                    Reactivar
                   </Button>
                 )}
                 <Button
@@ -371,11 +376,13 @@ export default function DescuentosPage() {
                   required
                 >
                   <option value="">Selecciona concesión</option>
-                  {concessions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombre}
-                    </option>
-                  ))}
+                  {concessions
+                    .filter((c) => c.activo !== false)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre}
+                      </option>
+                    ))}
                 </NativeSelect>
               </Field>
             ) : (

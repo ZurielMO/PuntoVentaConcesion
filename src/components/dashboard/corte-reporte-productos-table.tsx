@@ -5,14 +5,23 @@ import type { ReporteProductoRow } from "@/lib/types";
 type CorteReporteProductosTableProps = {
   data: ReporteProductoRow[];
   loading?: boolean;
+  showHint?: boolean;
 };
 
 export function CorteReporteProductosTable({
   data,
   loading,
+  showHint = false,
 }: CorteReporteProductosTableProps) {
   return (
-    <div className="-mx-1 overflow-x-auto px-1">
+    <div className="space-y-2">
+      {showHint && (
+        <p className="text-[1.3rem] text-muted-foreground">
+          Total vendido incluye el valor cobrado (efectivo, tarjeta y puntos). La
+          comisión se calcula solo con efectivo + tarjeta.
+        </p>
+      )}
+      <div className="-mx-1 overflow-x-auto px-1">
       <DataTable<ReporteProductoRow>
         loading={loading}
         className="min-w-[56rem]"
@@ -34,6 +43,12 @@ export function CorteReporteProductosTable({
             header: "Inv. inicial",
             className: "whitespace-nowrap text-right",
             cell: (row) => row.inventarioInicial.toLocaleString("es-MX"),
+          },
+          {
+            key: "cantidad",
+            header: "Cant. vendida",
+            className: "whitespace-nowrap text-right",
+            cell: (row) => row.cantidadVendida.toLocaleString("es-MX"),
           },
           {
             key: "precio",
@@ -63,6 +78,7 @@ export function CorteReporteProductosTable({
           },
         ]}
       />
+      </div>
     </div>
   );
 }

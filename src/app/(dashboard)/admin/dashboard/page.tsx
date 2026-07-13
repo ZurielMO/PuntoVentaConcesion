@@ -49,9 +49,13 @@ export default function AdminDashboardPage() {
     sucursales.find((s) => s.id === id)?.nombre ?? id ?? "—";
 
   const totalCajas = sucursales.reduce(
-    (acc, s) => acc + (s.cajas?.filter((c) => c.activo !== false).length ?? 0),
+    (acc, s) =>
+      s.activo === false
+        ? acc
+        : acc + (s.cajas?.filter((c) => c.activo !== false).length ?? 0),
     0,
   );
+  const sucursalesActivas = sucursales.filter((s) => s.activo !== false);
   const ventasTotal = useMemo(
     () => ventas.reduce((acc, v) => acc + Number(v.total ?? 0), 0),
     [ventas],
@@ -91,7 +95,7 @@ export default function AdminDashboardPage() {
           />
           <StatCard
             label="Sucursales / cajas"
-            value={loadingSuc ? "—" : `${sucursales.length} / ${totalCajas}`}
+            value={loadingSuc ? "—" : `${sucursalesActivas.length} / ${totalCajas}`}
             icon={Store}
           />
           <StatCard

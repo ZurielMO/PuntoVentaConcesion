@@ -3,16 +3,19 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect } from "react";
-import { ArrowLeft, Pencil, Settings2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Package,
+  Settings2,
+  Store,
+  Users,
+} from "lucide-react";
 import { RequireRole } from "@/components/auth/require-role";
 import { SetupChecklist } from "@/components/setup/setup-checklist";
-import { PageHeader } from "@/components/dashboard/page-header";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useConcesionSetup } from "@/hooks/use-concesion-setup";
 import { useActiveConcesion } from "@/hooks/use-active-concesion";
-import { normalizeStorageImageUrl } from "@/lib/image-url";
+import { firstStoredImage } from "@/lib/image-url";
+import "@/styles/wizard-alta.css";
 
 export default function ConcesionHubPage() {
   const params = useParams();
@@ -26,126 +29,208 @@ export default function ConcesionHubPage() {
     }
   }, [concesionId, setActiveConcesionId]);
 
-  const logo = normalizeStorageImageUrl(concession?.imagenes?.[0]);
+  const logo = firstStoredImage(concession?.imagenes);
+  const activa = concession?.activo !== false;
+  const qConcesion = `?concesionId=${encodeURIComponent(concesionId)}`;
+
+  const sucursalesHref =
+    status?.steps.find((s) => s.id === "sucursal")?.href ??
+    `/sucursales${qConcesion}`;
+  const productosHref = `/products${qConcesion}`;
+  const usuariosHref = `/superAdmin/usuarios${qConcesion}`;
 
   return (
     <RequireRole superAdminOnly>
-      <div className="space-y-6">
-        <PageHeader
-          title={loading ? "Cargando…" : (concession?.nombre ?? "Concesión")}
-          description="Centro de configuración — completa cada paso para dejar la concesión lista."
-          actions={
-            <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link href="/superAdmin/concesiones">
-                  <ArrowLeft className="size-4" />
-                  Volver
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/superAdmin/concesiones/nueva?resume=${concesionId}`}>
+      <div className="wizard-alta wizard-alta__shell wizard-alta__shell--fill">
+        <header className="wizard-alta__hero">
+          <div className="wizard-alta__hero-inner">
+            <div>
+              <h1>
+                {loading
+                  ? "Cargando…"
+                  : concession
+                    ? `Configurar · ${concession.nombre}`
+                    : "Configurar"}
+              </h1>
+              <p>
+                Completa cada paso para dejar la concesión lista para operar en
+                jornada.
+              </p>
+            </div>
+            <div className="wizard-alta__hero-actions">
+              <Link
+                href="/superAdmin/concesiones"
+                className="wizard-alta__exit"
+              >
+                <ArrowLeft className="size-4" />
+                Volver
+              </Link>
+              {concession && (
+                <Link
+                  href={`/superAdmin/concesiones/nueva?resume=${concesionId}`}
+                  className="wizard-alta__exit"
+                >
                   <Settings2 className="size-4" />
                   Asistente
                 </Link>
-              </Button>
+              )}
             </div>
-          }
-        />
+          </div>
+        </header>
 
         {loading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-32 w-full rounded-[12px]" />
-            <Skeleton className="h-64 w-full rounded-[12px]" />
+          <div className="wizard-alta__layout">
+            <aside className="wizard-alta__sidebar">
+              <p className="wizard-alta__empty">Cargando concesión…</p>
+            </aside>
+            <div className="wizard-alta__panel">
+              <div className="wizard-alta__panel-body">
+                <p className="wizard-alta__empty">Cargando pasos…</p>
+              </div>
+            </div>
           </div>
         ) : !concession ? (
-          <div className="dashboard-card p-8 text-center">
-            <p className="text-[1.4rem] text-muted-foreground">
-              Concesión no encontrada.
-            </p>
-            <Button asChild className="mt-4" size="sm">
-              <Link href="/superAdmin/concesiones">Ver concesiones</Link>
-            </Button>
+          <div className="wizard-alta__layout">
+            <div className="wizard-alta__panel" style={{ gridColumn: "1 / -1" }}>
+              <div className="wizard-alta__panel-body">
+                <p className="wizard-alta__hint">
+                  No encontramos esta concesión. Vuelve al listado e inténtalo
+                  de nuevo.
+                </p>
+                <p className="wizard-alta__empty">Concesión no encontrada.</p>
+                <Link
+                  href="/superAdmin/concesiones"
+                  className="wizard-alta__btn wizard-alta__btn--primary mt-3"
+                >
+                  Ver concesiones
+                </Link>
+              </div>
+            </div>
           </div>
         ) : (
-          <>
-            <div className="dashboard-card flex flex-wrap items-center gap-4 p-5">
-              {logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logo}
-                  alt=""
-                  className="size-16 rounded-[8px] object-cover"
-                />
-              ) : (
-                <div className="flex size-16 items-center justify-center rounded-[8px] bg-green-soft text-[2rem] font-bold text-green-dark">
-                  {concession.nombre.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-[2rem] font-semibold text-green-dark">
+          <div className="wizard-alta__layout">
+            <aside className="wizard-alta__sidebar">
+              <div className="wizard-alta__setup-identity">
+                {logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={logo}
+                    alt=""
+                    className="wizard-alta__setup-logo"
+                  />
+                ) : (
+                  <div className="wizard-alta__setup-logo wizard-alta__setup-logo--placeholder">
+                    {concession.nombre.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="wizard-alta__sidebar-item-name">
                     {concession.nombre}
-                  </h2>
-                  <Badge
-                    variant={concession.activo !== false ? "default" : "secondary"}
+                  </p>
+                  <span
+                    className={`wizard-alta__status-pill mt-1 ${
+                      activa
+                        ? "wizard-alta__status-pill--on"
+                        : "wizard-alta__status-pill--off"
+                    }`}
                   >
-                    {concession.activo !== false ? "Activa" : "Inactiva"}
-                  </Badge>
+                    {activa ? "Activa" : "Inactiva"}
+                  </span>
                 </div>
-                <p className="mt-1 text-[1.3rem] text-muted-foreground">
-                  ID: {concession.id}
+              </div>
+
+              {status && (
+                <p className="wizard-alta__hint mt-3">
+                  {status.readyForJornada
+                    ? "Lista para jornada. Revisa inventarios cuando abra el partido."
+                    : `${status.completedCount} de ${status.totalCount} pasos listos. Sigue los pendientes en el panel.`}
+                </p>
+              )}
+
+              <div className="wizard-alta__sidebar-head mt-2">
+                <h2 className="wizard-alta__sidebar-title">Accesos rápidos</h2>
+              </div>
+              <ul className="wizard-alta__sidebar-list">
+                <li>
+                  <Link
+                    href={sucursalesHref}
+                    className="wizard-alta__sidebar-item wizard-alta__setup-quick"
+                  >
+                    <Store className="size-4 shrink-0 text-[var(--wz-primary)]" />
+                    <div className="min-w-0">
+                      <p className="wizard-alta__sidebar-item-name">
+                        Sucursales y cajas
+                      </p>
+                      <p className="wizard-alta__sidebar-item-meta">
+                        Puntos de venta, cajas y equipo
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href={productosHref}
+                    className="wizard-alta__sidebar-item wizard-alta__setup-quick"
+                  >
+                    <Package className="size-4 shrink-0 text-[var(--wz-primary)]" />
+                    <div className="min-w-0">
+                      <p className="wizard-alta__sidebar-item-name">Productos</p>
+                      <p className="wizard-alta__sidebar-item-meta">
+                        Catálogo de la concesión
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href={usuariosHref}
+                    className="wizard-alta__sidebar-item wizard-alta__setup-quick"
+                  >
+                    <Users className="size-4 shrink-0 text-[var(--wz-primary)]" />
+                    <div className="min-w-0">
+                      <p className="wizard-alta__sidebar-item-name">Usuarios</p>
+                      <p className="wizard-alta__sidebar-item-meta">
+                        Admins y vendedores
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              </ul>
+
+              <Link
+                href="/superAdmin/concesiones"
+                className="wizard-alta__btn wizard-alta__btn--outline mt-3 w-full"
+              >
+                Editar datos
+              </Link>
+            </aside>
+
+            <div className="wizard-alta__panel">
+              <div className="wizard-alta__panel-head">
+                <h2 className="wizard-alta__panel-title">
+                  Pasos de configuración
+                </h2>
+                <p className="wizard-alta__panel-sub">
+                  {status?.readyForJornada
+                    ? "Todo listo — puedes operar en jornada"
+                    : "Completa los pendientes; cada acción te lleva al módulo correcto"}
                 </p>
               </div>
-              <Button asChild variant="outline" size="sm">
-                <Link href="/superAdmin/concesiones">
-                  <Pencil className="size-4" />
-                  Editar datos
-                </Link>
-              </Button>
-            </div>
 
-            {status && <SetupChecklist status={status} />}
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <QuickLink
-                href={`/sucursales?concesionId=${concesionId}`}
-                title="Sucursales y cajas"
-                description="Puntos de venta, cajas y equipo"
-              />
-              <QuickLink
-                href={`/products?concesionId=${concesionId}`}
-                title="Productos"
-                description="Catálogo de la concesión"
-              />
-              <QuickLink
-                href={`/superAdmin/usuarios?concesionId=${concesionId}`}
-                title="Usuarios"
-                description="Admins y vendedores"
-              />
+              <div className="wizard-alta__panel-body wizard-alta__panel-body--stack">
+                {!status?.readyForJornada && (
+                  <p className="wizard-alta__hint">
+                    Empieza por los pasos en <strong>Pendiente</strong>. Los
+                    botones conservan la concesión (y sucursal/tab cuando
+                    aplica).
+                  </p>
+                )}
+                {status && <SetupChecklist status={status} />}
+              </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </RequireRole>
-  );
-}
-
-function QuickLink({
-  href,
-  title,
-  description,
-}: {
-  href: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="dashboard-card block p-5 transition-shadow hover:shadow-md"
-    >
-      <p className="text-[1.5rem] font-semibold text-green-dark">{title}</p>
-      <p className="mt-1 text-[1.3rem] text-muted-foreground">{description}</p>
-    </Link>
   );
 }
