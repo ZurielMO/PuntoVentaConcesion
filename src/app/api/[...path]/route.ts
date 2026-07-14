@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { proxyToBackend } from "@/lib/server/backend-client";
-
-const FORWARD_HEADERS = [
-  "authorization",
-  "content-type",
-  "x-request-id",
-  "x-csrf-token",
-] as const;
+import { FORWARD_HEADERS } from "@/lib/server/proxy-headers";
 
 async function handleProxy(
   request: NextRequest,
@@ -52,6 +46,8 @@ async function handleProxy(
   if (backendContentType) {
     responseHeaders["Content-Type"] = backendContentType;
   }
+  const requestId = backendRes.headers.get("x-request-id");
+  if (requestId) responseHeaders["x-request-id"] = requestId;
 
   return new NextResponse(responseBody, {
     status,

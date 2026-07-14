@@ -46,7 +46,7 @@ function getPageTitle(pathname: string): string {
     "/sucursales": "Sucursales",
     "/inventarios": "Inventario",
     "/ventas": "Ventas",
-    "/cortes": "Cortes",
+    "/cortes": "Cortes y reportes",
     "/tickets": "Tickets",
   };
   return map[pathname] ?? "Panel";

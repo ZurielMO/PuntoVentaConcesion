@@ -1,9 +1,10 @@
+import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type StatCardProps = {
   label: string;
-  value: string | number;
+  value: ReactNode;
   icon: LucideIcon;
   hint?: string;
   iconClassName?: string;

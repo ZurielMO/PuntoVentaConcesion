@@ -12,6 +12,7 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public code?: string,
+    public requestId?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -23,13 +24,25 @@ type RequestOptions = {
   body?: unknown;
   token?: string | null;
   headers?: Record<string, string>;
+  signal?: AbortSignal;
+};
+
+export type ApiMutationOptions = {
+  token?: string | null;
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
+};
+
+export type ApiQueryOptions = {
+  token?: string | null;
+  signal?: AbortSignal;
 };
 
 async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { method = "GET", body, token, headers = {} } = options;
+  const { method = "GET", body, token, headers = {}, signal } = options;
 
   const reqHeaders: Record<string, string> = {
     ...headers,
@@ -53,6 +66,7 @@ async function request<T>(
         : JSON.stringify(body)
       : undefined,
     credentials: "include",
+    signal,
   });
 
   if (res.status === 204) {
@@ -67,7 +81,9 @@ async function request<T>(
     code?: string;
     errors?: { campo?: string; mensaje?: string }[];
     fieldErrors?: { field?: string; message?: string }[];
+    requestId?: string;
   };
+  const requestId = res.headers.get("x-request-id") ?? json.requestId;
 
   if (!res.ok) {
     const validationDetail =
@@ -83,7 +99,16 @@ async function request<T>(
       res.status,
       validationDetail || json.message || `Error ${res.status}`,
       json.code,
+      requestId,
     );
+  }
+
+  if (requestId && json && typeof json === "object") {
+    Object.defineProperty(json, "_requestId", {
+      value: requestId,
+      enumerable: false,
+      configurable: true,
+    });
   }
 
   return json;
@@ -93,8 +118,24 @@ export const api = {
   get: <T>(path: string, token?: string | null) =>
     request<T>(path, { token }),
 
+  getWithOptions: <T>(path: string, options: ApiQueryOptions = {}) =>
+    request<T>(path, { token: options.token, signal: options.signal }),
+
   post: <T>(path: string, body: unknown, token?: string | null) =>
     request<T>(path, { method: "POST", body, token }),
+
+  postWithOptions: <T>(
+    path: string,
+    body: unknown,
+    options: ApiMutationOptions = {},
+  ) =>
+    request<T>(path, {
+      method: "POST",
+      body,
+      token: options.token,
+      headers: options.headers,
+      signal: options.signal,
+    }),
 
   put: <T>(path: string, body: unknown, token?: string | null) =>
     request<T>(path, { method: "PUT", body, token }),
