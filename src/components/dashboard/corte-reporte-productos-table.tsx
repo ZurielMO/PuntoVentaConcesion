@@ -12,6 +12,25 @@ type CorteReporteProductosTableProps = {
 const money = (value: number) => (value > 0 ? formatPrice(value) : "—");
 const qty = (value: number) => (value > 0 ? value.toLocaleString("es-MX") : "—");
 
+function MoneyWithHint({
+  amount,
+  hint,
+}: {
+  amount: number;
+  hint?: string | null;
+}) {
+  return (
+    <div className="flex flex-col items-end gap-0.5">
+      <span>{money(amount)}</span>
+      {hint ? (
+        <span className="text-[1.1rem] font-normal text-muted-foreground">
+          {hint}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export function CorteReporteProductosTable({
   data,
   totales,
@@ -52,24 +71,42 @@ export function CorteReporteProductosTable({
           </tr>
         </thead>
         <tbody>
-          {data.map((row) => (
-            <tr key={row.productoId} className="border-b border-border/60">
-              <td className={cn(tdClass, "max-w-[14rem] font-medium")}>
-                <span className="block truncate">{row.nombre}</span>
-              </td>
-              <td className={tdRight}>{qty(row.inventarioInicial)}</td>
-              <td className={tdRight}>{qty(row.inventarioFinal)}</td>
-              <td className={tdRight}>{qty(row.cantidadRegular)}</td>
-              <td className={tdRight}>{qty(row.cantidadAbonado)}</td>
-              <td className={tdRight}>{money(row.ventasRegular)}</td>
-              <td className={tdRight}>{money(row.ventasAbonado)}</td>
-              <td className={tdRight}>{qty(row.cortesias)}</td>
-              <td className={tdRight}>{money(row.puntosCanjeados)}</td>
-              <td className={cn(tdRight, "font-medium")}>
-                {money(row.ventasTotales)}
-              </td>
-            </tr>
-          ))}
+          {data.map((row) => {
+            const precioHint =
+              row.precioActual != null && row.precioActual > 0
+                ? `(${formatPrice(row.precioActual)})`
+                : null;
+            const descuentoHint =
+              row.descuentoAbonado != null && row.descuentoAbonado > 0
+                ? `(-${formatPrice(row.descuentoAbonado)})`
+                : null;
+
+            return (
+              <tr key={row.productoId} className="border-b border-border/60">
+                <td className={cn(tdClass, "max-w-[14rem] font-medium")}>
+                  <span className="block truncate">{row.nombre}</span>
+                </td>
+                <td className={tdRight}>{qty(row.inventarioInicial)}</td>
+                <td className={tdRight}>{qty(row.inventarioFinal)}</td>
+                <td className={tdRight}>{qty(row.cantidadRegular)}</td>
+                <td className={tdRight}>{qty(row.cantidadAbonado)}</td>
+                <td className={tdRight}>
+                  <MoneyWithHint amount={row.ventasRegular} hint={precioHint} />
+                </td>
+                <td className={tdRight}>
+                  <MoneyWithHint
+                    amount={row.ventasAbonado}
+                    hint={descuentoHint}
+                  />
+                </td>
+                <td className={tdRight}>{qty(row.cortesias)}</td>
+                <td className={tdRight}>{money(row.puntosCanjeados)}</td>
+                <td className={cn(tdRight, "font-medium")}>
+                  {money(row.ventasTotales)}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
         {totales && (
           <tfoot>

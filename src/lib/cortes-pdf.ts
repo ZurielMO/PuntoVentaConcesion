@@ -20,6 +20,37 @@ const addHeader = (doc: jsPDF, title: string, subtitle: string) => {
 const getFinalY = (doc: jsPDF) =>
   (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
 
+/** Precio único compartido por todos los productos (para encabezado del PDF). */
+const sharedUnitPrice = (
+  productos: NonNullable<ReporteCortes["productos"]>,
+  getPrice: (row: NonNullable<ReporteCortes["productos"]>[number]) => number,
+): number | null => {
+  const prices = new Set<number>();
+  for (const row of productos) {
+    const price = getPrice(row);
+    if (price > 0) prices.add(Math.round(price * 100) / 100);
+  }
+  if (prices.size !== 1) return null;
+  return [...prices][0];
+};
+
+const abonadoUnitPrice = (
+  row: NonNullable<ReporteCortes["productos"]>[number],
+): number => {
+  if (
+    row.precioActual != null &&
+    row.precioActual > 0 &&
+    row.descuentoAbonado != null &&
+    row.descuentoAbonado > 0
+  ) {
+    return Math.round((row.precioActual - row.descuentoAbonado) * 100) / 100;
+  }
+  if (row.cantidadAbonado > 0 && row.ventasAbonado > 0) {
+    return Math.round((row.ventasAbonado / row.cantidadAbonado) * 100) / 100;
+  }
+  return 0;
+};
+
 const productosTableBody = (reporte: ReporteCortes) => {
   const rows =
     reporte.productos?.map((row) => [
@@ -123,6 +154,21 @@ export function downloadReporteConcesionPdf(
       ? body.length - 3
       : body.length;
 
+    const productos = reporte.productos;
+    const precioRegularShared = sharedUnitPrice(
+      productos,
+      (row) => Number(row.precioActual ?? 0),
+    );
+    const precioAbonadoShared = sharedUnitPrice(productos, abonadoUnitPrice);
+    const headPrecioRegular =
+      precioRegularShared != null
+        ? `Precio regular (${money(precioRegularShared)})`
+        : "Precio regular";
+    const headPrecioAbonado =
+      precioAbonadoShared != null
+        ? `Precio abonado (${money(precioAbonadoShared)})`
+        : "Precio abonado";
+
     autoTable(doc, {
       startY: startY + 2,
       head: [
@@ -130,10 +176,10 @@ export function downloadReporteConcesionPdf(
           "Producto",
           "Inv. ini.",
           "Inv. fin.",
-          "Cant. reg.",
-          "Cant. abon.",
-          "V. regular",
-          "V. abonado",
+          "Venta reg.",
+          "Venta. abon.",
+          headPrecioRegular,
+          headPrecioAbonado,
           "Cortesías",
           "Puntos ($)",
           "V. totales",

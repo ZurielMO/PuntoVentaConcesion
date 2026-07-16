@@ -123,6 +123,7 @@ export interface InventarioMovimiento {
   cajaNombre?: string | null;
   idUser?: string | null;
   ventaId?: string | null;
+  motivo?: string | null;
   createdAt?: string;
 }
 
@@ -263,6 +264,10 @@ export interface ReporteProductoRow {
   cortesias: number;
   puntosCanjeados: number;
   ventasTotales: number;
+  /** Precio de lista actual del catálogo */
+  precioActual?: number;
+  /** Descuento unitario abonado (precio lista − precio abonado) */
+  descuentoAbonado?: number;
 }
 
 export interface ReporteProductoTotales {

@@ -182,6 +182,26 @@ export function useInventarioJornadaActiva(
     [token, inventario?.id, getInventarioJornadaActiva],
   );
 
+  const ajustarProducto = useCallback(
+    async (
+      productoId: string,
+      data: {
+        direccion: "entrada" | "salida";
+        cantidad: number;
+        motivo?: string;
+      },
+    ) => {
+      if (!token || !inventario?.id) throw new Error("Sin inventario activo");
+      await api.post(
+        `${apiPaths.inventarios}/${inventario.id}/productos/${productoId}/ajustes`,
+        data,
+        token,
+      );
+      await getInventarioJornadaActiva();
+    },
+    [token, inventario?.id, getInventarioJornadaActiva],
+  );
+
   useEffect(() => {
     getInventarioJornadaActiva();
   }, [getInventarioJornadaActiva]);
@@ -195,6 +215,7 @@ export function useInventarioJornadaActiva(
     refetch: getInventarioJornadaActiva,
     openInventarioJornadaActiva,
     upsertProducto,
+    ajustarProducto,
   };
 }
 

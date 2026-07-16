@@ -58,7 +58,8 @@ export default function CortesPage() {
   const { sucursales } = useSucursales();
 
   const effectiveConcesionId = useMemo(() => {
-    if (perms.isSuperAdmin && concesionId) return concesionId;
+    // SuperAdmin: empty filter means all concessions (do not fall back to user concesionId)
+    if (perms.isSuperAdmin) return concesionId;
     if (perms.concesionId) return perms.concesionId;
     if (concesionId) return concesionId;
     return "";
@@ -71,11 +72,14 @@ export default function CortesPage() {
     });
 
   useEffect(() => {
-    if (jornadaId) return;
+    if (jornadasLoading) return;
+    if (jornadaId && jornadas.some((j) => j.jornadaId === jornadaId)) return;
     if (jornadas.length > 0) {
       setJornadaId(jornadas[0].jornadaId);
+    } else if (jornadaId) {
+      setJornadaId("");
     }
-  }, [jornadas, jornadaId]);
+  }, [jornadas, jornadaId, jornadasLoading]);
 
   const filters = useMemo<CorteFilters>(() => {
     const f: CorteFilters = {};
@@ -122,6 +126,11 @@ export default function CortesPage() {
   const handleConcesionChange = (value: string) => {
     setConcesionId(value);
     setSucursalId("");
+    setJornadaId("");
+  };
+
+  const handleSucursalChange = (value: string) => {
+    setSucursalId(value);
     setJornadaId("");
   };
 
@@ -181,7 +190,7 @@ export default function CortesPage() {
             <NativeSelect
               id="filtro-sucursal"
               value={sucursalId}
-              onChange={(e) => setSucursalId(e.target.value)}
+              onChange={(e) => handleSucursalChange(e.target.value)}
             >
               <option value="">Todas las sucursales</option>
               {sucursalesFiltradas.map((s) => (

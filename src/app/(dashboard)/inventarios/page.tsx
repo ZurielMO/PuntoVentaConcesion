@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { PackagePlus, RefreshCw } from "lucide-react";
+import { PackagePlus, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Field } from "@/components/ui/field";
@@ -36,6 +36,9 @@ function stockRow(p: InventarioProducto) {
 function movimientoLabel(m: InventarioMovimiento) {
   if (m.tipo === "VENTA") return "Venta";
   if (m.tipo === "CARGA_INICIAL") return "Carga inicial";
+  if (m.tipo === "AJUSTE") {
+    return m.cantidad >= 0 ? "Ajuste entrada" : "Ajuste salida";
+  }
   return "Ajuste";
 }
 
@@ -54,8 +57,15 @@ export default function InventariosPage() {
   const autoOpenAttemptedFor = useRef<string | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>("stock");
   const [cargaOpen, setCargaOpen] = useState(false);
+  const [ajusteOpen, setAjusteOpen] = useState(false);
   const [productoId, setProductoId] = useState("");
   const [cantidadInicial, setCantidadInicial] = useState("");
+  const [ajusteProductoId, setAjusteProductoId] = useState("");
+  const [ajusteDireccion, setAjusteDireccion] = useState<"entrada" | "salida">(
+    "entrada",
+  );
+  const [ajusteCantidad, setAjusteCantidad] = useState("");
+  const [ajusteMotivo, setAjusteMotivo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -109,6 +119,7 @@ export default function InventariosPage() {
     refetch,
     openInventarioJornadaActiva,
     upsertProducto,
+    ajustarProducto,
   } = useInventarioJornadaActiva(effectiveSucursalId || undefined, {
     enabled: Boolean(effectiveSucursalId),
   });
@@ -175,11 +186,20 @@ export default function InventariosPage() {
 
   const productosCatalogo = useMemo(() => {
     const concesionId = sucursalActual?.concesion_id;
-    if (perms.isSuperAdmin && concesionId) {
-      return products.filter((p) => p.concesion_id === concesionId);
-    }
-    return products;
-  }, [products, perms.isSuperAdmin, sucursalActual?.concesion_id]);
+    const yaCargados = new Set(
+      productosEnInventario.map((p) => p.producto_id),
+    );
+    const base =
+      perms.isSuperAdmin && concesionId
+        ? products.filter((p) => p.concesion_id === concesionId)
+        : products;
+    return base.filter((p) => !yaCargados.has(p.id));
+  }, [
+    products,
+    perms.isSuperAdmin,
+    sucursalActual?.concesion_id,
+    productosEnInventario,
+  ]);
 
   const needsConcesionPick = perms.isSuperAdmin && !concesionSel;
   const showSidebarContent = !perms.isSuperAdmin || Boolean(concesionSel);
@@ -202,6 +222,22 @@ export default function InventariosPage() {
     setCantidadInicial("");
   };
 
+  const openAjuste = (preselectProductoId?: string) => {
+    setAjusteProductoId(preselectProductoId ?? "");
+    setAjusteDireccion("entrada");
+    setAjusteCantidad("");
+    setAjusteMotivo("");
+    setAjusteOpen(true);
+  };
+
+  const closeAjuste = () => {
+    setAjusteOpen(false);
+    setAjusteProductoId("");
+    setAjusteDireccion("entrada");
+    setAjusteCantidad("");
+    setAjusteMotivo("");
+  };
+
   const handleCarga = async (e: FormEvent) => {
     e.preventDefault();
     if (!productoId || !cantidadInicial) return;
@@ -221,8 +257,29 @@ export default function InventariosPage() {
     }
   };
 
+  const handleAjuste = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!ajusteProductoId || !ajusteCantidad) return;
+    setSubmitting(true);
+    setActionError(null);
+    try {
+      await ajustarProducto(ajusteProductoId, {
+        direccion: ajusteDireccion,
+        cantidad: Number(ajusteCantidad),
+        ...(ajusteMotivo.trim() ? { motivo: ajusteMotivo.trim() } : {}),
+      });
+      closeAjuste();
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Error al ajustar stock",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const heroDescription = perms.canManageInventario
-    ? "Stock por sucursal para la jornada activa. Elige una sucursal y carga productos."
+    ? "Stock por sucursal para la jornada activa. Carga el inventario inicial o aplica ajustes de entrada/salida."
     : perms.isVendedor
       ? "Stock de tu sucursal para la jornada activa."
       : "Consulta el inventario por sucursal (solo lectura).";
@@ -473,14 +530,26 @@ export default function InventariosPage() {
                           </p>
                         </div>
                         {perms.canManageInventario && (
-                          <button
-                            type="button"
-                            className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
-                            onClick={openCarga}
-                          >
-                            <PackagePlus className="size-3.5" />
-                            Cargar producto
-                          </button>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
+                              onClick={openCarga}
+                            >
+                              <PackagePlus className="size-3.5" />
+                              Cargar producto
+                            </button>
+                            {productosEnInventario.length > 0 && (
+                              <button
+                                type="button"
+                                className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
+                                onClick={() => openAjuste()}
+                              >
+                                <SlidersHorizontal className="size-3.5" />
+                                Ajustar stock
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
 
@@ -510,6 +579,7 @@ export default function InventariosPage() {
                                 <th>Inicial</th>
                                 <th>Vendido</th>
                                 <th>Disponible</th>
+                                {perms.canManageInventario && <th>Acciones</th>}
                               </tr>
                             </thead>
                             <tbody>
@@ -541,6 +611,20 @@ export default function InventariosPage() {
                                         {row.disponible}
                                       </span>
                                     </td>
+                                    {perms.canManageInventario && (
+                                      <td>
+                                        <button
+                                          type="button"
+                                          className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
+                                          onClick={() =>
+                                            openAjuste(p.producto_id)
+                                          }
+                                          disabled={submitting}
+                                        >
+                                          Ajustar
+                                        </button>
+                                      </td>
+                                    )}
                                   </tr>
                                 );
                               })}
@@ -610,6 +694,7 @@ export default function InventariosPage() {
                                         ? `Caja ${m.cajaNombre}`
                                         : null,
                                       m.ventaId ? `Venta ${m.ventaId}` : null,
+                                      m.motivo ? m.motivo : null,
                                     ]
                                       .filter(Boolean)
                                       .join(" · ") || "—"}
@@ -686,6 +771,96 @@ export default function InventariosPage() {
                 disabled={submitting}
               >
                 {submitting ? "Cargando…" : "Cargar producto"}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={ajusteOpen} onOpenChange={(open) => !open && closeAjuste()}>
+        <DialogContent className="wizard-alta wizard-alta__dialog !flex !max-w-[42rem] !flex-col !gap-0 !p-0">
+          <div className="wizard-alta__dialog-head">
+            <DialogHeader className="text-left">
+              <DialogTitle className="wizard-alta__dialog-title">
+                Ajustar stock
+              </DialogTitle>
+              <DialogDescription className="wizard-alta__dialog-sub">
+                Entrada o salida de ajuste sobre productos ya cargados en{" "}
+                {sucursalNombre(effectiveSucursalId)}.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <form onSubmit={handleAjuste} className="wizard-alta__dialog-body">
+            <div className="wizard-alta__dialog-fields">
+              <Field label="Producto" htmlFor="ajusteProducto">
+                <NativeSelect
+                  id="ajusteProducto"
+                  value={ajusteProductoId}
+                  onChange={(e) => setAjusteProductoId(e.target.value)}
+                  required
+                >
+                  <option value="">Selecciona producto</option>
+                  {productosEnInventario.map((p) => (
+                    <option key={p.id ?? p.producto_id} value={p.producto_id}>
+                      {productoNombre(p.producto_id)} (disp.{" "}
+                      {stockRow(p).disponible})
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field label="Tipo de ajuste" htmlFor="ajusteDireccion">
+                <NativeSelect
+                  id="ajusteDireccion"
+                  value={ajusteDireccion}
+                  onChange={(e) =>
+                    setAjusteDireccion(
+                      e.target.value === "salida" ? "salida" : "entrada",
+                    )
+                  }
+                  required
+                >
+                  <option value="entrada">Entrada</option>
+                  <option value="salida">Salida</option>
+                </NativeSelect>
+              </Field>
+              <Field label="Cantidad" htmlFor="ajusteCantidad">
+                <Input
+                  id="ajusteCantidad"
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="1"
+                  value={ajusteCantidad}
+                  onChange={(e) => setAjusteCantidad(e.target.value)}
+                  required
+                />
+              </Field>
+              <Field label="Motivo (opcional)" htmlFor="ajusteMotivo">
+                <Input
+                  id="ajusteMotivo"
+                  type="text"
+                  maxLength={500}
+                  placeholder="Ej. reposición, merma, corrección…"
+                  value={ajusteMotivo}
+                  onChange={(e) => setAjusteMotivo(e.target.value)}
+                />
+              </Field>
+            </div>
+            <div className="wizard-alta__footer">
+              <button
+                type="button"
+                className="wizard-alta__btn wizard-alta__btn--secondary"
+                onClick={closeAjuste}
+                disabled={submitting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="wizard-alta__btn wizard-alta__btn--primary"
+                disabled={submitting}
+              >
+                {submitting ? "Aplicando…" : "Aplicar ajuste"}
               </button>
             </div>
           </form>
