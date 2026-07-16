@@ -298,6 +298,12 @@ export interface ReporteConcesionRow {
   totalVenta: number;
   comision: number;
   gananciaConcesion: number;
+  /** Optional for compatibility with report endpoints deployed before this field existed. */
+  totalPuntosCanjeados?: number;
+  /** MXN covered with points; never part of dinero real. */
+  valorPuntosCanjeados?: number;
+  /** Promotion + subscriber discounts only. */
+  descuentos?: number;
 }
 
 export interface ReporteCortes {
