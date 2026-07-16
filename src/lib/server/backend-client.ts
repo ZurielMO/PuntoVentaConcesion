@@ -7,6 +7,16 @@ export function getBackendBaseUrl(): string {
   return BACKEND_BASE.replace(/\/$/, "");
 }
 
+export class BackendProxyError extends Error {
+  constructor(
+    message: string,
+    public readonly causeCode?: string,
+  ) {
+    super(message);
+    this.name = "BackendProxyError";
+  }
+}
+
 export async function proxyToBackend(
   path: string,
   init: RequestInit & { headers?: HeadersInit } = {},
@@ -22,9 +32,21 @@ export async function proxyToBackend(
     headers.set("Content-Type", "application/json");
   }
 
-  return fetch(url, {
-    ...init,
-    headers,
-    cache: "no-store",
-  });
+  try {
+    return await fetch(url, {
+      ...init,
+      headers,
+      cache: "no-store",
+    });
+  } catch (error) {
+    const cause =
+      error instanceof Error
+        ? (error as Error & { cause?: { code?: string } }).cause?.code ??
+          error.message
+        : "unknown";
+    throw new BackendProxyError(
+      `No se pudo conectar al backend (${getBackendBaseUrl()}). Revisa API_BASE_URL.`,
+      typeof cause === "string" ? cause : "fetch_failed",
+    );
+  }
 }

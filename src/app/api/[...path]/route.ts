@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { proxyToBackend } from "@/lib/server/backend-client";
+import {
+  BackendProxyError,
+  proxyToBackend,
+} from "@/lib/server/backend-client";
 import { FORWARD_HEADERS } from "@/lib/server/proxy-headers";
 
 async function handleProxy(
@@ -32,7 +35,24 @@ async function handleProxy(
     if (hasBody) init.body = body;
   }
 
-  const backendRes = await proxyToBackend(`${targetPath}${search}`, init);
+  let backendRes: Response;
+  try {
+    backendRes = await proxyToBackend(`${targetPath}${search}`, init);
+  } catch (error) {
+    const message =
+      error instanceof BackendProxyError
+        ? error.message
+        : "Error al contactar el backend";
+    return NextResponse.json(
+      {
+        success: false,
+        message,
+        code: "BACKEND_UNREACHABLE",
+      },
+      { status: 502 },
+    );
+  }
+
   const status = backendRes.status;
 
   // NextResponse no admite cuerpo en 204/205/304 (Fetch API).
