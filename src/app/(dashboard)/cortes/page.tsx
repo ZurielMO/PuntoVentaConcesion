@@ -1,17 +1,50 @@
-import { Suspense } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { CortesModule } from "@/features/cortes/components/cortes-module";
-import { RequireRole } from "@/components/auth/require-role";
-import { PageHeader } from "@/components/dashboard/page-header";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Eye, FileDown, Info, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge, Eye, FileDown, Info, RefreshCw } from "lucide-react";
-import { Field } from "@/components/ui/field";
 import { NativeSelect } from "@/components/ui/native-select";
-import { CorteReporteIngresosStats } from "@/components/dashboard/corte-reporte-ingresos-stats";
+import { Field } from "@/components/ui/field";
+import { RequireRole } from "@/components/auth/require-role";
+import { DataTable } from "@/components/dashboard/data-table";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { CorteDetalleDialog } from "@/components/dashboard/corte-detalle-dialog";
 import { CorteReporteProductosTable } from "@/components/dashboard/corte-reporte-productos-table";
 import { CorteReporteComisionTable } from "@/components/dashboard/corte-reporte-comision-table";
-import { DataTable } from "@/components/dashboard/data-table";
-import { CorteDetalleDialog } from "@/components/dashboard/corte-detalle-dialog";
+import { CorteReporteIngresosStats } from "@/components/dashboard/corte-reporte-ingresos-stats";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  useCortes,
+  useReporteCortes,
+  type CorteFilters,
+} from "@/hooks/use-cortes";
+import { useJornadasDisponibles } from "@/hooks/use-inventarios";
+import { usePermissions } from "@/hooks/use-permissions";
+import { useConcessions } from "@/hooks/use-concessions";
+import { useSucursales } from "@/hooks/use-sucursales";
+import {
+  downloadReporteConcesionPdf,
+  downloadReporteConsolidadoPdf,
+} from "@/lib/cortes-pdf";
+import { formatPrice } from "@/lib/format";
+import type { Corte } from "@/lib/types";
+
+const nullableMoney = (value?: number | null) =>
+  value == null ? "—" : formatPrice(Number(value));
+
+const formatJornadaCorte = (corte: Corte) => {
+  if (corte.jornadaId) {
+    const match = corte.jornadaId.match(/^(\d{4}-\d{2}-\d{2})__J(\d+)$/);
+    if (match) {
+      const [, fecha, num] = match;
+      const [y, m, d] = fecha.split("-");
+      return `Jornada ${num} · ${d}/${m}/${y}`;
+    }
+    return corte.jornadaId;
+  }
+  return corte.fecha;
+};
 
 export default function CortesPage() {
   const perms = usePermissions();

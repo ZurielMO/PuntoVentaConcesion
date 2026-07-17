@@ -55,15 +55,16 @@ export function CorteReporteProductosTable({
 
   return (
     <div className="-mx-1 overflow-x-auto px-1">
-      <table className="w-full min-w-[72rem] border-collapse text-sm">
+      <table className="w-full min-w-[84rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-border">
             <th className={thClass}>Producto</th>
             <th className={cn(thClass, "text-right")}>Inv. inicial</th>
             <th className={cn(thClass, "text-right")}>Inv. final</th>
+            <th className={cn(thClass, "text-right")}>Venta de piezas</th>
             <th className={cn(thClass, "text-right")}>Ventas regulares</th>
-            <th className={cn(thClass, "text-right")}>Ventas de abonados</th>
             <th className={cn(thClass, "text-right")}>Precio regular</th>
+            <th className={cn(thClass, "text-right")}>Ventas de abonados</th>
             <th className={cn(thClass, "text-right")}>Precio abonado</th>
             <th className={cn(thClass, "text-right")}>Cortesías</th>
             <th className={cn(thClass, "text-right")}>Puntos ($)</th>
@@ -80,6 +81,7 @@ export function CorteReporteProductosTable({
               row.descuentoAbonado != null && row.descuentoAbonado > 0
                 ? `(-${formatPrice(row.descuentoAbonado)})`
                 : null;
+            const ventaPiezas = (row.cantidadRegular + row.cantidadAbonado) * 2;
 
             return (
               <tr key={row.productoId} className="border-b border-border/60">
@@ -88,11 +90,12 @@ export function CorteReporteProductosTable({
                 </td>
                 <td className={tdRight}>{qty(row.inventarioInicial)}</td>
                 <td className={tdRight}>{qty(row.inventarioFinal)}</td>
+                <td className={tdRight}>{qty(ventaPiezas)}</td>
                 <td className={tdRight}>{qty(row.cantidadRegular)}</td>
-                <td className={tdRight}>{qty(row.cantidadAbonado)}</td>
                 <td className={tdRight}>
                   <MoneyWithHint amount={row.ventasRegular} hint={precioHint} />
                 </td>
+                <td className={tdRight}>{qty(row.cantidadAbonado)}</td>
                 <td className={tdRight}>
                   <MoneyWithHint
                     amount={row.ventasAbonado}
@@ -114,9 +117,12 @@ export function CorteReporteProductosTable({
               <td className={tdClass}>Totales</td>
               <td className={tdRight}>—</td>
               <td className={tdRight}>—</td>
+              <td className={tdRight}>
+                {qty((totales.cantidadRegular + totales.cantidadAbonado) * 2)}
+              </td>
               <td className={tdRight}>{qty(totales.cantidadRegular)}</td>
-              <td className={tdRight}>{qty(totales.cantidadAbonado)}</td>
               <td className={tdRight}>{money(totales.ventasRegular)}</td>
+              <td className={tdRight}>{qty(totales.cantidadAbonado)}</td>
               <td className={tdRight}>{money(totales.ventasAbonado)}</td>
               <td className={tdRight}>{qty(totales.cortesias)}</td>
               <td className={tdRight}>{money(totales.puntosCanjeados)}</td>
@@ -125,7 +131,7 @@ export function CorteReporteProductosTable({
               </td>
             </tr>
             <tr className="bg-muted/20">
-              <td className={tdClass} colSpan={9}>
+              <td className={tdClass} colSpan={10}>
                 Menos puntos canjeados
               </td>
               <td className={cn(tdRight, "text-destructive")}>
@@ -135,7 +141,7 @@ export function CorteReporteProductosTable({
               </td>
             </tr>
             <tr className="bg-green-muted font-bold">
-              <td className={cn(tdClass, "text-green-dark")} colSpan={9}>
+              <td className={cn(tdClass, "text-green-dark")} colSpan={10}>
                 Dinero real
               </td>
               <td

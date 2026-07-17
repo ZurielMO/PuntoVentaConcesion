@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useEffect } from "react";
+import { useParams, usePathname } from "next/navigation";
+import { useEffect, useMemo } from "react";
 import {
   ArrowLeft,
   Package,
@@ -19,7 +19,14 @@ import "@/styles/wizard-alta.css";
 
 export default function ConcesionHubPage() {
   const params = useParams();
-  const concesionId = typeof params.id === "string" ? params.id : "";
+  const pathname = usePathname();
+  const concesionId = useMemo(() => {
+    const fromParams = typeof params.id === "string" ? params.id : "";
+    if (fromParams && fromParams !== "_") return fromParams;
+    const parts = (pathname ?? "").split("/").filter(Boolean);
+    const last = parts[parts.length - 1] ?? "";
+    return last && last !== "_" ? last : "";
+  }, [params.id, pathname]);
   const { setActiveConcesionId } = useActiveConcesion();
   const { concession, status, loading } = useConcesionSetup(concesionId);
 

@@ -1,3 +1,14 @@
+/**
+ * - Local / Vercel: sin NEXT_PUBLIC_API_BASE_URL → BFF `/api` (proxy server-side).
+ * - FTP / estático: define NEXT_PUBLIC_API_BASE_URL → Cloud Function directa.
+ */
+function resolveApiUrl(path: string): string {
+  const clean = path.replace(/^\//, "");
+  const base = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
+  if (base) return `${base}/${clean}`;
+  return `/api/${clean}`;
+}
+
 export type ApiResponse<T> = {
   success: boolean;
   data?: T;
@@ -57,7 +68,9 @@ async function request<T>(
     reqHeaders.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`/api/${path.replace(/^\//, "")}`, {
+  const url = resolveApiUrl(path);
+  const isAbsolute = /^https?:\/\//i.test(url);
+  const res = await fetch(url, {
     method,
     headers: reqHeaders,
     body: body !== undefined
@@ -65,7 +78,8 @@ async function request<T>(
         ? (body as FormData)
         : JSON.stringify(body)
       : undefined,
-    credentials: "include",
+    // JWT en Authorization; cookies cross-origin complican CORS.
+    credentials: isAbsolute ? "omit" : "include",
     signal,
   });
 
