@@ -32,11 +32,12 @@ import { useSucursales } from "@/hooks/use-sucursales";
 import { useZonas } from "@/hooks/use-zonas";
 import { useConcessions } from "@/hooks/use-concessions";
 import { useEquipoVendedores } from "@/hooks/use-equipo";
+import { useUsers } from "@/hooks/use-users";
 import { useConcesionFilterParam } from "@/hooks/use-concesion-filter-param";
 import { useSucursalDeepLink } from "@/hooks/use-deep-link-params";
 import { useActiveConcesionOptional } from "@/hooks/use-active-concesion";
 import { usePermissions } from "@/hooks/use-permissions";
-import type { Caja, User } from "@/lib/types";
+import { UserRole, type Caja, type SucursalModoOperacion, type User } from "@/lib/types";
 import "@/styles/wizard-alta.css";
 
 /** Máximo de cajas por sucursal (activas + desactivadas), igual que el asistente. */
@@ -77,9 +78,16 @@ export default function SucursalesPage() {
     { enabled: !perms.isSuperAdmin || Boolean(concesionFilter) },
   );
 
+  // Solo se usa createUser (alta del Admin Cervecería); no se listan usuarios aquí.
+  const { createUser } = useUsers(undefined, { enabled: false });
+
   const [sucursalDialogOpen, setSucursalDialogOpen] = useState(false);
   const [nombre, setNombre] = useState("");
   const [zonaId, setZonaId] = useState("");
+  const [modoOperacion, setModoOperacion] = useState<SucursalModoOperacion>("POS");
+  const [adminNombre, setAdminNombre] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const [cajaDialogOpen, setCajaDialogOpen] = useState(false);
@@ -115,6 +123,19 @@ export default function SucursalesPage() {
   const selectedSucursal = sucursalesVisibles.find(
     (s) => s.id === selectedSucursalId,
   );
+
+  /** Concesión objetivo del diálogo de nueva sucursal. */
+  const dialogConcesionId = perms.isSuperAdmin
+    ? concesionFilter
+    : perms.concesionId ?? "";
+  const dialogEsCerveceria =
+    concessions.find((c) => c.id === dialogConcesionId)?.tipo === "CERVECERIA";
+
+  const selectedEsCerveceria =
+    concessions.find((c) => c.id === selectedSucursal?.concesion_id)?.tipo ===
+    "CERVECERIA";
+  const selectedModoConteo = selectedSucursal?.modo_operacion === "CONTEO";
+
   const cajasDeSucursal = selectedSucursal?.cajas ?? [];
   const puedeAgregarCaja = cajasDeSucursal.length < MAX_CAJAS;
   const sucursalActiva = selectedSucursal?.activo !== false;
@@ -191,6 +212,10 @@ export default function SucursalesPage() {
     setSucursalDialogOpen(false);
     setNombre("");
     setZonaId("");
+    setModoOperacion("POS");
+    setAdminNombre("");
+    setAdminEmail("");
+    setAdminPassword("");
   };
 
   const openCreateSucursal = () => {
@@ -210,16 +235,82 @@ export default function SucursalesPage() {
       toast.error("Selecciona una concesión primero");
       return;
     }
+
+    const modo: SucursalModoOperacion =
+      dialogEsCerveceria && modoOperacion === "CONTEO" ? "CONTEO" : "POS";
+    const quiereAdmin =
+      modo === "CONTEO" &&
+      perms.isSuperAdmin &&
+      Boolean(adminNombre.trim() || adminEmail.trim() || adminPassword.trim());
+    if (quiereAdmin) {
+      if (!adminNombre.trim() || !adminEmail.trim() || !adminPassword.trim()) {
+        toast.error(
+          "Completa nombre, correo y contraseña del Admin Cervecería, o deja los tres campos vacíos",
+        );
+        return;
+      }
+      if (adminPassword.trim().length < 6) {
+        toast.error(
+          "La contraseña del Admin Cervecería debe tener al menos 6 caracteres",
+        );
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
-      await createSucursal(concesionId, zonaId, {
-        sucursal: { nombre },
+      const created = await createSucursal(concesionId, zonaId, {
+        sucursal: { nombre, modo_operacion: modo },
       });
-      toast.success("Sucursal creada");
+
+      if (quiereAdmin) {
+        try {
+          await createUser({
+            nombre: adminNombre.trim(),
+            email: adminEmail.trim(),
+            password: adminPassword.trim(),
+            rol: UserRole.ADMIN_CERVECERIA,
+            concesionId,
+            sucursalId: created.id,
+            activo: true,
+          });
+          toast.success("Sucursal y Admin Cervecería creados");
+        } catch (err) {
+          toast.error(
+            `Sucursal creada, pero falló el alta del Admin Cervecería: ${
+              err instanceof Error ? err.message : "error desconocido"
+            }. Créalo desde Usuarios.`,
+          );
+        }
+      } else {
+        toast.success("Sucursal creada");
+      }
       closeSucursalDialog();
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Error al crear sucursal",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggleModoOperacion = async () => {
+    if (!selectedSucursal) return;
+    const nuevo: SucursalModoOperacion = selectedModoConteo ? "POS" : "CONTEO";
+    setSubmitting(true);
+    try {
+      await updateSucursal(selectedSucursal.id, {
+        sucursal: { modo_operacion: nuevo },
+      });
+      toast.success(
+        nuevo === "CONTEO"
+          ? "Sucursal cambiada a corte por conteo"
+          : "Sucursal cambiada a POS clásico",
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Error al cambiar el modo",
       );
     } finally {
       setSubmitting(false);
@@ -492,6 +583,11 @@ export default function SucursalesPage() {
                               <p className="wizard-alta__sidebar-item-name">
                                 {s.nombre ?? s.id}
                               </p>
+                              {s.modo_operacion === "CONTEO" && (
+                                <span className="wizard-alta__status-pill wizard-alta__status-pill--pending">
+                                  Conteo
+                                </span>
+                              )}
                               {desactivada && (
                                 <span className="wizard-alta__status-pill wizard-alta__status-pill--off">
                                   Desactivada
@@ -562,6 +658,11 @@ export default function SucursalesPage() {
                         >
                           {sucursalActiva ? "Activa" : "Desactivada"}
                         </span>
+                        {selectedModoConteo && (
+                          <span className="wizard-alta__status-pill wizard-alta__status-pill--pending">
+                            Corte por conteo
+                          </span>
+                        )}
                       </div>
                       <p className="wizard-alta__panel-sub">
                         Zona: {zonaNombre(selectedSucursal.zona_id)}
@@ -570,26 +671,46 @@ export default function SucursalesPage() {
                         {` · ${cajasActivasSucursal.length} caja(s) activa(s) · ${equipoDeSucursal.length} vendedor(es)`}
                       </p>
                     </div>
-                    {perms.canManageSucursales &&
-                      (sucursalActiva ? (
-                        <button
-                          type="button"
-                          className="wizard-alta__btn wizard-alta__btn--danger wizard-alta__btn--sm"
-                          onClick={() => void handleToggleSucursalActivo()}
-                        >
-                          <PowerOff className="size-4" />
-                          Desactivar
-                        </button>
-                      ) : (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {perms.canManageSucursales && selectedEsCerveceria && (
                         <button
                           type="button"
                           className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
-                          onClick={() => void handleToggleSucursalActivo()}
+                          onClick={() => void handleToggleModoOperacion()}
+                          disabled={submitting}
+                          title={
+                            selectedModoConteo
+                              ? "Volver al POS clásico con vendedores"
+                              : "El Admin Cervecería cierra el día capturando el inventario final"
+                          }
                         >
-                          <Power className="size-4" />
-                          Reactivar
+                          <RefreshCw className="size-4" />
+                          {selectedModoConteo
+                            ? "Cambiar a POS"
+                            : "Cambiar a conteo"}
                         </button>
-                      ))}
+                      )}
+                      {perms.canManageSucursales &&
+                        (sucursalActiva ? (
+                          <button
+                            type="button"
+                            className="wizard-alta__btn wizard-alta__btn--danger wizard-alta__btn--sm"
+                            onClick={() => void handleToggleSucursalActivo()}
+                          >
+                            <PowerOff className="size-4" />
+                            Desactivar
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
+                            onClick={() => void handleToggleSucursalActivo()}
+                          >
+                            <Power className="size-4" />
+                            Reactivar
+                          </button>
+                        ))}
+                    </div>
                   </div>
 
                   <nav
@@ -1006,6 +1127,66 @@ export default function SucursalesPage() {
                     ))}
                 </NativeSelect>
               </Field>
+              {dialogEsCerveceria && (
+                <Field label="Modo de operación" htmlFor="modoOperacion">
+                  <NativeSelect
+                    id="modoOperacion"
+                    value={modoOperacion}
+                    onChange={(e) =>
+                      setModoOperacion(
+                        e.target.value === "CONTEO" ? "CONTEO" : "POS",
+                      )
+                    }
+                  >
+                    <option value="POS">POS con vendedores (clásico)</option>
+                    <option value="CONTEO">
+                      Corte por conteo (Admin Cervecería)
+                    </option>
+                  </NativeSelect>
+                </Field>
+              )}
+              {dialogEsCerveceria &&
+                modoOperacion === "CONTEO" &&
+                perms.isSuperAdmin && (
+                  <>
+                    <p className="wizard-alta__hint">
+                      Admin Cervecería (opcional): se crea junto con la
+                      sucursal y podrá hacer el corte capturando el inventario
+                      final. También puedes darlo de alta después desde
+                      Usuarios.
+                    </p>
+                    <Field label="Nombre del admin" htmlFor="adminNombre">
+                      <Input
+                        id="adminNombre"
+                        value={adminNombre}
+                        onChange={(e) => setAdminNombre(e.target.value)}
+                        placeholder="Ej. Ana López"
+                      />
+                    </Field>
+                    <Field label="Correo del admin" htmlFor="adminEmail">
+                      <Input
+                        id="adminEmail"
+                        type="email"
+                        value={adminEmail}
+                        onChange={(e) => setAdminEmail(e.target.value)}
+                        placeholder="admin@correo.com"
+                      />
+                    </Field>
+                    <Field
+                      label="Contraseña del admin"
+                      htmlFor="adminPassword"
+                    >
+                      <Input
+                        id="adminPassword"
+                        type="password"
+                        value={adminPassword}
+                        onChange={(e) => setAdminPassword(e.target.value)}
+                        placeholder="Mínimo 6 caracteres"
+                        minLength={6}
+                      />
+                    </Field>
+                  </>
+                )}
             </div>
             <div className="wizard-alta__footer">
               <button

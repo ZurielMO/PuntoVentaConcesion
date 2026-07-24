@@ -20,6 +20,9 @@
 # production
 /build
 
+# salidas locales (PDFs de `npm run pdf:preview`)
+/tmp
+
 # misc
 .DS_Store
 *.pem

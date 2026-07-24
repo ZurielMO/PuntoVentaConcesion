@@ -29,7 +29,9 @@ export function RequireRole({
 
   const allowed = (() => {
     if (superAdminOnly) return perms.isSuperAdmin;
-    if (adminOrAbove) return perms.isSuperAdmin || perms.isAdmin;
+    if (adminOrAbove) {
+      return perms.isSuperAdmin || perms.isAdmin || perms.isAdminCerveceria;
+    }
     if (roles?.length) {
       return roles.some((r) => perms.role === r);
     }

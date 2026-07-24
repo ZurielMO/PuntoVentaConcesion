@@ -9,6 +9,12 @@ export const normalizeRole = (rol?: string): UserRole | undefined => {
   if (upper === UserRole.SUPERADMIN || upper === "CONCESION_SUPERADMIN") {
     return UserRole.SUPERADMIN;
   }
+  if (
+    upper === UserRole.ADMIN_CERVECERIA ||
+    upper === "CONCESION_ADMIN_CERVECERIA"
+  ) {
+    return UserRole.ADMIN_CERVECERIA;
+  }
   if (upper === UserRole.ADMIN || upper === "CONCESION_ADMIN") {
     return UserRole.ADMIN;
   }
@@ -20,6 +26,7 @@ export type PermissionFlags = {
   role: UserRole | undefined;
   isSuperAdmin: boolean;
   isAdmin: boolean;
+  isAdminCerveceria: boolean;
   isVendedor: boolean;
   concesionId?: string | null;
   sucursalId?: string | null;
@@ -42,6 +49,8 @@ export type PermissionFlags = {
   canViewVentas: boolean;
   canViewCortes: boolean;
   canViewSucursales: boolean;
+  /** Cierre de día por conteo de inventario final (admin cervecería). */
+  canHacerCorte: boolean;
 };
 
 export const getPermissions = (posUser: PosUser | null | undefined): PermissionFlags => {
@@ -53,6 +62,7 @@ export const getPermissions = (posUser: PosUser | null | undefined): PermissionF
     posUser?.admin === true ||
     posUser?.isAdmin === true;
   const isAdmin = role === UserRole.ADMIN;
+  const isAdminCerveceria = role === UserRole.ADMIN_CERVECERIA;
   const isVendedor = role === UserRole.VENDEDOR;
   const concesionId = (posUser?.concesionId as string | null | undefined) ?? null;
   const sucursalId = (posUser?.sucursalId as string | null | undefined) ?? null;
@@ -62,6 +72,7 @@ export const getPermissions = (posUser: PosUser | null | undefined): PermissionF
     role,
     isSuperAdmin,
     isAdmin,
+    isAdminCerveceria,
     isVendedor,
     concesionId,
     sucursalId,
@@ -70,27 +81,28 @@ export const getPermissions = (posUser: PosUser | null | undefined): PermissionF
     canManageConcessions: isSuperAdmin,
     canManageUsers: isSuperAdmin,
     canManageZonas: isSuperAdmin,
-    canManageProducts: isAdmin || isSuperAdmin,
+    canManageProducts: isAdmin || isAdminCerveceria || isSuperAdmin,
     canManageSucursales: isSuperAdmin,
     canManageEquipo: isSuperAdmin,
     canManageInventario: isSuperAdmin,
     canManageCombos: isSuperAdmin,
     canManageDescuentos: isSuperAdmin,
     canManageTrabajadoresClub: isSuperAdmin,
-    canManageVentas: isAdmin || isVendedor,
-    canManageCortes: isAdmin || isVendedor,
-    canViewProducts: isSuperAdmin || isAdmin || isVendedor,
-    canViewInventario: isSuperAdmin || isAdmin || isVendedor,
-    canViewVentas: isSuperAdmin || isAdmin || isVendedor,
-    canViewCortes: isSuperAdmin || isAdmin || isVendedor,
-    canViewSucursales: isSuperAdmin || isAdmin,
+    canManageVentas: isAdmin || isAdminCerveceria || isVendedor,
+    canManageCortes: isAdmin || isAdminCerveceria || isVendedor,
+    canViewProducts: isSuperAdmin || isAdmin || isAdminCerveceria || isVendedor,
+    canViewInventario: isSuperAdmin || isAdmin || isAdminCerveceria || isVendedor,
+    canViewVentas: isSuperAdmin || isAdmin || isAdminCerveceria || isVendedor,
+    canViewCortes: isSuperAdmin || isAdmin || isAdminCerveceria || isVendedor,
+    canViewSucursales: isSuperAdmin || isAdmin || isAdminCerveceria,
+    canHacerCorte: isAdminCerveceria,
   };
 };
 
 export const getDefaultRouteForRole = (posUser: PosUser | null | undefined): string => {
   const perms = getPermissions(posUser);
   if (perms.isSuperAdmin) return "/superAdmin/dashboard";
-  if (perms.isAdmin) return "/admin/dashboard";
+  if (perms.isAdmin || perms.isAdminCerveceria) return "/admin/dashboard";
   if (perms.isVendedor) return "/inventarios";
   return "/login";
 };

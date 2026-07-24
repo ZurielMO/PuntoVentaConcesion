@@ -1,8 +1,12 @@
 export enum UserRole {
   SUPERADMIN = "SUPERADMIN",
   ADMIN = "ADMIN",
+  /** Admin de una sucursal de concesión tipo CERVECERIA (cierra el día por conteo). */
+  ADMIN_CERVECERIA = "ADMIN_CERVECERIA",
   VENDEDOR = "VENDEDOR",
 }
+
+export type ConcessionTipo = "CERVECERIA" | "GENERAL";
 
 export interface PosUser {
   uid?: string;
@@ -29,6 +33,7 @@ export interface Concession {
   imagenes?: string[];
   idUser?: string | null;
   porcentajeComision?: number | null;
+  tipo?: ConcessionTipo;
 }
 
 export interface User {
@@ -69,12 +74,16 @@ export interface Zona {
   activo: boolean;
 }
 
+export type SucursalModoOperacion = "POS" | "CONTEO";
+
 export interface Sucursal {
   id: string;
   concesion_id: string;
   zona_id: string;
   nombre: string | null;
   activo: boolean;
+  /** Modo de operación: POS clásico o cierre por conteo (Admin Cervecería). Default POS. */
+  modo_operacion?: SucursalModoOperacion;
   cajas?: Caja[];
 }
 
@@ -248,6 +257,8 @@ export interface Corte {
   productos?: CorteResumenProducto[] | null;
   promociones2x1?: CorteResumenPromociones2x1 | null;
   combos?: CorteResumenCombos | null;
+  /** "CONTEO" cuando el corte se cerró capturando inventario final. */
+  tipoCorte?: string | null;
   createdAt?: unknown;
   updatedAt?: unknown;
 }

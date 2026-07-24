@@ -1,6 +1,19 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatPrice } from "@/lib/format";
+import {
+  alignNumericColumns,
+  alignNumericHead,
+  CONTENT_TOP,
+  drawMetaStrip,
+  drawReportHeader,
+  drawSectionTitle,
+  ensureSpace,
+  PDF_BRAND,
+  stampFooters,
+  tableTheme,
+  type ReportHeaderInfo,
+} from "@/lib/pdf/report-chrome";
 import type { ReporteCortes } from "@/lib/types";
 
 const money = (value: number) => formatPrice(value);
@@ -8,17 +21,17 @@ const dashOrMoney = (value: number) => (value > 0 ? money(value) : "—");
 const dashOrQty = (value: number) =>
   value > 0 ? value.toLocaleString("es-MX") : "—";
 
-const addHeader = (doc: jsPDF, title: string, subtitle: string) => {
-  doc.setFontSize(16);
-  doc.text(title, 14, 18);
-  doc.setFontSize(10);
-  doc.setTextColor(80);
-  doc.text(subtitle, 14, 26);
-  doc.setTextColor(0);
-};
-
 const getFinalY = (doc: jsPDF) =>
   (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+
+/** Espacio minimo para no dejar un titulo de seccion solo al pie de la hoja. */
+const SECTION_MIN_SPACE = 30;
+
+const metaItems = (reporte: ReporteCortes) => [
+  { label: "Jornada", value: `Jornada ${reporte.jornada.numero}` },
+  { label: "Fecha", value: reporte.jornada.fecha },
+  { label: "Generado", value: new Date().toLocaleString("es-MX") },
+];
 
 /** Precio único compartido por todos los productos (para encabezado del PDF). */
 const sharedUnitPrice = (
@@ -57,7 +70,6 @@ const productosTableBody = (reporte: ReporteCortes) => {
       row.nombre,
       String(row.inventarioInicial),
       String(row.inventarioFinal),
-      dashOrQty((row.cantidadRegular + row.cantidadAbonado) * 2),
       dashOrQty(row.cantidadRegular),
       dashOrMoney(row.ventasRegular),
       dashOrQty(row.cantidadAbonado),
@@ -73,7 +85,6 @@ const productosTableBody = (reporte: ReporteCortes) => {
       "Totales",
       "—",
       "—",
-      dashOrQty((t.cantidadRegular + t.cantidadAbonado) * 2),
       dashOrQty(t.cantidadRegular),
       dashOrMoney(t.ventasRegular),
       dashOrQty(t.cantidadAbonado),
@@ -84,7 +95,6 @@ const productosTableBody = (reporte: ReporteCortes) => {
     ]);
     rows.push([
       "Menos puntos canjeados",
-      "",
       "",
       "",
       "",
@@ -105,7 +115,6 @@ const productosTableBody = (reporte: ReporteCortes) => {
       "",
       "",
       "",
-      "",
       money(t.dineroReal),
     ]);
   }
@@ -113,25 +122,27 @@ const productosTableBody = (reporte: ReporteCortes) => {
   return rows;
 };
 
-export function downloadReporteConcesionPdf(
+export function buildReporteConcesionDoc(
   reporte: ReporteCortes,
   concesionNombre: string,
-) {
+): jsPDF {
   const doc = new jsPDF({ orientation: "landscape" });
-  const generado = new Date().toLocaleString("es-MX");
-  const jornadaLabel = `Jornada ${reporte.jornada.numero} · ${reporte.jornada.fecha}`;
+  const header: ReportHeaderInfo = {
+    title: "Reporte de corte",
+    subtitle: concesionNombre,
+  };
 
-  addHeader(
-    doc,
-    `Reporte de corte — ${concesionNombre}`,
-    `${jornadaLabel} · Generado: ${generado}`,
-  );
+  drawReportHeader(doc, header);
+  drawMetaStrip(doc, 31, metaItems(reporte));
 
-  let startY = 34;
+  let cursorY = CONTENT_TOP;
 
   if (reporte.ingresos) {
+    cursorY = drawSectionTitle(doc, cursorY, "Resumen de ingresos") + 3;
+
     autoTable(doc, {
-      startY,
+      ...tableTheme(9),
+      startY: cursorY,
       head: [["Concepto", "Monto"]],
       body: [
         ["Venta neta", money(reporte.ingresos.ventaNeta)],
@@ -142,16 +153,21 @@ export function downloadReporteConcesionPdf(
           `${reporte.ingresos.totalPuntosCanjeados.toLocaleString("es-MX")} pts (${money(reporte.ingresos.totalPuntosMonto)})`,
         ],
       ],
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [22, 101, 52] },
+      tableWidth: "wrap",
+      columnStyles: {
+        0: { halign: "left", cellWidth: 72 },
+        1: { halign: "right", cellWidth: 52 },
+      },
+      didParseCell: alignNumericHead,
+      didDrawPage: () => drawReportHeader(doc, header),
     });
-    startY = getFinalY(doc) + 10;
+
+    cursorY = getFinalY(doc) + 12;
   }
 
   if (reporte.productos && reporte.productos.length > 0) {
-    doc.setFontSize(12);
-    doc.text("Desglose por producto", 14, startY);
-    startY += 4;
+    cursorY = ensureSpace(doc, cursorY, SECTION_MIN_SPACE, header);
+    cursorY = drawSectionTitle(doc, cursorY, "Desglose por producto") + 3;
 
     const body = productosTableBody(reporte);
     const footerStart = reporte.productoTotales
@@ -174,13 +190,13 @@ export function downloadReporteConcesionPdf(
         : "Precio abonado";
 
     autoTable(doc, {
-      startY: startY + 2,
+      ...tableTheme(7),
+      startY: cursorY,
       head: [
         [
           "Producto",
           "Inv. ini.",
           "Inv. fin.",
-          "Venta de piezas",
           "Venta reg.",
           headPrecioRegular,
           "Venta. abon.",
@@ -191,28 +207,32 @@ export function downloadReporteConcesionPdf(
         ],
       ],
       body,
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [22, 101, 52] },
+      columnStyles: alignNumericColumns(10),
       didParseCell: (data) => {
+        alignNumericHead(data);
         if (data.section === "body" && data.row.index >= footerStart) {
           data.cell.styles.fontStyle = "bold";
+          // Los totales se leen como un bloque, sin el zebrado del cuerpo.
+          data.cell.styles.fillColor = PDF_BRAND.white;
           if (data.row.index === body.length - 1) {
-            data.cell.styles.fillColor = [220, 252, 231];
+            data.cell.styles.fillColor = PDF_BRAND.highlight;
           }
         }
       },
+      didDrawPage: () => drawReportHeader(doc, header),
     });
 
-    startY = getFinalY(doc) + 10;
+    cursorY = getFinalY(doc) + 12;
   }
 
   const resumen = reporte.resumen[0];
   if (resumen) {
-    doc.setFontSize(12);
-    doc.text("Resumen de comisión", 14, startY);
+    cursorY = ensureSpace(doc, cursorY, SECTION_MIN_SPACE, header);
+    cursorY = drawSectionTitle(doc, cursorY, "Resumen de comisión") + 3;
 
     autoTable(doc, {
-      startY: startY + 4,
+      ...tableTheme(9),
+      startY: cursorY,
       head: [
         ["Concesión", "Comisión %", "Venta total", "Comisión", "Total final"],
       ],
@@ -225,25 +245,25 @@ export function downloadReporteConcesionPdf(
           money(resumen.gananciaConcesion),
         ],
       ],
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [22, 101, 52] },
+      columnStyles: alignNumericColumns(5),
+      didParseCell: alignNumericHead,
+      didDrawPage: () => drawReportHeader(doc, header),
     });
   }
 
-  const safeName = concesionNombre.replace(/[^\w\s-]/g, "").trim() || "concesion";
-  doc.save(`corte-${safeName}-${reporte.jornada.fecha}.pdf`);
+  stampFooters(doc);
+  return doc;
 }
 
-export function downloadReporteConsolidadoPdf(reporte: ReporteCortes) {
+export function buildReporteConsolidadoDoc(reporte: ReporteCortes): jsPDF {
   const doc = new jsPDF({ orientation: "landscape" });
-  const generado = new Date().toLocaleString("es-MX");
-  const jornadaLabel = `Jornada ${reporte.jornada.numero} · ${reporte.jornada.fecha}`;
+  const header: ReportHeaderInfo = {
+    title: "Reporte consolidado de cortes",
+    subtitle: "Todas las concesiones",
+  };
 
-  addHeader(
-    doc,
-    "Reporte consolidado de cortes",
-    `${jornadaLabel} · Generado: ${generado}`,
-  );
+  drawReportHeader(doc, header);
+  drawMetaStrip(doc, 31, metaItems(reporte));
 
   const totals = reporte.resumen.reduce(
     (acc, row) => ({
@@ -272,24 +292,44 @@ export function downloadReporteConsolidadoPdf(reporte: ReporteCortes) {
     ]);
   }
 
+  const cursorY = drawSectionTitle(doc, CONTENT_TOP, "Resumen por concesión") + 3;
+
   autoTable(doc, {
-    startY: 34,
+    ...tableTheme(9),
+    startY: cursorY,
     head: [
       ["Concesión", "Comisión %", "Venta total", "Comisión", "Total final"],
     ],
     body,
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: [22, 101, 52] },
+    columnStyles: alignNumericColumns(5),
     didParseCell: (data) => {
+      alignNumericHead(data);
       if (
         data.section === "body" &&
         data.row.index === body.length - 1 &&
         reporte.resumen.length > 1
       ) {
         data.cell.styles.fontStyle = "bold";
+        data.cell.styles.fillColor = PDF_BRAND.highlight;
       }
     },
+    didDrawPage: () => drawReportHeader(doc, header),
   });
 
+  stampFooters(doc);
+  return doc;
+}
+
+export function downloadReporteConcesionPdf(
+  reporte: ReporteCortes,
+  concesionNombre: string,
+) {
+  const doc = buildReporteConcesionDoc(reporte, concesionNombre);
+  const safeName = concesionNombre.replace(/[^\w\s-]/g, "").trim() || "concesion";
+  doc.save(`corte-${safeName}-${reporte.jornada.fecha}.pdf`);
+}
+
+export function downloadReporteConsolidadoPdf(reporte: ReporteCortes) {
+  const doc = buildReporteConsolidadoDoc(reporte);
   doc.save(`corte-consolidado-${reporte.jornada.fecha}.pdf`);
 }

@@ -10,8 +10,10 @@ import {
   Search,
   Eye,
   EyeOff,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Field } from "@/components/ui/field";
@@ -19,6 +21,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -47,7 +50,7 @@ type FormState = {
   activo: boolean;
 };
 
-type RoleFilter = "todos" | "admin" | "vendedor";
+type RoleFilter = "todos" | "admin" | "adminCerveceria" | "vendedor";
 
 const emptyForm = (concesionId = ""): FormState => ({
   nombre: "",
@@ -64,10 +67,18 @@ const userDocId = (u: User) => u.id || u.uid || "";
 export default function UsuariosPage() {
   const activeCtx = useActiveConcesionOptional();
   const [concesionFilter, setConcesionFilter] = useConcesionFilterParam();
-  const { users, loading, error, refetch, createUser, updateUser, deleteUser } =
-    useUsers(concesionFilter || undefined, {
-      enabled: Boolean(concesionFilter),
-    });
+  const {
+    users,
+    loading,
+    error,
+    refetch,
+    createUser,
+    updateUser,
+    deleteUser,
+    hardDeleteUser,
+  } = useUsers(concesionFilter || undefined, {
+    enabled: Boolean(concesionFilter),
+  });
   const { concessions } = useConcessions();
   const { sucursales } = useSucursales();
   const { refetch: refetchEquipo } = useEquipoVendedores(
@@ -82,8 +93,18 @@ export default function UsuariosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("todos");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
 
   const isVendedorRol = form.rol === UserRole.VENDEDOR;
+  const isAdminCerveceriaRol = form.rol === UserRole.ADMIN_CERVECERIA;
+  /** Roles ligados a una sucursal concreta. */
+  const needsSucursal = isVendedorRol || isAdminCerveceriaRol;
+
+  const concesionSeleccionada = concessions.find(
+    (c) => c.id === concesionFilter,
+  );
+  const esConcesionCerveceria = concesionSeleccionada?.tipo === "CERVECERIA";
 
   const concesionNombre = (id?: string | null) =>
     concessions.find((c) => c.id === id)?.nombre ?? id ?? "—";
@@ -109,6 +130,12 @@ export default function UsuariosPage() {
       .filter((u) => {
         const rol = normalizeRole(String(u.rol));
         if (roleFilter === "admin" && rol !== UserRole.ADMIN) return false;
+        if (
+          roleFilter === "adminCerveceria" &&
+          rol !== UserRole.ADMIN_CERVECERIA
+        ) {
+          return false;
+        }
         if (roleFilter === "vendedor" && rol !== UserRole.VENDEDOR) return false;
         if (!q) return true;
         const nombre = (u.nombre ?? "").toLowerCase();
@@ -137,6 +164,16 @@ export default function UsuariosPage() {
       ),
     [sucursales, concesionFilter],
   );
+
+  /** ADMIN_CERVECERIA solo puede asignarse a sucursales en modo corte por conteo. */
+  const sucursalesConteo = useMemo(
+    () => sucursalesFiltradas.filter((s) => s.modo_operacion === "CONTEO"),
+    [sucursalesFiltradas],
+  );
+
+  const sucursalesParaRol = isAdminCerveceriaRol
+    ? sucursalesConteo
+    : sucursalesFiltradas;
 
   const setConcesion = (value: string) => {
     setConcesionFilter(value);
@@ -202,6 +239,34 @@ export default function UsuariosPage() {
     }
   };
 
+  const openHardDelete = (u: User) => {
+    setDeletingUser(u);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleHardDelete = async () => {
+    if (!deletingUser) return;
+    const id = userDocId(deletingUser);
+    if (!id) {
+      toast.error("Usuario sin identificador");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await hardDeleteUser(id);
+      toast.success(
+        `"${deletingUser.nombre || deletingUser.email}" eliminado definitivamente`,
+      );
+      setDeleteDialogOpen(false);
+      setDeletingUser(null);
+      await refetchEquipo();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo eliminar");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const concesionId = concesionFilter || form.concesionId;
@@ -209,9 +274,28 @@ export default function UsuariosPage() {
       toast.error("Selecciona una concesión primero");
       return;
     }
-    // VENDEDOR: backend exige sucursalId en alta y en edición.
-    if (isVendedorRol && !form.sucursalId) {
-      toast.error("Los vendedores requieren una sucursal");
+    // VENDEDOR y ADMIN_CERVECERIA: backend exige sucursalId en alta y edición.
+    if (needsSucursal && !form.sucursalId) {
+      toast.error(
+        isAdminCerveceriaRol
+          ? "El admin de cervecería requiere una sucursal"
+          : "Los vendedores requieren una sucursal",
+      );
+      return;
+    }
+    if (isAdminCerveceriaRol && !esConcesionCerveceria) {
+      toast.error(
+        "El rol Admin Cervecería solo aplica a concesiones tipo Cervecería",
+      );
+      return;
+    }
+    if (
+      isAdminCerveceriaRol &&
+      !sucursalesConteo.some((s) => s.id === form.sucursalId)
+    ) {
+      toast.error(
+        "El Admin Cervecería solo puede asignarse a sucursales en modo corte por conteo",
+      );
       return;
     }
     const password = form.password.trim();
@@ -243,6 +327,9 @@ export default function UsuariosPage() {
           if (form.sucursalId !== (editing.sucursalId ?? "")) {
             payload.cajaId = null;
           }
+        } else if (isAdminCerveceriaRol) {
+          payload.sucursalId = form.sucursalId;
+          payload.cajaId = null;
         } else {
           payload.sucursalId = null;
           payload.cajaId = null;
@@ -261,7 +348,7 @@ export default function UsuariosPage() {
           rol: form.rol,
           concesionId,
           activo: true,
-          ...(isVendedorRol ? { sucursalId: form.sucursalId } : {}),
+          ...(needsSucursal ? { sucursalId: form.sucursalId } : {}),
         };
         await createUser(payload);
         toast.success("Usuario creado");
@@ -278,6 +365,7 @@ export default function UsuariosPage() {
   const rolLabel = (u: User) => {
     const rol = normalizeRole(String(u.rol));
     if (rol === UserRole.ADMIN) return "Administrador";
+    if (rol === UserRole.ADMIN_CERVECERIA) return "Admin Cervecería";
     if (rol === UserRole.VENDEDOR) return "Vendedor";
     return String(u.rol ?? "—");
   };
@@ -285,6 +373,9 @@ export default function UsuariosPage() {
   const ubicacionLabel = (u: User) => {
     const rol = normalizeRole(String(u.rol));
     if (rol === UserRole.ADMIN) return "Toda la concesión";
+    if (rol === UserRole.ADMIN_CERVECERIA) {
+      return u.sucursalId ? sucursalNombre(u.sucursalId) : "Sin sucursal";
+    }
     const caja = cajaNombre(u.sucursalId, u.cajaId);
     const suc = sucursalNombre(u.sucursalId);
     if (!u.sucursalId) return "Sin sucursal";
@@ -435,6 +526,11 @@ export default function UsuariosPage() {
                             >
                               <option value="todos">Todos</option>
                               <option value="admin">Administrador</option>
+                              {esConcesionCerveceria && (
+                                <option value="adminCerveceria">
+                                  Admin Cervecería
+                                </option>
+                              )}
                               <option value="vendedor">Vendedor</option>
                             </NativeSelect>
                           </Field>
@@ -535,6 +631,14 @@ export default function UsuariosPage() {
                                             Reactivar
                                           </button>
                                         )}
+                                        <button
+                                          type="button"
+                                          className="wizard-alta__btn wizard-alta__btn--danger wizard-alta__btn--sm"
+                                          onClick={() => openHardDelete(u)}
+                                        >
+                                          <Trash2 className="size-3.5" />
+                                          Eliminar
+                                        </button>
                                       </div>
                                     </td>
                                   </tr>
@@ -636,7 +740,12 @@ export default function UsuariosPage() {
                 label="Rol"
                 htmlFor="rol"
                 className={
-                  isVendedorRol ? undefined : "wizard-alta__field-span"
+                  needsSucursal ? undefined : "wizard-alta__field-span"
+                }
+                hint={
+                  esConcesionCerveceria
+                    ? "Admin Cervecería administra una sola sucursal y hace el corte por conteo"
+                    : undefined
                 }
               >
                 <NativeSelect
@@ -651,15 +760,26 @@ export default function UsuariosPage() {
                   }
                 >
                   <option value={UserRole.ADMIN}>Administrador</option>
+                  {esConcesionCerveceria && (
+                    <option value={UserRole.ADMIN_CERVECERIA}>
+                      Admin Cervecería
+                    </option>
+                  )}
                   <option value={UserRole.VENDEDOR}>Vendedor</option>
                 </NativeSelect>
               </Field>
-              {isVendedorRol && (
+              {needsSucursal && (
                 <Field
                   label="Sucursal"
                   htmlFor="sucursal"
                   className="wizard-alta__field-span"
-                  hint="La caja se asigna después en Sucursales y cajas"
+                  hint={
+                    isAdminCerveceriaRol
+                      ? sucursalesConteo.length === 0
+                        ? "No hay sucursales en modo corte por conteo. Cámbialo en Sucursales y cajas."
+                        : "Solo sucursales en modo corte por conteo"
+                      : "La caja se asigna después en Sucursales y cajas"
+                  }
                 >
                   <NativeSelect
                     id="sucursal"
@@ -673,7 +793,7 @@ export default function UsuariosPage() {
                     required
                   >
                     <option value="">Selecciona sucursal</option>
-                    {sucursalesFiltradas.map((s) => (
+                    {sucursalesParaRol.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.nombre ?? s.id}
                       </option>
@@ -704,6 +824,45 @@ export default function UsuariosPage() {
               </button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) setDeletingUser(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>¿Eliminar usuario definitivamente?</DialogTitle>
+            <DialogDescription>
+              &quot;{deletingUser?.nombre || deletingUser?.email}&quot; (
+              {deletingUser?.email}) se eliminará de autenticación y de la base
+              de datos. Esta acción no se puede deshacer. Si solo quieres
+              ocultarlo, usa &quot;Desactivar&quot;.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setDeletingUser(null);
+              }}
+              disabled={submitting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={submitting}
+              onClick={() => void handleHardDelete()}
+            >
+              {submitting ? "Eliminando…" : "Eliminar definitivamente"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </RequireRole>

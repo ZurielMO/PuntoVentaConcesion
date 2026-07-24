@@ -11,6 +11,7 @@ export type ConcessionPayload = {
   activo?: boolean;
   imagenes?: string[];
   porcentajeComision?: number;
+  tipo?: "CERVECERIA" | "GENERAL";
 };
 
 export function useConcessions() {

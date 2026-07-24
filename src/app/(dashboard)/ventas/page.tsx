@@ -258,74 +258,7 @@ export default function VentasPage() {
         }
       />
 
-      {showPos && (
-        <div className="pb-6">
-          <div className="pos-gradient-header mb-6 rounded-[12px] p-6 md:p-8">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-[1.3rem] font-medium uppercase tracking-wider text-white/70">
-                  Punto de venta
-                </p>
-                <p className="mt-2 flex items-center gap-2 text-[1.5rem] text-white/85">
-                  <CalendarDays className="size-5" />
-                  {jornadaLabel}
-                </p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <MetricCard
-                  label="Productos en jornada"
-                  value={productosEnVenta.length}
-                  className="!bg-white/95"
-                />
-                <MetricCard
-                  label="Ventas registradas"
-                  value={ventas.length}
-                  className="!bg-white/95"
-                />
-              </div>
-            </div>
-          </div>
-
-          {inventarioLoading && (
-            <p className="text-[1.6rem] text-muted-foreground">Cargando inventario…</p>
-          )}
-          {inventarioError && <p className="text-destructive">{inventarioError}</p>}
-          {!inventarioLoading && !inventarioSucursalId && (
-            <div className="glass-card mb-6 p-6 text-center">
-              <p className="text-[1.6rem] text-muted-foreground">
-                {perms.isVendedor
-                  ? "Tu usuario no tiene una sucursal asignada. Contacta al SuperAdmin."
-                  : "Selecciona una sucursal en los filtros para ver su punto de venta."}
-              </p>
-            </div>
-          )}
-          {!inventarioLoading && inventarioSucursalId && !inventario && (
-            <div className="glass-card mb-6 p-6 text-center">
-              <p className="text-[1.6rem] text-muted-foreground">
-                No hay inventario abierto para esta sucursal en la jornada. El
-                SuperAdmin debe abrirlo desde{" "}
-                <Link href="/inventarios" className="text-green-accent underline">
-                  Inventario
-                </Link>
-                .
-              </p>
-            </div>
-          )}
-
-          {canSell && productosEnVenta.length > 0 && (
-            <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {productosEnVenta.map((product) => (
-                <PosProductTile
-                  key={product.id}
-                  product={product}
-                  disponible={stockMap.get(product.id) ?? 0}
-                  onSelect={() => openCart(product)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      
 
       <section>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-4">

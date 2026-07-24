@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BadgePercent,
   Building2,
+  CalendarCheck,
   ClipboardList,
   IdCard,
   Layers,
@@ -104,12 +105,6 @@ export function getDashboardNav(perms: PermissionFlags): NavGroup[] {
           icon: BadgePercent,
           permission: "canManageDescuentos",
         },
-        {
-          href: "/superAdmin/trabajadores-club",
-          label: "Trabajadores Club",
-          icon: IdCard,
-          permission: "canManageTrabajadoresClub",
-        },
       ],
     });
     groups.push({
@@ -185,6 +180,71 @@ export function getDashboardNav(perms: PermissionFlags): NavGroup[] {
           label: "Cortes",
           icon: ClipboardList,
           permission: "canViewCortes",
+        },
+      ],
+    });
+    return groups;
+  }
+
+  if (perms.isAdminCerveceria) {
+    groups.push({
+      title: "Principal",
+      items: [
+        {
+          href: "/admin/dashboard",
+          label: "Dashboard",
+          icon: LayoutDashboard,
+        },
+      ],
+    });
+    groups.push({
+      title: "Gestión",
+      items: [
+        {
+          href: "/products",
+          label: "Productos",
+          icon: Package,
+          permission: "canManageProducts",
+        },
+      ],
+    });
+    groups.push({
+      title: "Consulta",
+      items: [
+        {
+          href: "/sucursales",
+          label: "Sucursales",
+          icon: Store,
+          permission: "canViewSucursales",
+        },
+        {
+          href: "/inventarios",
+          label: "Inventario",
+          icon: Warehouse,
+          permission: "canViewInventario",
+        },
+      ],
+    });
+    groups.push({
+      title: "Operación",
+      items: [
+        {
+          href: "/ventas",
+          label: "Ventas",
+          icon: ShoppingCart,
+          permission: "canViewVentas",
+        },
+        {
+          href: "/cortes",
+          label: "Cortes",
+          icon: ClipboardList,
+          permission: "canViewCortes",
+        },
+        {
+          href: "/cortes/hacer-corte",
+          label: "Hacer corte",
+          icon: CalendarCheck,
+          permission: "canHacerCorte",
         },
       ],
     });

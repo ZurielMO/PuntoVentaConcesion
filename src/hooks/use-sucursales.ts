@@ -7,7 +7,7 @@ import type { Sucursal, Caja } from "@/lib/types";
 
 export type CreateSucursalPayload = {
   activo?: boolean;
-  sucursal: { nombre?: string };
+  sucursal: { nombre?: string; modo_operacion?: "POS" | "CONTEO" };
 };
 
 export function useSucursales() {

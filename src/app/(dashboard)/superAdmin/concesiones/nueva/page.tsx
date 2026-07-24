@@ -30,7 +30,7 @@ import { useSucursales } from "@/hooks/use-sucursales";
 import { useActiveConcesion } from "@/hooks/use-active-concesion";
 import { useNavigationLock } from "@/hooks/use-navigation-lock";
 import { formatPrice } from "@/lib/format";
-import { UserRole } from "@/lib/types";
+import { UserRole, type SucursalModoOperacion } from "@/lib/types";
 import "@/styles/wizard-alta.css";
 
 type WizardStepId =
@@ -114,9 +114,16 @@ export default function NuevaConcesionWizardPage() {
 
   const [concesionNombre, setConcesionNombre] = useState("");
   const [concesionPorcentajeComision, setConcesionPorcentajeComision] = useState("0");
+  const [concesionTipo, setConcesionTipo] = useState<"CERVECERIA" | "GENERAL">(
+    "GENERAL",
+  );
   const [concesionImage, setConcesionImage] = useState<File | null>(null);
   const [sucursalNombre, setSucursalNombre] = useState("");
   const [zonaId, setZonaId] = useState("");
+  const [sucursalModo, setSucursalModo] = useState<SucursalModoOperacion>("POS");
+  const [adminTipo, setAdminTipo] = useState<"CONCESION" | "CERVECERIA">(
+    "CONCESION",
+  );
   const [adminNombre, setAdminNombre] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
@@ -177,6 +184,9 @@ export default function NuevaConcesionWizardPage() {
       if (existing) {
         setConcesionNombre(existing.nombre);
         setConcesionPorcentajeComision(String(existing.porcentajeComision ?? 0));
+        setConcesionTipo(
+          existing.tipo === "CERVECERIA" ? "CERVECERIA" : "GENERAL",
+        );
       }
     }
   }, [resumeId, concessions]);
@@ -189,6 +199,26 @@ export default function NuevaConcesionWizardPage() {
     return value;
   };
 
+  /** El modo CONTEO solo aplica en concesiones tipo CERVECERIA. */
+  const modoConteo = concesionTipo === "CERVECERIA" && sucursalModo === "CONTEO";
+  const adminEsCerveceria = modoConteo && adminTipo === "CERVECERIA";
+
+  /** Pasos visibles: en modo conteo la sucursal no tiene cajas ni vendedores. */
+  const wizardSteps = useMemo(
+    () =>
+      modoConteo
+        ? WIZARD_STEPS.filter((s) => s.id !== "cajas" && s.id !== "vendedor")
+        : WIZARD_STEPS,
+    [modoConteo],
+  );
+
+  // Si el modo cambia estando en un paso que ya no existe, saltar al siguiente válido.
+  useEffect(() => {
+    if (modoConteo && (step === "cajas" || step === "vendedor")) {
+      setStep(step === "cajas" ? "producto" : "resumen");
+    }
+  }, [modoConteo, step]);
+
   const cajasValidas = useMemo(
     () =>
       cajasNombres
@@ -200,22 +230,22 @@ export default function NuevaConcesionWizardPage() {
   const zonaNombre = (id: string) => zonas.find((z) => z.id === id)?.zona ?? id;
 
   const completedStepIds = useMemo(() => {
-    const order = WIZARD_STEPS.map((s) => s.id as WizardStepId);
+    const order = wizardSteps.map((s) => s.id as WizardStepId);
     const currentIdx = order.indexOf(step);
     return order.slice(0, currentIdx);
-  }, [step]);
+  }, [step, wizardSteps]);
 
   const goNext = useCallback(() => {
-    const order = WIZARD_STEPS.map((s) => s.id as WizardStepId);
+    const order = wizardSteps.map((s) => s.id as WizardStepId);
     const idx = order.indexOf(step);
     if (idx < order.length - 1) setStep(order[idx + 1]);
-  }, [step]);
+  }, [step, wizardSteps]);
 
   const goBack = useCallback(() => {
-    const order = WIZARD_STEPS.map((s) => s.id as WizardStepId);
+    const order = wizardSteps.map((s) => s.id as WizardStepId);
     const idx = order.indexOf(step);
     if (idx > 0) setStep(order[idx - 1]);
-  }, [step]);
+  }, [step, wizardSteps]);
 
   const updateVendedor = (
     cajaIndex: number,
@@ -413,10 +443,34 @@ export default function NuevaConcesionWizardPage() {
           activo: true,
           imagenes: [],
           porcentajeComision: comision,
+          tipo: concesionTipo,
         });
+        if (!created?.id) {
+          throw new Error("No se recibió el id de la concesión creada");
+        }
         concesionId = created.id;
+        setResumeId(created.id);
         if (concesionImage) {
-          await uploadConcessionImages(created.id, [concesionImage]);
+          try {
+            await uploadConcessionImages(created.id, [concesionImage]);
+          } catch (uploadErr) {
+            const detail =
+              uploadErr instanceof Error
+                ? uploadErr.message
+                : "Error al subir el logo";
+            window.history.replaceState(
+              null,
+              "",
+              `/superAdmin/concesiones/nueva?resume=${created.id}`,
+            );
+            unlockNavigation();
+            creatingRef.current = false;
+            setCreating(false);
+            toast.error(
+              `Concesión creada, pero falló el logo: ${detail}. Puedes reintentar desde este asistente.`,
+            );
+            return;
+          }
         }
       } else {
         const existing = concessions.find((c) => c.id === concesionId);
@@ -425,11 +479,18 @@ export default function NuevaConcesionWizardPage() {
           activo: existing?.activo ?? true,
           imagenes: existing?.imagenes ?? [],
           porcentajeComision: comision,
+          tipo: concesionTipo,
         });
+        if (concesionImage) {
+          await uploadConcessionImages(concesionId, [concesionImage]);
+        }
       }
 
       const sucursal = await createSucursal(concesionId, zonaId, {
-        sucursal: { nombre: sucursalNombre.trim() },
+        sucursal: {
+          nombre: sucursalNombre.trim(),
+          modo_operacion: modoConteo ? "CONTEO" : "POS",
+        },
       });
 
       await createUser({
@@ -437,15 +498,19 @@ export default function NuevaConcesionWizardPage() {
         email: adminEmail.trim(),
         password: adminPassword,
         fecha_nacimiento: "1990-01-01",
-        rol: UserRole.ADMIN,
+        rol: adminEsCerveceria ? UserRole.ADMIN_CERVECERIA : UserRole.ADMIN,
         concesionId,
+        ...(adminEsCerveceria ? { sucursalId: sucursal.id } : {}),
         activo: true,
       });
 
+      // En modo conteo la sucursal no tiene cajas ni vendedores.
       const cajaIdByIndex: Record<number, string> = {};
-      for (const { nombre, index } of cajasValidas) {
-        const caja = await createCaja(sucursal.id, nombre);
-        cajaIdByIndex[index] = caja.id;
+      if (!modoConteo) {
+        for (const { nombre, index } of cajasValidas) {
+          const caja = await createCaja(sucursal.id, nombre);
+          cajaIdByIndex[index] = caja.id;
+        }
       }
 
       for (const producto of productosDraft) {
@@ -463,20 +528,22 @@ export default function NuevaConcesionWizardPage() {
         }
       }
 
-      for (const vendedor of vendedoresCompletos) {
-        const cajaId = cajaIdByIndex[vendedor.cajaIndex];
-        if (!cajaId) continue;
-        await createUser({
-          nombre: vendedor.nombre.trim(),
-          email: vendedor.email.trim(),
-          password: vendedor.password,
-          fecha_nacimiento: "1990-01-01",
-          rol: UserRole.VENDEDOR,
-          concesionId,
-          sucursalId: sucursal.id,
-          cajaId,
-          activo: true,
-        });
+      if (!modoConteo) {
+        for (const vendedor of vendedoresCompletos) {
+          const cajaId = cajaIdByIndex[vendedor.cajaIndex];
+          if (!cajaId) continue;
+          await createUser({
+            nombre: vendedor.nombre.trim(),
+            email: vendedor.email.trim(),
+            password: vendedor.password,
+            fecha_nacimiento: "1990-01-01",
+            rol: UserRole.VENDEDOR,
+            concesionId,
+            sucursalId: sucursal.id,
+            cajaId,
+            activo: true,
+          });
+        }
       }
 
       setActiveConcesionId(concesionId);
@@ -493,8 +560,8 @@ export default function NuevaConcesionWizardPage() {
     }
   };
 
-  const currentStepMeta = WIZARD_STEPS.find((s) => s.id === step);
-  const stepIndex = WIZARD_STEPS.findIndex((s) => s.id === step);
+  const currentStepMeta = wizardSteps.find((s) => s.id === step);
+  const stepIndex = wizardSteps.findIndex((s) => s.id === step);
 
   return (
     <RequireRole superAdminOnly>
@@ -524,7 +591,7 @@ export default function NuevaConcesionWizardPage() {
         </header>
 
         <WizardBrandStepper
-          steps={WIZARD_STEPS}
+          steps={wizardSteps}
           currentStepId={step}
           completedStepIds={completedStepIds}
         />
@@ -533,7 +600,7 @@ export default function NuevaConcesionWizardPage() {
           <div className="wizard-alta__panel-head">
             <h2 className="wizard-alta__panel-title">{currentStepMeta?.label}</h2>
             <p className="wizard-alta__panel-sub">
-              Paso {stepIndex + 1} de {WIZARD_STEPS.length}
+              Paso {stepIndex + 1} de {wizardSteps.length}
               {currentStepMeta?.description
                 ? ` · ${currentStepMeta.description}`
                 : ""}
@@ -574,20 +641,45 @@ export default function NuevaConcesionWizardPage() {
                         required
                       />
                     </Field>
-                  </div>
-                  {!resumeId && (
-                    <Field label="Logo de la concesión">
-                      <WizardUploadZone
-                        variant="logo"
-                        previewUrl={imagePreview}
-                        hasFile={Boolean(concesionImage)}
-                        title="Subir logo"
-                        subtitle="PNG, JPG o WebP · máx. 5 MB"
-                        onFileChange={setConcesionImage}
-                        onClear={() => setConcesionImage(null)}
-                      />
+                    <Field
+                      label="Tipo de concesión"
+                      htmlFor="concesionTipo"
+                      hint="Cervecería habilita el rol Admin Cervecería (corte por conteo de inventario)"
+                    >
+                      <NativeSelect
+                        id="concesionTipo"
+                        value={concesionTipo}
+                        onChange={(e) =>
+                          setConcesionTipo(
+                            e.target.value === "CERVECERIA"
+                              ? "CERVECERIA"
+                              : "GENERAL",
+                          )
+                        }
+                      >
+                        <option value="GENERAL">General</option>
+                        <option value="CERVECERIA">Cervecería</option>
+                      </NativeSelect>
                     </Field>
-                  )}
+                  </div>
+                  <Field
+                    label="Logo de la concesión"
+                    hint={
+                      resumeId
+                        ? "Puedes subir o cambiar el logo al reanudar la configuración"
+                        : undefined
+                    }
+                  >
+                    <WizardUploadZone
+                      variant="logo"
+                      previewUrl={imagePreview}
+                      hasFile={Boolean(concesionImage)}
+                      title={resumeId ? "Subir o cambiar logo" : "Subir logo"}
+                      subtitle="PNG, JPG o WebP · máx. 5 MB"
+                      onFileChange={setConcesionImage}
+                      onClear={() => setConcesionImage(null)}
+                    />
+                  </Field>
                 </div>
                 <WizardFooter canBack={false} nextLabel="Siguiente" />
               </form>
@@ -632,6 +724,30 @@ export default function NuevaConcesionWizardPage() {
                         ))}
                       </NativeSelect>
                     </Field>
+                    {concesionTipo === "CERVECERIA" && (
+                      <Field
+                        label="Modo de operación"
+                        htmlFor="sucursalModo"
+                        hint="En corte por conteo el Admin Cervecería cierra el día capturando el inventario final"
+                      >
+                        <NativeSelect
+                          id="sucursalModo"
+                          value={sucursalModo}
+                          onChange={(e) =>
+                            setSucursalModo(
+                              e.target.value === "CONTEO" ? "CONTEO" : "POS",
+                            )
+                          }
+                        >
+                          <option value="POS">
+                            POS con vendedores (clásico)
+                          </option>
+                          <option value="CONTEO">
+                            Corte por conteo (Admin Cervecería)
+                          </option>
+                        </NativeSelect>
+                      </Field>
+                    )}
                   </div>
                 )}
                 <WizardFooter onBack={goBack} nextLabel="Siguiente" />
@@ -641,9 +757,36 @@ export default function NuevaConcesionWizardPage() {
             {step === "admin" && (
               <form onSubmit={handleStepAdmin}>
                 <p className="wizard-alta__hint">
-                  El administrador gestiona productos, sucursales y operación de
-                  la concesión.
+                  {adminEsCerveceria
+                    ? "El Admin Cervecería administra solo esta sucursal y hace el corte capturando el inventario final."
+                    : "El administrador gestiona productos, sucursales y operación de la concesión."}
                 </p>
+                {modoConteo && (
+                  <Field
+                    label="Tipo de administrador"
+                    htmlFor="adminTipo"
+                    className="mb-3"
+                  >
+                    <NativeSelect
+                      id="adminTipo"
+                      value={adminTipo}
+                      onChange={(e) =>
+                        setAdminTipo(
+                          e.target.value === "CERVECERIA"
+                            ? "CERVECERIA"
+                            : "CONCESION",
+                        )
+                      }
+                    >
+                      <option value="CONCESION">
+                        Admin de concesión (toda la concesión)
+                      </option>
+                      <option value="CERVECERIA">
+                        Admin Cervecería (solo esta sucursal, corte por conteo)
+                      </option>
+                    </NativeSelect>
+                  </Field>
+                )}
                 <div className="wizard-alta__form-grid wizard-alta__form-grid--split">
                   <Field label="Nombre" htmlFor="adminNombre">
                     <Input
@@ -975,17 +1118,32 @@ export default function NuevaConcesionWizardPage() {
                 imagePreview={imagePreview}
                 sucursalNombre={sucursalNombre}
                 zonaLabel={zonaId ? zonaNombre(zonaId) : "—"}
+                sucursalModoLabel={
+                  concesionTipo === "CERVECERIA"
+                    ? modoConteo
+                      ? "Corte por conteo"
+                      : "POS clásico"
+                    : null
+                }
+                adminRolLabel={
+                  adminEsCerveceria ? "Admin Cervecería" : "Administrador"
+                }
+                esConteo={modoConteo}
                 adminNombre={adminNombre}
                 adminEmail={adminEmail}
-                cajas={cajasValidas.map((c) => c.nombre)}
+                cajas={modoConteo ? [] : cajasValidas.map((c) => c.nombre)}
                 productos={productosDraft}
-                vendedores={vendedoresCompletos.map((v) => ({
-                  cajaNombre:
-                    cajasValidas.find((c) => c.index === v.cajaIndex)?.nombre ??
-                    "—",
-                  nombre: v.nombre,
-                  email: v.email,
-                }))}
+                vendedores={
+                  modoConteo
+                    ? []
+                    : vendedoresCompletos.map((v) => ({
+                        cajaNombre:
+                          cajasValidas.find((c) => c.index === v.cajaIndex)
+                            ?.nombre ?? "—",
+                        nombre: v.nombre,
+                        email: v.email,
+                      }))
+                }
                 creating={creating}
                 onBack={goBack}
                 onCreate={() => void handleFinalCreate()}
@@ -1004,6 +1162,9 @@ function WizardResumen({
   imagePreview,
   sucursalNombre,
   zonaLabel,
+  sucursalModoLabel,
+  adminRolLabel,
+  esConteo,
   adminNombre,
   adminEmail,
   cajas,
@@ -1018,6 +1179,9 @@ function WizardResumen({
   imagePreview: string | null;
   sucursalNombre: string;
   zonaLabel: string;
+  sucursalModoLabel: string | null;
+  adminRolLabel: string;
+  esConteo: boolean;
   adminNombre: string;
   adminEmail: string;
   cajas: string[];
@@ -1061,28 +1225,37 @@ function WizardResumen({
           <section className="wizard-alta__resumen-section">
             <p className="wizard-alta__resumen-label">Sucursal</p>
             <p className="wizard-alta__resumen-value">{sucursalNombre}</p>
-            <p className="wizard-alta__resumen-meta">{zonaLabel}</p>
+            <p className="wizard-alta__resumen-meta">
+              {zonaLabel}
+              {sucursalModoLabel ? ` · ${sucursalModoLabel}` : ""}
+            </p>
           </section>
           <section className="wizard-alta__resumen-section">
-            <p className="wizard-alta__resumen-label">Administrador</p>
+            <p className="wizard-alta__resumen-label">{adminRolLabel}</p>
             <p className="wizard-alta__resumen-value">{adminNombre}</p>
             <p className="wizard-alta__resumen-meta truncate">{adminEmail}</p>
           </section>
         </div>
 
-        <section className="wizard-alta__resumen-section wizard-alta__resumen-section--stack">
-          <div className="wizard-alta__resumen-section-head">
-            <p className="wizard-alta__resumen-label mb-0">Cajas registradas</p>
-            <span className="wizard-alta__panel-tab-count">{cajas.length}</span>
-          </div>
-          <div className="wizard-alta__resumen-chips">
-            {cajas.map((c) => (
-              <span key={c} className="wizard-alta__chip">
-                {c}
+        {!esConteo && (
+          <section className="wizard-alta__resumen-section wizard-alta__resumen-section--stack">
+            <div className="wizard-alta__resumen-section-head">
+              <p className="wizard-alta__resumen-label mb-0">
+                Cajas registradas
+              </p>
+              <span className="wizard-alta__panel-tab-count">
+                {cajas.length}
               </span>
-            ))}
-          </div>
-        </section>
+            </div>
+            <div className="wizard-alta__resumen-chips">
+              {cajas.map((c) => (
+                <span key={c} className="wizard-alta__chip">
+                  {c}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="wizard-alta__resumen-section wizard-alta__resumen-section--stack">
           <div className="wizard-alta__resumen-section-head">
@@ -1121,68 +1294,84 @@ function WizardResumen({
           )}
         </section>
 
-        <section className="wizard-alta__resumen-section wizard-alta__resumen-section--stack">
-          <div className="wizard-alta__resumen-section-head">
-            <div className="wizard-alta__resumen-section-title-row">
-              <Users className="size-4 text-[var(--wz-primary)]" aria-hidden />
-              <p className="wizard-alta__resumen-label mb-0">Vendedores</p>
+        {!esConteo && (
+          <section className="wizard-alta__resumen-section wizard-alta__resumen-section--stack">
+            <div className="wizard-alta__resumen-section-head">
+              <div className="wizard-alta__resumen-section-title-row">
+                <Users
+                  className="size-4 text-[var(--wz-primary)]"
+                  aria-hidden
+                />
+                <p className="wizard-alta__resumen-label mb-0">Vendedores</p>
+              </div>
+              {sinVendedores ? (
+                <span className="wizard-alta__chip wizard-alta__chip--gold">
+                  Sin asignar
+                </span>
+              ) : (
+                <span className="wizard-alta__panel-tab-count">
+                  {vendedores.length}
+                </span>
+              )}
             </div>
             {sinVendedores ? (
-              <span className="wizard-alta__chip wizard-alta__chip--gold">
-                Sin asignar
-              </span>
+              <p className="wizard-alta__resumen-warn">
+                Ningún vendedor configurado. Podrás asignarlos después.
+              </p>
             ) : (
-              <span className="wizard-alta__panel-tab-count">
-                {vendedores.length}
-              </span>
+              <ul className="wizard-alta__resumen-vendors">
+                {vendedores.map((v) => (
+                  <li
+                    key={`${v.cajaNombre}-${v.email}`}
+                    className="wizard-alta__resumen-vendor"
+                  >
+                    <span className="wizard-alta__resumen-vendor-name">
+                      {v.nombre}
+                    </span>
+                    <span className="wizard-alta__resumen-vendor-caja">
+                      {v.cajaNombre}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             )}
-          </div>
-          {sinVendedores ? (
-            <p className="wizard-alta__resumen-warn">
-              Ningún vendedor configurado. Podrás asignarlos después.
-            </p>
-          ) : (
-            <ul className="wizard-alta__resumen-vendors">
-              {vendedores.map((v) => (
-                <li
-                  key={`${v.cajaNombre}-${v.email}`}
-                  className="wizard-alta__resumen-vendor"
-                >
-                  <span className="wizard-alta__resumen-vendor-name">
-                    {v.nombre}
-                  </span>
-                  <span className="wizard-alta__resumen-vendor-caja">
-                    {v.cajaNombre}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+          </section>
+        )}
       </div>
 
       <aside className="wizard-alta__checkout-sidebar">
         <div className="wizard-alta__checkout-sidebar-head">Orden de alta</div>
         <div className="wizard-alta__checkout-sidebar-body">
-          <div className="wizard-alta__checkout-row">
-            <span>Cajas</span>
-            <strong>{cajas.length}</strong>
-          </div>
+          {!esConteo && (
+            <div className="wizard-alta__checkout-row">
+              <span>Cajas</span>
+              <strong>{cajas.length}</strong>
+            </div>
+          )}
           <div className="wizard-alta__checkout-row">
             <span>Productos</span>
             <strong>{productos.length}</strong>
           </div>
-          <div className="wizard-alta__checkout-row">
-            <span>Vendedores</span>
-            <strong>{vendedores.length}</strong>
-          </div>
+          {!esConteo ? (
+            <div className="wizard-alta__checkout-row">
+              <span>Vendedores</span>
+              <strong>{vendedores.length}</strong>
+            </div>
+          ) : (
+            <div className="wizard-alta__checkout-row">
+              <span>Modo</span>
+              <strong>Corte por conteo</strong>
+            </div>
+          )}
           <div className="wizard-alta__checkout-total">
             <span>Estado</span>
             <span>Listo</span>
           </div>
-          {(sinProductos || sinVendedores) && (
+          {(sinProductos || (!esConteo && sinVendedores)) && (
             <p className="wizard-alta__checkout-note">
-              Puedes crear ahora y completar catálogo o equipo después.
+              {esConteo
+                ? "Puedes crear ahora y completar el catálogo después."
+                : "Puedes crear ahora y completar catálogo o equipo después."}
             </p>
           )}
           <button

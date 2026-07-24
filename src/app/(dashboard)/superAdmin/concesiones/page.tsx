@@ -46,6 +46,7 @@ export default function ConcesionesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [nombre, setNombre] = useState("");
   const [porcentajeComision, setPorcentajeComision] = useState("0");
+  const [tipo, setTipo] = useState<"CERVECERIA" | "GENERAL">("GENERAL");
   const [editing, setEditing] = useState<Concession | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -82,6 +83,7 @@ export default function ConcesionesPage() {
     setEditing(null);
     setNombre("");
     setPorcentajeComision("0");
+    setTipo("GENERAL");
     setImageFiles([]);
     setExistingPreviewBroken(false);
     setDialogOpen(true);
@@ -91,6 +93,7 @@ export default function ConcesionesPage() {
     setEditing(c);
     setNombre(c.nombre);
     setPorcentajeComision(String(c.porcentajeComision ?? 0));
+    setTipo(c.tipo === "CERVECERIA" ? "CERVECERIA" : "GENERAL");
     setImageFiles([]);
     setExistingPreviewBroken(false);
     setDialogOpen(true);
@@ -101,6 +104,7 @@ export default function ConcesionesPage() {
     setEditing(null);
     setNombre("");
     setPorcentajeComision("0");
+    setTipo("GENERAL");
     setImageFiles([]);
   };
 
@@ -143,6 +147,7 @@ export default function ConcesionesPage() {
           activo: editing.activo ?? true,
           imagenes: editing.imagenes ?? [],
           porcentajeComision: comision,
+          tipo,
         });
         if (imageFiles.length > 0) {
           await uploadConcessionImages(editing.id, imageFiles);
@@ -154,6 +159,7 @@ export default function ConcesionesPage() {
           activo: true,
           imagenes: [],
           porcentajeComision: comision,
+          tipo,
         });
         if (imageFiles.length > 0 && created?.id) {
           await uploadConcessionImages(created.id, imageFiles);
@@ -459,6 +465,26 @@ export default function ConcesionesPage() {
                   onChange={(e) => setPorcentajeComision(e.target.value)}
                   required
                 />
+              </Field>
+              <Field
+                label="Tipo de concesión"
+                htmlFor="tipoConcesion"
+                hint="Cervecería habilita el rol Admin Cervecería (corte por conteo de inventario)"
+              >
+                <NativeSelect
+                  id="tipoConcesion"
+                  value={tipo}
+                  onChange={(e) =>
+                    setTipo(
+                      e.target.value === "CERVECERIA"
+                        ? "CERVECERIA"
+                        : "GENERAL",
+                    )
+                  }
+                >
+                  <option value="GENERAL">General</option>
+                  <option value="CERVECERIA">Cervecería</option>
+                </NativeSelect>
               </Field>
               <Field label="Logo / imagen" hint="JPEG, PNG o WebP">
                 <input

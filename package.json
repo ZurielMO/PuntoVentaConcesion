@@ -9,6 +9,7 @@
     "start": "next start -p 9002",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "pdf:preview": "tsx scripts/preview-cortes-pdf.mts",
     "test:cortes": "node --test tests/cortes/*.test.mjs"
   },
   "dependencies": {
@@ -44,6 +45,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.9",
     "tailwindcss": "^4",
+    "tsx": "^4.23.1",
     "typescript": "^5"
   }
 }

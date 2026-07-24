@@ -103,6 +103,15 @@ export function useUsers(concesionId?: string, options?: { enabled?: boolean }) 
     [token, fetchUsers],
   );
 
+  const hardDeleteUser = useCallback(
+    async (id: string) => {
+      if (!token) throw new Error("Sin sesión");
+      await api.delete(`${apiPaths.users}/${id}/hard`, token);
+      await fetchUsers();
+    },
+    [token, fetchUsers],
+  );
+
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
@@ -115,5 +124,6 @@ export function useUsers(concesionId?: string, options?: { enabled?: boolean }) 
     createUser,
     updateUser,
     deleteUser,
+    hardDeleteUser,
   };
 }

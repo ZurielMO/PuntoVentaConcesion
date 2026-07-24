@@ -65,7 +65,13 @@ export function AppTopbar() {
   );
 
   const displayName = posUser?.nombre ?? user?.email ?? "Usuario";
-  const roleLabel = perms.role ?? "Usuario";
+  const roleLabels: Record<string, string> = {
+    SUPERADMIN: "Superadmin",
+    ADMIN: "Administrador",
+    ADMIN_CERVECERIA: "Admin Cervecería",
+    VENDEDOR: "Vendedor",
+  };
+  const roleLabel = perms.role ? roleLabels[perms.role] ?? perms.role : "Usuario";
 
   return (
     <header
@@ -142,12 +148,44 @@ export function AppTopbar() {
             </Avatar>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
+        <DropdownMenuContent
+          align="end"
+          sideOffset={8}
+          className="w-[28rem] max-w-[calc(100vw-2rem)] rounded-xl border-border bg-white p-2 shadow-lg"
+        >
+          <DropdownMenuLabel className="px-3 py-3">
+            <div className="flex items-center gap-3">
+              <Avatar className="size-11">
+                <AvatarFallback className="bg-green-soft text-[1.4rem] text-green-accent">
+                  {getInitials(
+                    typeof posUser?.nombre === "string" ? posUser.nombre : null,
+                    user?.email,
+                  )}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="truncate text-[1.5rem] font-semibold text-foreground">
+                  {displayName}
+                </p>
+                {user?.email && (
+                  <p className="truncate text-[1.2rem] font-normal text-muted-foreground">
+                    {user.email}
+                  </p>
+                )}
+                <p className="text-[1.1rem] font-semibold uppercase tracking-wide text-green-accent">
+                  {roleLabel}
+                </p>
+              </div>
+            </div>
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => logout()} className="text-destructive">
-            <LogOut className="mr-2 size-4" />
-            Salir
+          <DropdownMenuItem
+            onClick={() => logout()}
+            variant="destructive"
+            className="cursor-pointer gap-3 rounded-lg px-3 py-3 text-[1.4rem] font-medium"
+          >
+            <LogOut className="!size-5" />
+            Cerrar sesión
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
