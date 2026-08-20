@@ -1,3 +1,4 @@
+import { isCinepolisCashier } from "./cinepolis";
 import { PosUser, UserRole } from "./types";
 
 export const normalizeRole = (rol?: string): UserRole | undefined => {
@@ -100,6 +101,7 @@ export const getPermissions = (posUser: PosUser | null | undefined): PermissionF
 };
 
 export const getDefaultRouteForRole = (posUser: PosUser | null | undefined): string => {
+  if (isCinepolisCashier(posUser?.email)) return "/cinepolis";
   const perms = getPermissions(posUser);
   if (perms.isSuperAdmin) return "/superAdmin/dashboard";
   if (perms.isAdmin || perms.isAdminCerveceria) return "/admin/dashboard";
