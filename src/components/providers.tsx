@@ -3,7 +3,10 @@
 import { AuthProvider } from "@/hooks/use-auth";
 import { ActiveConcesionProvider } from "@/hooks/use-active-concesion";
 import { NavigationLockProvider } from "@/hooks/use-navigation-lock";
+import { ensureRandomUUID } from "@/lib/id";
 import { Toaster } from "sonner";
+
+ensureRandomUUID();
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (

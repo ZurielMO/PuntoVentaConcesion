@@ -1,9 +1,10 @@
 /**
- * Build estático para subir por FTP a concesiones.clubleon.mx
+ * Build estático para subir por FTP (p. ej. foodmarket.clubleon.mx / concesiones.clubleon.mx)
  *
  * - Activa output: 'export' → carpeta `out/`
  * - Mueve temporalmente `src/app/api` (no soportado en export)
- * - Copia `.htaccess` a `out/`
+ * - Omite `.htaccess` (este Apache responde 500 si existe)
+ * - Reescribe `out/index.html` como redirección a /login/
  */
 import fs from "fs";
 import path from "path";
@@ -15,7 +16,6 @@ const root = path.resolve(__dirname, "..");
 const apiDir = path.join(root, "src", "app", "api");
 const apiBackup = path.join(root, "src", "app", "_api_ftp_backup");
 const outDir = path.join(root, "out");
-const htaccessSrc = path.join(root, "public", ".htaccess");
 
 function restoreApi() {
   if (fs.existsSync(apiBackup)) {
@@ -50,11 +50,8 @@ if (fs.existsSync(apiDir)) {
 const env = {
   ...process.env,
   FTP_EXPORT: "1",
-  NEXT_PUBLIC_SITE_URL:
-    process.env.NEXT_PUBLIC_SITE_URL || "https://concesiones.clubleon.mx",
 };
 
-console.log("→ NEXT_PUBLIC_SITE_URL =", env.NEXT_PUBLIC_SITE_URL);
 console.log(
   "→ NEXT_PUBLIC_API_BASE_URL =",
   env.NEXT_PUBLIC_API_BASE_URL || "(desde .env.local)",
@@ -74,14 +71,57 @@ if (result.status !== 0) {
   process.exit(result.status ?? 1);
 }
 
-if (fs.existsSync(htaccessSrc) && fs.existsSync(outDir)) {
-  fs.copyFileSync(htaccessSrc, path.join(outDir, ".htaccess"));
-  console.log("→ .htaccess copiado a out/");
+// Este hosting Apache responde 500 si hay .htaccess (incluso vacío).
+// El export ya trae carpetas con index.html; no hace falta rewrite.
+if (fs.existsSync(outDir)) {
+  const htaccessOut = path.join(outDir, ".htaccess");
+  if (fs.existsSync(htaccessOut)) {
+    fs.rmSync(htaccessOut);
+    console.log("→ .htaccess omitido (el host responde 500 con ese archivo)");
+  }
+}
+
+// La raíz usa `redirect()` de servidor, que en `output: export` no se puede
+// resolver: Next prerenderiza un shell de error sin estilos. Se sustituye por
+// una redirección que funciona en cualquier hosting, con o sin mod_rewrite.
+const indexHtml = path.join(outDir, "index.html");
+if (fs.existsSync(indexHtml)) {
+  fs.writeFileSync(
+    indexHtml,
+    `<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="refresh" content="0; url=./login/" />
+    <link rel="icon" href="./favicon.ico" type="image/x-icon" />
+    <title>PuntoVenta - Concesiones Estadio</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #f4f6f8;
+      }
+    </style>
+    <script>
+      window.location.replace("./login/");
+    </script>
+  </head>
+  <body>
+    <noscript><a href="./login/">Ir al inicio de sesión</a></noscript>
+  </body>
+</html>
+`,
+    "utf8",
+  );
+  console.log("→ out/index.html reescrito como redirección a /login/");
 }
 
 console.log(
-  "\n✔ Build FTP listo. Sube el contenido de la carpeta `out/` a la raíz de concesiones.clubleon.mx",
+  "\n✔ Build FTP listo. Sube el contenido de la carpeta `out/` a la raíz del hosting",
+  "(foodmarket.clubleon.mx o concesiones.clubleon.mx).",
 );
 console.log(
-  "  Asegúrate de que CORS del backend permita: https://concesiones.clubleon.mx",
+  "  El mismo `out/` vale para ambos: CSS/JS van por /_next/ (HTTP y HTTPS).",
 );

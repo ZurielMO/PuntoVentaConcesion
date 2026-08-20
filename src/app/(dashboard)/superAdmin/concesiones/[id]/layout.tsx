@@ -1,6 +1,7 @@
 /**
  * Params estáticos mínimos para `output: 'export'` (FTP).
- * Las rutas reales se resuelven en el cliente + rewrite de .htaccess.
+ * En hosting sin rewrite Apache se usa `/concesiones/_/?id=...`
+ * (ver `concesionHubPath`).
  */
 export function generateStaticParams() {
   return [{ id: "_" }];

@@ -317,8 +317,19 @@ export interface ReporteConcesionRow {
   descuentos?: number;
 }
 
+export interface ReporteConcesionInfo {
+  id: string;
+  nombre: string;
+  tipo: ConcessionTipo;
+}
+
 export interface ReporteCortes {
   jornada: { fecha: string; numero: number; jornadaId: string };
+  /**
+   * Concesión del reporte (null en el consolidado). Opcional por compatibilidad
+   * con backends desplegados antes de que este campo existiera.
+   */
+  concesion?: ReporteConcesionInfo | null;
   productos: ReporteProductoRow[] | null;
   productoTotales: ReporteProductoTotales | null;
   resumen: ReporteConcesionRow[];

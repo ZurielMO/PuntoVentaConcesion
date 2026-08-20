@@ -1,17 +1,14 @@
 import type { NextConfig } from "next";
 
 const isFtpExport = process.env.FTP_EXPORT === "1";
-const siteOrigin = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://concesiones.clubleon.mx"
-).replace(/\/$/, "");
 
 const nextConfig: NextConfig = isFtpExport
   ? {
       output: "export",
       trailingSlash: true,
       images: { unoptimized: true },
-      // URLs absolutas para CSS/JS en hosting FTP/Apache
-      assetPrefix: siteOrigin,
+      // Sin assetPrefix: CSS/JS usan /_next/... (válido en HTTP y HTTPS).
+      // Un prefijo http:// lo bloquea Chrome por mixed-content al forzar HTTPS.
     }
   : {
       async headers() {

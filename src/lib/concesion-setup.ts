@@ -1,4 +1,5 @@
 import { UserRole, type Concession, type Sucursal, type User } from "./types";
+import { concesionHubPath } from "./concesion-routes";
 
 export type SetupProduct = {
   concesion_id?: string;
@@ -133,7 +134,7 @@ export function computeConcesionSetupStatus(input: {
         ? `«${concession.nombre}» registrada`
         : "Datos básicos de la concesión",
       done: Boolean(concession && concession.activo !== false),
-      href: `/superAdmin/concesiones/${concesionId}`,
+      href: concesionHubPath(concesionId),
       actionLabel: "Ver resumen",
     },
     {

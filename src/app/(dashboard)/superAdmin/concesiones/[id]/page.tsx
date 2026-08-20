@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo } from "react";
 import {
   ArrowLeft,
   Package,
@@ -17,16 +17,20 @@ import { useActiveConcesion } from "@/hooks/use-active-concesion";
 import { firstStoredImage } from "@/lib/image-url";
 import "@/styles/wizard-alta.css";
 
-export default function ConcesionHubPage() {
+function ConcesionHubPageInner() {
   const params = useParams();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const concesionId = useMemo(() => {
+    // FTP estático: /concesiones/_/?id=xxx (sin rewrite Apache)
+    const fromQuery = searchParams.get("id")?.trim();
+    if (fromQuery) return fromQuery;
     const fromParams = typeof params.id === "string" ? params.id : "";
     if (fromParams && fromParams !== "_") return fromParams;
     const parts = (pathname ?? "").split("/").filter(Boolean);
     const last = parts[parts.length - 1] ?? "";
     return last && last !== "_" ? last : "";
-  }, [params.id, pathname]);
+  }, [params.id, pathname, searchParams]);
   const { setActiveConcesionId } = useActiveConcesion();
   const { concession, status, loading } = useConcesionSetup(concesionId);
 
@@ -239,5 +243,19 @@ export default function ConcesionHubPage() {
         )}
       </div>
     </RequireRole>
+  );
+}
+
+export default function ConcesionHubPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="wizard-alta wizard-alta__shell wizard-alta__shell--fill">
+          <p className="wizard-alta__empty">Cargando…</p>
+        </div>
+      }
+    >
+      <ConcesionHubPageInner />
+    </Suspense>
   );
 }

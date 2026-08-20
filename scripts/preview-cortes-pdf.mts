@@ -10,7 +10,11 @@ import {
   buildReporteConcesionDoc,
   buildReporteConsolidadoDoc,
 } from "@/lib/cortes-pdf";
-import type { ReporteCortes, ReporteProductoRow } from "@/lib/types";
+import type {
+  ConcessionTipo,
+  ReporteCortes,
+  ReporteProductoRow,
+} from "@/lib/types";
 
 const PRECIO_REGULAR = 75;
 const DESCUENTO_ABONADO = 15;
@@ -42,14 +46,25 @@ const NOMBRES = [
   "Paleta helada",
 ];
 
-const buildProducto = (nombre: string, index: number): ReporteProductoRow => {
+const buildProducto = (
+  nombre: string,
+  index: number,
+  tipo: ConcessionTipo,
+): ReporteProductoRow => {
   const inventarioInicial = 120 + index * 7;
   const cantidadRegular = 18 + ((index * 5) % 40);
   const cantidadAbonado = index % 4 === 0 ? 0 : 4 + (index % 9);
-  const cortesias = index % 5 === 0 ? 2 : 0;
   const puntosCanjeados = index % 3 === 0 ? 0 : (index % 6) * 12.5;
   const ventasRegular = cantidadRegular * PRECIO_REGULAR;
-  const ventasAbonado = cantidadAbonado * (PRECIO_REGULAR - DESCUENTO_ABONADO);
+
+  // Cervecería: el abonado paga un precio especial por unidad. General: el
+  // beneficio es 2x1, así que la unidad pagada va a precio de lista y la unidad
+  // gratis se registra como cortesía.
+  const esCerveceria = tipo === "CERVECERIA";
+  const ventasAbonado =
+    cantidadAbonado * (esCerveceria ? PRECIO_REGULAR - DESCUENTO_ABONADO : PRECIO_REGULAR);
+  const cortesias =
+    (index % 5 === 0 ? 2 : 0) + (esCerveceria ? 0 : cantidadAbonado);
 
   return {
     productoId: `p-${index}`,
@@ -65,12 +80,17 @@ const buildProducto = (nombre: string, index: number): ReporteProductoRow => {
     puntosCanjeados,
     ventasTotales: ventasRegular + ventasAbonado,
     precioActual: PRECIO_REGULAR,
-    descuentoAbonado: DESCUENTO_ABONADO,
+    descuentoAbonado: esCerveceria ? DESCUENTO_ABONADO : 0,
   };
 };
 
-const buildReporteConcesion = (totalProductos: number): ReporteCortes => {
-  const productos = NOMBRES.slice(0, totalProductos).map(buildProducto);
+const buildReporteConcesion = (
+  totalProductos: number,
+  tipo: ConcessionTipo = "CERVECERIA",
+): ReporteCortes => {
+  const productos = NOMBRES.slice(0, totalProductos).map((nombre, index) =>
+    buildProducto(nombre, index, tipo),
+  );
   const sum = (pick: (row: ReporteProductoRow) => number) =>
     productos.reduce((total, row) => total + pick(row), 0);
 
@@ -79,6 +99,7 @@ const buildReporteConcesion = (totalProductos: number): ReporteCortes => {
 
   return {
     jornada: { fecha: "2026-07-14", numero: 11, jornadaId: "2026-07-14__J11" },
+    concesion: { id: "con-norte", nombre: "Concesión Norte", tipo },
     productos,
     productoTotales: {
       cantidadRegular: sum((row) => row.cantidadRegular),
@@ -114,6 +135,7 @@ const buildReporteConcesion = (totalProductos: number): ReporteCortes => {
 
 const reporteConsolidado: ReporteCortes = {
   jornada: { fecha: "2026-07-14", numero: 11, jornadaId: "2026-07-14__J11" },
+  concesion: null,
   productos: null,
   productoTotales: null,
   ingresos: null,
@@ -171,5 +193,13 @@ write(
 write(
   "corte-preview-corto.pdf",
   buildReporteConcesionDoc(buildReporteConcesion(6), "Concesión Norte"),
+);
+// Variante de 7 columnas para concesiones que no son cervecería.
+write(
+  "corte-preview-general.pdf",
+  buildReporteConcesionDoc(
+    buildReporteConcesion(6, "GENERAL"),
+    "Concesión Norte",
+  ),
 );
 write("corte-consolidado-preview.pdf", buildReporteConsolidadoDoc(reporteConsolidado));

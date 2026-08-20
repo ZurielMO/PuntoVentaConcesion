@@ -10,6 +10,7 @@ import { DataTable } from "@/components/dashboard/data-table";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { CorteDetalleDialog } from "@/components/dashboard/corte-detalle-dialog";
 import { CorteReporteProductosTable } from "@/components/dashboard/corte-reporte-productos-table";
+import { CorteReporteProductosGeneralTable } from "@/components/dashboard/corte-reporte-productos-general-table";
 import { CorteReporteComisionTable } from "@/components/dashboard/corte-reporte-comision-table";
 import { CorteReporteIngresosStats } from "@/components/dashboard/corte-reporte-ingresos-stats";
 import { Badge } from "@/components/ui/badge";
@@ -110,6 +111,11 @@ export default function CortesPage() {
     [concessions, effectiveConcesionId],
   );
 
+  // El reporte es la fuente principal: `GET /concessions` es solo de SuperAdmin,
+  // así que Admin y Vendedor no pueden resolver el tipo desde el catálogo.
+  const tipoConcesion =
+    reporte?.concesion?.tipo ?? concesionActual?.tipo ?? "GENERAL";
+
   const jornadaSeleccionada = useMemo(
     () => jornadas.find((j) => j.jornadaId === jornadaId),
     [jornadas, jornadaId],
@@ -140,7 +146,7 @@ export default function CortesPage() {
       concesionActual?.nombre ??
       reporte.resumen[0]?.nombre ??
       effectiveConcesionId;
-    downloadReporteConcesionPdf(reporte, nombre);
+    downloadReporteConcesionPdf(reporte, nombre, tipoConcesion);
   };
 
   const handlePdfConsolidado = () => {
@@ -289,10 +295,18 @@ export default function CortesPage() {
                 <h3 className="mb-3 text-[1.6rem] font-semibold text-green-dark">
                   Desglose por producto
                 </h3>
-                <CorteReporteProductosTable
-                  data={reporte.productos ?? []}
-                  totales={reporte.productoTotales}
-                />
+                {tipoConcesion === "CERVECERIA" ? (
+                  <CorteReporteProductosTable
+                    data={reporte.productos ?? []}
+                    totales={reporte.productoTotales}
+                  />
+                ) : (
+                  <CorteReporteProductosGeneralTable
+                    data={reporte.productos ?? []}
+                    totales={reporte.productoTotales}
+                    puntosCantidad={reporte.ingresos?.totalPuntosCanjeados}
+                  />
+                )}
               </div>
             )}
 

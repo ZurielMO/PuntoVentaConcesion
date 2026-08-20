@@ -26,6 +26,7 @@ import {
 import { RequireRole } from "@/components/auth/require-role";
 import { useConcessions } from "@/hooks/use-concessions";
 import { firstStoredImage } from "@/lib/image-url";
+import { concesionHubPath } from "@/lib/concesion-routes";
 import type { Concession } from "@/lib/types";
 import "@/styles/wizard-alta.css";
 
@@ -369,7 +370,7 @@ export default function ConcesionesPage() {
                                 <td className="wizard-alta__table-actions-col">
                                   <div className="wizard-alta__table-actions">
                                     <Link
-                                      href={`/superAdmin/concesiones/${c.id}`}
+                                      href={concesionHubPath(c.id)}
                                       className="wizard-alta__btn wizard-alta__btn--primary wizard-alta__btn--sm"
                                     >
                                       <Settings2 className="size-3.5" />

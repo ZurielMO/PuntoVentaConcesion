@@ -30,6 +30,8 @@ import { useSucursales } from "@/hooks/use-sucursales";
 import { useActiveConcesion } from "@/hooks/use-active-concesion";
 import { useNavigationLock } from "@/hooks/use-navigation-lock";
 import { formatPrice } from "@/lib/format";
+import { createId } from "@/lib/id";
+import { concesionHubPath } from "@/lib/concesion-routes";
 import { UserRole, type SucursalModoOperacion } from "@/lib/types";
 import "@/styles/wizard-alta.css";
 
@@ -357,7 +359,7 @@ export default function NuevaConcesionWizardPage() {
     setProductosDraft((prev) => [
       ...prev,
       {
-        id: crypto.randomUUID(),
+        id: createId(),
         nombre: productoNombre.trim(),
         precio: precioParsed.value,
         unidad_medida: productoUnidad.trim() || "pza",
@@ -551,7 +553,7 @@ export default function NuevaConcesionWizardPage() {
       creatingRef.current = false;
       setCreating(false);
       toast.success("Concesión configurada correctamente");
-      router.push(`/superAdmin/concesiones/${concesionId}`);
+      router.push(concesionHubPath(concesionId));
     } catch (err) {
       unlockNavigation();
       creatingRef.current = false;
