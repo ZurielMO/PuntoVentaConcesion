@@ -184,4 +184,11 @@ export const apiPaths = {
   combos: "combos",
   descuentos: "descuentos",
   trabajadoresClub: "trabajadores-club",
+  loyalty: {
+    conversion: "loyalty/conversion",
+    member: (memberId: string) =>
+      `loyalty/miembros/${encodeURIComponent(memberId)}`,
+    cinepolisAsignar: "loyalty/cinepolis/asignar",
+    cinepolisAsignaciones: "loyalty/cinepolis/asignaciones",
+  },
 } as const;

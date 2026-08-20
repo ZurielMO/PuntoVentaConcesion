@@ -328,3 +328,15 @@ h2 {
     transform: rotate(360deg);
   }
 }
+
+.cinepolis-theme {
+  --cinepolis-blue: #003da5;
+  --cinepolis-yellow: #ffc72c;
+  --cinepolis-white: #ffffff;
+  --cinepolis-dark-blue: #2a3966;
+  --cinepolis-light-blue: #28acec;
+  --background: #f5f7fa;
+  --text-primary: #172033;
+  --text-secondary: #667085;
+  --dashboard-bg: #f5f7fa;
+}
