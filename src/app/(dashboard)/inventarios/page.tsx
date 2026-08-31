@@ -35,6 +35,9 @@ function stockRow(p: InventarioProducto) {
 
 function movimientoLabel(m: InventarioMovimiento) {
   if (m.tipo === "VENTA") return "Venta";
+  if (m.tipo === "RESERVA_VIP") return "Reserva palcos";
+  if (m.tipo === "LIBERACION_RESERVA_VIP") return "Liberación palcos";
+  if (m.tipo === "REINTEGRO_VIP") return "Reintegro palcos";
   if (m.tipo === "CARGA_INICIAL") return "Carga inicial";
   if (m.tipo === "AJUSTE") {
     return m.cantidad >= 0 ? "Ajuste entrada" : "Ajuste salida";
@@ -693,7 +696,7 @@ export default function InventariosPage() {
                                       m.cajaNombre
                                         ? `Caja ${m.cajaNombre}`
                                         : null,
-                                      m.ventaId ? `Venta ${m.ventaId}` : null,
+                                      m.tipo === "VENTA" && m.ventaId ? `Venta ${m.ventaId}` : null,
                                       m.motivo ? m.motivo : null,
                                     ]
                                       .filter(Boolean)

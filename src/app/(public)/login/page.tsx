@@ -41,7 +41,12 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!authLoading && user && posUser) {
-      router.replace(getDefaultRouteForRole(posUser));
+      const next = new URLSearchParams(window.location.search).get("next");
+      const safeNext =
+        next && (next.startsWith("/servicio-palcos/") || next.startsWith("/vip/"))
+          ? next.replace(/^\/vip(?=\/|$)/, "/servicio-palcos")
+          : getDefaultRouteForRole(posUser);
+      router.replace(safeNext);
     }
   }, [authLoading, user, posUser, router]);
 

@@ -14,14 +14,15 @@ export type ConcessionPayload = {
   tipo?: "CERVECERIA" | "GENERAL";
 };
 
-export function useConcessions() {
+export function useConcessions(options?: { enabled?: boolean }) {
   const { token } = useAuth();
+  const enabled = options?.enabled !== false;
   const [concessions, setConcessions] = useState<Concession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchConcessions = useCallback(async () => {
-    if (!token) {
+    if (!token || !enabled) {
       setConcessions([]);
       setLoading(false);
       return;
@@ -38,7 +39,7 @@ export function useConcessions() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, enabled]);
 
   const createConcession = useCallback(
     async (payload: ConcessionPayload) => {

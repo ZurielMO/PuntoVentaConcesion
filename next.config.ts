@@ -14,6 +14,13 @@ const nextConfig: NextConfig = isFtpExport
       assetPrefix: siteOrigin,
     }
   : {
+      allowedDevOrigins: ["172.18.2.131", "http://172.18.2.131:9002"],
+      async redirects() {
+        return [
+          { source: "/vip", destination: "/servicio-palcos", permanent: true },
+          { source: "/vip/:path*", destination: "/servicio-palcos/:path*", permanent: true },
+        ];
+      },
       async headers() {
         return [
           {
