@@ -8,6 +8,10 @@ import { Field } from "@/components/ui/field";
 import { RequireRole } from "@/components/auth/require-role";
 import { DataTable } from "@/components/dashboard/data-table";
 import { PageHeader } from "@/components/dashboard/page-header";
+import {
+  JornadaSelect,
+  type JornadaSelectOption,
+} from "@/components/dashboard/jornada-select";
 import { CorteDetalleDialog } from "@/components/dashboard/corte-detalle-dialog";
 import { CorteReporteProductosTable } from "@/components/dashboard/corte-reporte-productos-table";
 import { CorteReporteProductosGeneralTable } from "@/components/dashboard/corte-reporte-productos-general-table";
@@ -20,7 +24,7 @@ import {
   useReporteCortes,
   type CorteFilters,
 } from "@/hooks/use-cortes";
-import { useJornadasDisponibles } from "@/hooks/use-inventarios";
+import { useJornadas, useJornadasDisponibles } from "@/hooks/use-inventarios";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConcessions } from "@/hooks/use-concessions";
 import { useSucursales } from "@/hooks/use-sucursales";
@@ -29,6 +33,8 @@ import {
   downloadReporteConsolidadoPdf,
 } from "@/lib/cortes-pdf";
 import { formatPrice } from "@/lib/format";
+import { buildJornadaSelectLabel, formatJornadaLabel } from "@/lib/jornada";
+import { buildJornadaSelectOptions } from "@/lib/jornada-select-options";
 import type { Corte } from "@/lib/types";
 
 const nullableMoney = (value?: number | null) =>
@@ -36,13 +42,7 @@ const nullableMoney = (value?: number | null) =>
 
 const formatJornadaCorte = (corte: Corte) => {
   if (corte.jornadaId) {
-    const match = corte.jornadaId.match(/^(\d{4}-\d{2}-\d{2})__J(\d+)$/);
-    if (match) {
-      const [, fecha, num] = match;
-      const [y, m, d] = fecha.split("-");
-      return `Jornada ${num} · ${d}/${m}/${y}`;
-    }
-    return corte.jornadaId;
+    return formatJornadaLabel(corte.jornadaId);
   }
   return corte.fecha;
 };
@@ -57,6 +57,7 @@ export default function CortesPage() {
 
   const { concessions } = useConcessions();
   const { sucursales } = useSucursales();
+  const { activas } = useJornadas();
 
   const effectiveConcesionId = useMemo(() => {
     // SuperAdmin: empty filter means all concessions (do not fall back to user concesionId)
@@ -72,15 +73,25 @@ export default function CortesPage() {
       sucursalId: sucursalId || undefined,
     });
 
+  const jornadaOptions = useMemo<JornadaSelectOption[]>(
+    () => buildJornadaSelectOptions(jornadas, activas),
+    [jornadas, activas],
+  );
+
   useEffect(() => {
     if (jornadasLoading) return;
-    if (jornadaId && jornadas.some((j) => j.jornadaId === jornadaId)) return;
-    if (jornadas.length > 0) {
-      setJornadaId(jornadas[0].jornadaId);
+    if (jornadaId && jornadaOptions.some((j) => j.jornadaId === jornadaId)) {
+      return;
+    }
+    const activaOpt = jornadaOptions.find((j) => j.activa);
+    if (activaOpt) {
+      setJornadaId(activaOpt.jornadaId);
+    } else if (jornadaOptions.length > 0) {
+      setJornadaId(jornadaOptions[0].jornadaId);
     } else if (jornadaId) {
       setJornadaId("");
     }
-  }, [jornadas, jornadaId, jornadasLoading]);
+  }, [jornadaOptions, jornadaId, jornadasLoading]);
 
   const filters = useMemo<CorteFilters>(() => {
     const f: CorteFilters = {};
@@ -117,8 +128,8 @@ export default function CortesPage() {
     reporte?.concesion?.tipo ?? concesionActual?.tipo ?? "GENERAL";
 
   const jornadaSeleccionada = useMemo(
-    () => jornadas.find((j) => j.jornadaId === jornadaId),
-    [jornadas, jornadaId],
+    () => jornadaOptions.find((j) => j.jornadaId === jornadaId),
+    [jornadaOptions, jornadaId],
   );
 
   const [detalleCorte, setDetalleCorte] = useState<Corte | null>(null);
@@ -172,7 +183,7 @@ export default function CortesPage() {
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {canFilter && perms.isSuperAdmin && (
           <Field label="Concesión" htmlFor="filtro-concesion">
             <NativeSelect
@@ -208,21 +219,13 @@ export default function CortesPage() {
           </Field>
         )}
         <Field label="Jornada" htmlFor="filtro-jornada">
-          <NativeSelect
+          <JornadaSelect
             id="filtro-jornada"
             value={jornadaId}
-            onChange={(e) => setJornadaId(e.target.value)}
-            disabled={jornadasLoading}
-          >
-            <option value="">
-              {jornadasLoading ? "Cargando jornadas…" : "Selecciona jornada"}
-            </option>
-            {jornadas.map((j) => (
-              <option key={j.jornadaId} value={j.jornadaId}>
-                {j.etiqueta}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={setJornadaId}
+            options={jornadaOptions}
+            loading={jornadasLoading}
+          />
         </Field>
       </div>
 
@@ -233,9 +236,24 @@ export default function CortesPage() {
               Reporte de ventas
             </h2>
             {(reporte || jornadaSeleccionada) && (
-              <Badge variant="secondary">
-                {jornadaSeleccionada?.etiqueta ??
-                  `Jornada ${reporte?.jornada.numero} · ${reporte?.jornada.fecha}`}
+              <Badge
+                variant="secondary"
+                className={
+                  jornadaSeleccionada?.activa
+                    ? "border-emerald-300 bg-emerald-100 text-emerald-900"
+                    : undefined
+                }
+              >
+                {jornadaSeleccionada
+                  ? buildJornadaSelectLabel({
+                      numero: jornadaSeleccionada.numero,
+                      fecha: jornadaSeleccionada.fecha,
+                      rama: jornadaSeleccionada.rama,
+                      equipoLocal: jornadaSeleccionada.equipoLocal,
+                      equipoVisitante: jornadaSeleccionada.equipoVisitante,
+                      activa: jornadaSeleccionada.activa,
+                    })
+                  : `Jornada ${reporte?.jornada.numero} · ${reporte?.jornada.fecha}`}
               </Badge>
             )}
           </div>

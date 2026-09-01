@@ -23,6 +23,10 @@ import { formatCompactNumber } from "@/components/charts/chart-theme";
 import { SegmentedControl } from "@/components/charts/segmented-control";
 import { DashboardBanner } from "@/components/dashboard/dashboard-banner";
 import { DataTable } from "@/components/dashboard/data-table";
+import {
+  JornadaSelect,
+  type JornadaSelectOption,
+} from "@/components/dashboard/jornada-select";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { VentaDetalleDialog } from "@/components/dashboard/venta-detalle-dialog";
 import { Button } from "@/components/ui/button";
@@ -34,7 +38,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useConcessions } from "@/hooks/use-concessions";
 import { useCortes, useDetalleVentas } from "@/hooks/use-cortes";
 import { useEquipoVendedores } from "@/hooks/use-equipo";
-import { useJornadasDisponibles } from "@/hooks/use-inventarios";
+import { useJornadas, useJornadasDisponibles } from "@/hooks/use-inventarios";
 import { useProducts } from "@/hooks/use-products";
 import { useSucursales } from "@/hooks/use-sucursales";
 import { useUsers } from "@/hooks/use-users";
@@ -50,12 +54,15 @@ import {
   sumVentas,
 } from "@/lib/dashboard-stats";
 import { formatDateTime, formatPrice } from "@/lib/format";
-import { formatJornadaLabel } from "@/lib/jornada";
-import { concesionHubPath } from "@/lib/concesion-routes";
 import {
-  computeConcesionSetupStatus,
-  findIncompleteConcesion,
-} from "@/lib/concesion-setup";
+  formatFechaDisplay,
+  formatJornadaLabel,
+  normalizeRama,
+  parseJornadaId,
+  ramaLabel,
+} from "@/lib/jornada";
+import { buildJornadaSelectOptions } from "@/lib/jornada-select-options";
+import { concesionHubPath } from "@/lib/concesion-routes";
 import type { ComprobanteVenta, Concession } from "@/lib/types";
 
 function ChartPlaceholder({ tall = false }: { tall?: boolean }) {
@@ -106,23 +113,50 @@ export default function SuperAdminDashboardPage() {
   const [detalleVenta, setDetalleVenta] = useState<ComprobanteVenta | null>(null);
 
   const [concesionId, setConcesionId] = useState("");
-  // null = sin inicializar; al cargar se posiciona en la jornada más reciente.
-  const [jornadaId, setJornadaId] = useState<string | null>(null);
+  const [jornadaId, setJornadaId] = useState("");
   const [productoMetrica, setProductoMetrica] =
     useState<ProductoMetrica>("importe");
 
+  const { activas } = useJornadas();
   const {
     jornadas,
     loading: loadingJornadas,
     refetch: refetchJornadas,
   } = useJornadasDisponibles({ concesionId: concesionId || undefined });
 
-  useEffect(() => {
-    if (loadingJornadas || jornadaId !== null) return;
-    setJornadaId(jornadas[0]?.jornadaId ?? "");
-  }, [jornadas, loadingJornadas, jornadaId]);
+  const jornadaOptions = useMemo<JornadaSelectOption[]>(
+    () => buildJornadaSelectOptions(jornadas, activas),
+    [jornadas, activas],
+  );
 
-  const jornadaSel = jornadaId ?? "";
+  useEffect(() => {
+    if (loadingJornadas) return;
+    if (jornadaId && jornadaOptions.some((j) => j.jornadaId === jornadaId)) {
+      return;
+    }
+    const activaOpt = jornadaOptions.find((j) => j.activa);
+    if (activaOpt) {
+      setJornadaId(activaOpt.jornadaId);
+    } else if (jornadaOptions.length > 0) {
+      setJornadaId(jornadaOptions[0].jornadaId);
+    } else if (jornadaId) {
+      setJornadaId("");
+    }
+  }, [jornadaOptions, jornadaId, loadingJornadas]);
+
+  const jornadaSeleccionada = useMemo(
+    () => jornadaOptions.find((j) => j.jornadaId === jornadaId),
+    [jornadaOptions, jornadaId],
+  );
+
+  const ramaSeleccionada = useMemo(() => {
+    if (jornadaSeleccionada?.rama != null) {
+      return normalizeRama(jornadaSeleccionada.rama);
+    }
+    return parseJornadaId(jornadaId)?.rama ?? "varonil";
+  }, [jornadaSeleccionada, jornadaId]);
+
+  const equipoLabel = ramaLabel(ramaSeleccionada);
 
   const {
     cortes,
@@ -130,7 +164,7 @@ export default function SuperAdminDashboardPage() {
     refetch: refetchCortes,
   } = useCortes({
     concesionId: concesionId || undefined,
-    jornadaId: jornadaSel || undefined,
+    jornadaId: jornadaId || undefined,
   });
 
   const activeConcessions = useMemo(
@@ -153,29 +187,38 @@ export default function SuperAdminDashboardPage() {
   const productoNombre = (id: string) =>
     products.find((p) => p.id === id)?.nombre ?? id;
 
-  // La tendencia necesita todas las jornadas: sólo se filtra por concesión.
+  // Tendencia y "vs anterior": solo jornadas de la misma rama.
   const ventasConcesion = useMemo(
     () =>
       concesionId ? ventas.filter((v) => v.concesionId === concesionId) : ventas,
     [ventas, concesionId],
   );
 
+  const ventasMismaRama = useMemo(
+    () =>
+      ventasConcesion.filter((v) => {
+        const parsed = parseJornadaId(v.jornadaId);
+        return parsed != null && parsed.rama === ramaSeleccionada;
+      }),
+    [ventasConcesion, ramaSeleccionada],
+  );
+
   const ventasFiltradas = useMemo(
     () =>
-      jornadaSel
-        ? ventasConcesion.filter((v) => v.jornadaId === jornadaSel)
-        : ventasConcesion,
-    [ventasConcesion, jornadaSel],
+      jornadaId
+        ? ventasConcesion.filter((v) => v.jornadaId === jornadaId)
+        : [],
+    [ventasConcesion, jornadaId],
   );
 
   const jornadaStats = useMemo(
-    () => groupVentasByJornada(ventasConcesion),
-    [ventasConcesion],
+    () => groupVentasByJornada(ventasMismaRama),
+    [ventasMismaRama],
   );
 
   const porJornadaConcesion = useMemo(
-    () => groupVentasByJornadaConcesion(ventasConcesion, concessions),
-    [ventasConcesion, concessions],
+    () => groupVentasByJornadaConcesion(ventasMismaRama, concessions),
+    [ventasMismaRama, concessions],
   );
 
   const porConcesion = useMemo(
@@ -216,12 +259,10 @@ export default function SuperAdminDashboardPage() {
     ventasFiltradas.length > 0 ? ventaPeriodo / ventasFiltradas.length : 0;
 
   const { jornadaActualStat, jornadaAnteriorStat } = useMemo(() => {
-    if (jornadaStats.length === 0) {
+    if (jornadaStats.length === 0 || !jornadaId) {
       return { jornadaActualStat: null, jornadaAnteriorStat: null };
     }
-    const index = jornadaSel
-      ? jornadaStats.findIndex((s) => s.jornadaId === jornadaSel)
-      : jornadaStats.length - 1;
+    const index = jornadaStats.findIndex((s) => s.jornadaId === jornadaId);
     if (index < 0) {
       return { jornadaActualStat: null, jornadaAnteriorStat: null };
     }
@@ -229,7 +270,7 @@ export default function SuperAdminDashboardPage() {
       jornadaActualStat: jornadaStats[index],
       jornadaAnteriorStat: index > 0 ? jornadaStats[index - 1] : null,
     };
-  }, [jornadaStats, jornadaSel]);
+  }, [jornadaStats, jornadaId]);
 
   const variacion = computeVariacion(
     jornadaActualStat?.total ?? 0,
@@ -260,49 +301,35 @@ export default function SuperAdminDashboardPage() {
     [porConcesion],
   );
 
-  const contextoJornada = jornadaSel
-    ? formatJornadaLabel(jornadaSel)
-    : "Todas las jornadas";
+  const contextoJornada = jornadaId
+    ? formatJornadaLabel(jornadaId)
+    : "Sin jornada";
   const contextoConcesion = concesionId
     ? concesionNombre(concesionId)
     : "Todas las concesiones";
   const contexto = `${contextoConcesion} · ${contextoJornada}`;
 
-  const incompleteSetup = useMemo(() => {
-    return findIncompleteConcesion(activeConcessions, (id) =>
-      computeConcesionSetupStatus({
-        concesionId: id,
-        concession: concessions.find((c) => c.id === id),
-        users,
-        products,
-        sucursales,
-        vendedores,
-      }),
-    );
-  }, [
-    activeConcessions,
-    concessions,
-    users,
-    products,
-    sucursales,
-    vendedores,
-  ]);
+  const bannerSubtitle = useMemo(() => {
+    if (zonas.length === 0) {
+      return "Empieza definiendo las zonas del estadio, luego configura cada concesión paso a paso.";
+    }
+    if (jornadaSeleccionada) {
+      return `Panel de plataforma — datos estadísticos del equipo ${ramaLabel(jornadaSeleccionada.rama)} · Jornada ${jornadaSeleccionada.numero} · ${formatFechaDisplay(jornadaSeleccionada.fecha)}.`;
+    }
+    if (jornadaId) {
+      const parsed = parseJornadaId(jornadaId);
+      if (parsed) {
+        return `Panel de plataforma — datos estadísticos del equipo ${ramaLabel(parsed.rama)} · Jornada ${parsed.numero} · ${formatFechaDisplay(parsed.fecha)}.`;
+      }
+    }
+    return "Panel de plataforma — analítica de ventas por jornada, concesión y zona.";
+  }, [zonas.length, jornadaSeleccionada, jornadaId]);
 
   const bannerAction = useMemo(() => {
     if (zonas.length === 0) {
       return (
         <Button asChild variant="on-dark" size="sm">
           <Link href="/superAdmin/zonas">Configurar zonas del estadio</Link>
-        </Button>
-      );
-    }
-    if (incompleteSetup) {
-      const { concession, status } = incompleteSetup;
-      return (
-        <Button asChild variant="on-dark" size="sm">
-          <Link href={concesionHubPath(concession.id)}>
-            Continuar {concession.nombre} ({status.completedCount}/{status.totalCount})
-          </Link>
         </Button>
       );
     }
@@ -318,12 +345,12 @@ export default function SuperAdminDashboardPage() {
         <Link href="/superAdmin/concesiones/nueva">Nueva concesión</Link>
       </Button>
     );
-  }, [zonas.length, incompleteSetup, activeConcessions.length]);
+  }, [zonas.length, activeConcessions.length]);
 
   const handleConcesionChange = (value: string) => {
     setConcesionId(value);
-    // Las jornadas disponibles cambian con la concesión: re-inicializa.
-    setJornadaId(null);
+    // Las jornadas disponibles cambian con la concesión: re-selecciona activa.
+    setJornadaId("");
   };
 
   const refreshAll = () => {
@@ -337,13 +364,7 @@ export default function SuperAdminDashboardPage() {
       <div className="space-y-6">
         <DashboardBanner
           title={`Hola, ${posUser?.nombre ?? "SuperAdmin"}`}
-          subtitle={
-            zonas.length === 0
-              ? "Empieza definiendo las zonas del estadio, luego configura cada concesión paso a paso."
-              : incompleteSetup
-                ? `«${incompleteSetup.concession.nombre}» tiene configuración pendiente.`
-                : "Panel de plataforma — analítica de ventas por jornada, concesión y zona."
-          }
+          subtitle={bannerSubtitle}
           action={bannerAction}
         />
 
@@ -373,21 +394,13 @@ export default function SuperAdminDashboardPage() {
               </NativeSelect>
             </Field>
             <Field label="Jornada" htmlFor="dash-jornada">
-              <NativeSelect
+              <JornadaSelect
                 id="dash-jornada"
-                value={jornadaSel}
-                onChange={(e) => setJornadaId(e.target.value)}
-                disabled={loadingJornadas}
-              >
-                <option value="">
-                  {loadingJornadas ? "Cargando jornadas…" : "Todas las jornadas"}
-                </option>
-                {jornadas.map((j) => (
-                  <option key={j.jornadaId} value={j.jornadaId}>
-                    {j.etiqueta}
-                  </option>
-                ))}
-              </NativeSelect>
+                value={jornadaId}
+                onValueChange={setJornadaId}
+                options={jornadaOptions}
+                loading={loadingJornadas}
+              />
             </Field>
             <Button variant="outline" onClick={refreshAll}>
               <RefreshCw className="size-4" />
@@ -398,7 +411,7 @@ export default function SuperAdminDashboardPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            label={jornadaSel ? "Venta de la jornada" : "Venta acumulada"}
+            label="Venta de la jornada"
             value={loadingVentas ? "—" : formatPrice(ventaPeriodo)}
             icon={ShoppingCart}
             hint={
@@ -450,6 +463,7 @@ export default function SuperAdminDashboardPage() {
           stats={jornadaStats}
           porConcesion={porJornadaConcesion}
           loading={loadingVentas}
+          ramaLabel={jornadaId ? equipoLabel : undefined}
         />
 
         <div className="grid gap-6 xl:grid-cols-2">

@@ -52,12 +52,15 @@ type JornadaTrendChartProps = {
   stats: JornadaStat[];
   porConcesion: JornadaConcesionData;
   loading?: boolean;
+  /** Etiqueta de rama (Varonil/Femenil) para el subtítulo. */
+  ramaLabel?: string;
 };
 
 export function JornadaTrendChart({
   stats,
   porConcesion,
   loading,
+  ramaLabel,
 }: JornadaTrendChartProps) {
   const [modo, setModo] = useState<Modo>("total");
   const [rango, setRango] = useState<Rango>("10");
@@ -90,9 +93,14 @@ export function JornadaTrendChart({
     <ChartCard
       title="Comparativa de ventas entre jornadas"
       subtitle={
-        modo === "total"
-          ? "Venta total y número de comprobantes por jornada"
-          : "Aportación de cada concesión en cada jornada"
+        [
+          modo === "total"
+            ? "Venta total y número de comprobantes por jornada"
+            : "Aportación de cada concesión en cada jornada",
+          ramaLabel ? ramaLabel : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
       }
       loading={loading}
       isEmpty={isEmpty}

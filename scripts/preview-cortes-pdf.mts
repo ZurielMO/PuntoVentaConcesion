@@ -65,6 +65,8 @@ const buildProducto = (
     cantidadAbonado * (esCerveceria ? PRECIO_REGULAR - DESCUENTO_ABONADO : PRECIO_REGULAR);
   const cortesias =
     (index % 5 === 0 ? 2 : 0) + (esCerveceria ? 0 : cantidadAbonado);
+  const ventaPalcos =
+    index % 3 === 0 ? Math.round(PRECIO_REGULAR * (2 + (index % 4)) * 100) / 100 : 0;
 
   return {
     productoId: `p-${index}`,
@@ -79,6 +81,7 @@ const buildProducto = (
     cortesias,
     puntosCanjeados,
     ventasTotales: ventasRegular + ventasAbonado,
+    ventaPalcos,
     precioActual: PRECIO_REGULAR,
     descuentoAbonado: esCerveceria ? DESCUENTO_ABONADO : 0,
   };
@@ -96,9 +99,15 @@ const buildReporteConcesion = (
 
   const ventasTotales = sum((row) => row.ventasTotales);
   const puntosCanjeados = sum((row) => row.puntosCanjeados);
+  const ventaPalcos = sum((row) => Number(row.ventaPalcos ?? 0));
 
   return {
-    jornada: { fecha: "2026-07-14", numero: 11, jornadaId: "2026-07-14__J11" },
+    jornada: {
+      fecha: "2026-07-14",
+      numero: 11,
+      jornadaId: "2026-07-14__J11",
+      rama: "varonil",
+    },
     concesion: { id: "con-norte", nombre: "Concesión Norte", tipo },
     productos,
     productoTotales: {
@@ -109,6 +118,7 @@ const buildReporteConcesion = (
       cortesias: sum((row) => row.cortesias),
       puntosCanjeados,
       ventasTotales,
+      ventaPalcos,
       dineroReal: ventasTotales - puntosCanjeados,
     },
     resumen: [
@@ -117,6 +127,10 @@ const buildReporteConcesion = (
         nombre: "Concesión Norte",
         porcentajeComision: 18,
         totalVenta: ventasTotales,
+        ventaPalcos,
+        cantidadVentasPalcos: productos.filter(
+          (row) => Number(row.ventaPalcos ?? 0) > 0,
+        ).length,
         comision: Math.round(ventasTotales * 0.18 * 100) / 100,
         gananciaConcesion: Math.round(ventasTotales * 0.82 * 100) / 100,
       },
@@ -134,7 +148,12 @@ const buildReporteConcesion = (
 };
 
 const reporteConsolidado: ReporteCortes = {
-  jornada: { fecha: "2026-07-14", numero: 11, jornadaId: "2026-07-14__J11" },
+  jornada: {
+    fecha: "2026-07-14",
+    numero: 11,
+    jornadaId: "2026-07-14__J11__femenil",
+    rama: "femenil",
+  },
   concesion: null,
   productos: null,
   productoTotales: null,
@@ -145,6 +164,8 @@ const reporteConsolidado: ReporteCortes = {
       nombre: "Concesión Norte",
       porcentajeComision: 18,
       totalVenta: 184320,
+      ventaPalcos: 6200,
+      cantidadVentasPalcos: 5,
       comision: 33177.6,
       gananciaConcesion: 151142.4,
     },
@@ -153,6 +174,8 @@ const reporteConsolidado: ReporteCortes = {
       nombre: "Concesión Sur",
       porcentajeComision: 15,
       totalVenta: 143890,
+      ventaPalcos: 0,
+      cantidadVentasPalcos: 0,
       comision: 21583.5,
       gananciaConcesion: 122306.5,
     },
@@ -161,6 +184,8 @@ const reporteConsolidado: ReporteCortes = {
       nombre: "Concesión Oriente",
       porcentajeComision: 20,
       totalVenta: 98640,
+      ventaPalcos: 1400,
+      cantidadVentasPalcos: 2,
       comision: 19728,
       gananciaConcesion: 78912,
     },
@@ -169,6 +194,8 @@ const reporteConsolidado: ReporteCortes = {
       nombre: "Concesión Poniente Palcos",
       porcentajeComision: 12,
       totalVenta: 76210,
+      ventaPalcos: 76210,
+      cantidadVentasPalcos: 12,
       comision: 9145.2,
       gananciaConcesion: 67064.8,
     },

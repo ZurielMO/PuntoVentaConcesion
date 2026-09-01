@@ -21,6 +21,8 @@ import { useConcesionFilterParam } from "@/hooks/use-concesion-filter-param";
 import { useDeepLinkParam } from "@/hooks/use-deep-link-params";
 import { useActiveConcesionOptional } from "@/hooks/use-active-concesion";
 import { usePermissions } from "@/hooks/use-permissions";
+import type { JornadaRama } from "@/lib/jornada";
+import { normalizeRama } from "@/lib/jornada";
 import type { InventarioMovimiento, InventarioProducto } from "@/lib/types";
 import "@/styles/wizard-alta.css";
 
@@ -45,7 +47,7 @@ function movimientoLabel(m: InventarioMovimiento) {
 export default function InventariosPage() {
   const perms = usePermissions();
   const activeCtx = useActiveConcesionOptional();
-  const { jornadaActiva, loading: jornadaLoading } = useJornadas();
+  const { jornadaActiva, activas, loading: jornadaLoading } = useJornadas();
   const { products } = useProducts();
   const { sucursales } = useSucursales();
   const { concessions } = useConcessions();
@@ -53,6 +55,8 @@ export default function InventariosPage() {
   const [concesionSel, setConcesionSel] = useConcesionFilterParam();
   const deepSucursalId = useDeepLinkParam("sucursalId");
   const [sucursalSel, setSucursalSel] = useState("");
+  const [rama, setRama] = useState<JornadaRama>("varonil");
+  const ramaInitialized = useRef(false);
   const deepSucursalApplied = useRef(false);
   const autoOpenAttemptedFor = useRef<string | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>("stock");
@@ -69,12 +73,26 @@ export default function InventariosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const sucursalesVisibles = useMemo(() => {
-    const activas = sucursales.filter((s) => s.activo !== false);
-    if (perms.isSuperAdmin && concesionSel) {
-      return activas.filter((s) => s.concesion_id === concesionSel);
+  // Default: varonil si está activa; si solo femenil, preseleccionar femenil.
+  useEffect(() => {
+    if (jornadaLoading || ramaInitialized.current) return;
+    if (activas.varonil?.activo || activas.varonil?.fecha) {
+      setRama("varonil");
+      ramaInitialized.current = true;
+      return;
     }
-    return activas;
+    if (activas.femenil?.activo || activas.femenil?.fecha) {
+      setRama("femenil");
+      ramaInitialized.current = true;
+    }
+  }, [jornadaLoading, activas]);
+
+  const sucursalesVisibles = useMemo(() => {
+    const activasList = sucursales.filter((s) => s.activo !== false);
+    if (perms.isSuperAdmin && concesionSel) {
+      return activasList.filter((s) => s.concesion_id === concesionSel);
+    }
+    return activasList;
   }, [sucursales, perms.isSuperAdmin, concesionSel]);
 
   useEffect(() => {
@@ -122,21 +140,26 @@ export default function InventariosPage() {
     ajustarProducto,
   } = useInventarioJornadaActiva(effectiveSucursalId || undefined, {
     enabled: Boolean(effectiveSucursalId),
+    rama,
   });
 
   const jornadaBanner = useMemo(() => {
     const fromApi = jornada;
     if (fromApi) return fromApi;
-    const entries = Object.values(jornadaActiva);
+    const fromActivas = activas[rama];
+    if (fromActivas) return fromActivas;
+    const entries = Object.values(jornadaActiva).filter(
+      (j) => normalizeRama(j.rama) === rama,
+    );
     return entries.find((j) => j.activo) ?? entries[0];
-  }, [jornada, jornadaActiva]);
+  }, [jornada, jornadaActiva, activas, rama]);
 
-  // Al elegir sucursal: abrir inventario automáticamente (getOrCreate; no-op si ya existe).
+  // Al elegir sucursal o rama: abrir inventario automáticamente.
   useEffect(() => {
     autoOpenAttemptedFor.current = null;
     setActionError(null);
     setSubmitting(false);
-  }, [effectiveSucursalId]);
+  }, [effectiveSucursalId, rama]);
 
   useEffect(() => {
     if (!perms.canManageInventario) return;
@@ -144,9 +167,10 @@ export default function InventariosPage() {
     if (loading || jornadaLoading || submitting) return;
     if (inventario) return;
     if (!jornadaBanner) return;
-    if (autoOpenAttemptedFor.current === effectiveSucursalId) return;
+    const attemptKey = `${effectiveSucursalId}__${rama}`;
+    if (autoOpenAttemptedFor.current === attemptKey) return;
 
-    const openingFor = effectiveSucursalId;
+    const openingFor = attemptKey;
     autoOpenAttemptedFor.current = openingFor;
     setSubmitting(true);
     setActionError(null);
@@ -165,6 +189,7 @@ export default function InventariosPage() {
   }, [
     perms.canManageInventario,
     effectiveSucursalId,
+    rama,
     loading,
     jornadaLoading,
     submitting,
@@ -315,6 +340,23 @@ export default function InventariosPage() {
 
         <div className="wizard-alta__layout">
           <aside className="wizard-alta__sidebar">
+            <div className="wizard-alta__sidebar-filter">
+              <Field label="Rama" htmlFor="ramaSel">
+                <NativeSelect
+                  id="ramaSel"
+                  value={rama}
+                  onChange={(e) => {
+                    setRama(normalizeRama(e.target.value));
+                    setDetailTab("stock");
+                    setActionError(null);
+                  }}
+                >
+                  <option value="varonil">Varonil</option>
+                  <option value="femenil">Femenil</option>
+                </NativeSelect>
+              </Field>
+            </div>
+
             {perms.isSuperAdmin && (
               <div className="wizard-alta__sidebar-filter">
                 <Field label="1) Elige concesión" htmlFor="concesionSel">
@@ -436,7 +478,7 @@ export default function InventariosPage() {
                         {jornadaLoading && !jornadaBanner
                           ? "Cargando jornada…"
                           : jornadaBanner
-                            ? `Jornada ${jornadaBanner.jornada ?? "—"}${
+                            ? `${rama === "femenil" ? "Femenil · " : ""}Jornada ${jornadaBanner.jornada ?? "—"}${
                                 jornadaBanner.fecha
                                   ? ` · ${jornadaBanner.fecha}`
                                   : ""

@@ -21,12 +21,15 @@ export type DesgloseGeneralRow = {
   /** Incluye las unidades gratis del 2x1 (líneas a $0). */
   cortesias: number;
   ventasTotales: number;
+  /** Parte de ventasTotales originada en VIP / VIP Stripe (palcos). */
+  ventaPalcos: number;
 };
 
 export type DesgloseGeneralTotales = {
   ventas: number;
   cortesias: number;
   ventasTotales: number;
+  ventaPalcos: number;
   puntosCanjeadosMonto: number;
   dineroReal: number;
 };
@@ -53,6 +56,7 @@ export const toDesgloseGeneralRow = (
     precioEfectivo,
     cortesias: row.cortesias,
     ventasTotales: row.ventasTotales,
+    ventaPalcos: Number(row.ventaPalcos ?? 0),
   };
 };
 
@@ -62,6 +66,7 @@ export const toDesgloseGeneralTotales = (
   ventas: totales.cantidadRegular + totales.cantidadAbonado,
   cortesias: totales.cortesias,
   ventasTotales: totales.ventasTotales,
+  ventaPalcos: Number(totales.ventaPalcos ?? 0),
   puntosCanjeadosMonto: totales.puntosCanjeados,
   dineroReal: totales.dineroReal,
 });

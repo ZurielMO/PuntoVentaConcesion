@@ -104,6 +104,8 @@ export interface Inventario {
   /** Legacy: inventarios viejos por sucursal */
   sucursal_id?: string | null;
   concesion_id: string;
+  /** Legacy sin campo = varonil */
+  rama?: "varonil" | "femenil";
   activo: boolean;
   productos?: InventarioProducto[];
 }
@@ -163,6 +165,12 @@ export interface ComprobanteVenta {
   detalle?: DetalleProducto[];
   fecha?: unknown;
   createdAt?: unknown;
+  metodoPago?: string | null;
+  puntosUsados?: number | null;
+  montoPuntos?: number | null;
+  montoEfectivo?: number | null;
+  montoTarjeta?: number | null;
+  memberId?: string | null;
 }
 
 export interface Ticket {
@@ -275,6 +283,8 @@ export interface ReporteProductoRow {
   cortesias: number;
   puntosCanjeados: number;
   ventasTotales: number;
+  /** Parte de ventasTotales originada en VIP / VIP Stripe (palcos). */
+  ventaPalcos?: number;
   /** Precio de lista actual del catálogo */
   precioActual?: number;
   /** Descuento unitario abonado (precio lista − precio abonado) */
@@ -289,6 +299,8 @@ export interface ReporteProductoTotales {
   cortesias: number;
   puntosCanjeados: number;
   ventasTotales: number;
+  /** Parte de ventasTotales originada en VIP / VIP Stripe (palcos). */
+  ventaPalcos?: number;
   dineroReal: number;
 }
 
@@ -306,7 +318,11 @@ export interface ReporteConcesionRow {
   concesionId: string;
   nombre: string;
   porcentajeComision: number;
+  /** Incluye POS + palcos (efectivo + tarjeta). */
   totalVenta: number;
+  /** Parte de totalVenta originada en VIP / VIP Stripe (palcos). */
+  ventaPalcos?: number;
+  cantidadVentasPalcos?: number;
   comision: number;
   gananciaConcesion: number;
   /** Optional for compatibility with report endpoints deployed before this field existed. */
@@ -324,7 +340,12 @@ export interface ReporteConcesionInfo {
 }
 
 export interface ReporteCortes {
-  jornada: { fecha: string; numero: number; jornadaId: string };
+  jornada: {
+    fecha: string;
+    numero: number;
+    jornadaId: string;
+    rama?: "varonil" | "femenil";
+  };
   /**
    * Concesión del reporte (null en el consolidado). Opcional por compatibilidad
    * con backends desplegados antes de que este campo existiera.
@@ -340,6 +361,7 @@ export interface JornadaDisponible {
   jornadaId: string;
   fecha: string;
   numero: number;
+  rama?: "varonil" | "femenil";
   etiqueta: string;
 }
 
@@ -351,7 +373,13 @@ export interface JornadaActivaValue {
   fecha?: string;
   hora?: string;
   jornada?: number;
+  rama?: "varonil" | "femenil";
   [key: string]: unknown;
+}
+
+export interface JornadasActivasPorRama {
+  varonil: JornadaActivaValue | null;
+  femenil: JornadaActivaValue | null;
 }
 
 export interface ComboProducto {

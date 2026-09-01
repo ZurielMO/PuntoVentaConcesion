@@ -19,6 +19,27 @@ type CorteReporteProductosGeneralTableProps = {
 const money = (value: number) => (value > 0 ? formatPrice(value) : "—");
 const qty = (value: number) => (value > 0 ? value.toLocaleString("es-MX") : "—");
 
+function MoneyWithHint({
+  amount,
+  hint,
+  className,
+}: {
+  amount: number;
+  hint?: string | null;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex flex-col items-end gap-0.5", className)}>
+      <span>{money(amount)}</span>
+      {hint ? (
+        <span className="text-[1.1rem] font-normal text-muted-foreground">
+          {hint}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export function CorteReporteProductosGeneralTable({
   data,
   totales,
@@ -52,7 +73,7 @@ export function CorteReporteProductosGeneralTable({
 
   return (
     <div className="-mx-1 overflow-x-auto px-1">
-      <table className="w-full min-w-4xl border-collapse text-sm">
+      <table className="w-full min-w-5xl border-collapse text-sm">
         <thead>
           <tr className="border-b border-border">
             <th className={thClass}>Producto</th>
@@ -61,6 +82,7 @@ export function CorteReporteProductosGeneralTable({
             <th className={cn(thClass, "text-right")}>Ventas</th>
             <th className={cn(thClass, "text-right")}>Precio unitario</th>
             <th className={cn(thClass, "text-right")}>Cortesías</th>
+            <th className={cn(thClass, "text-right")}>Venta palcos</th>
             <th className={cn(thClass, "text-right")}>Ventas totales</th>
           </tr>
         </thead>
@@ -87,8 +109,19 @@ export function CorteReporteProductosGeneralTable({
                   </div>
                 </td>
                 <td className={tdRight}>{qty(row.cortesias)}</td>
+                <td className={tdRight}>
+                  <MoneyWithHint
+                    amount={row.ventaPalcos}
+                    hint={row.ventaPalcos > 0 ? "incluido en total" : null}
+                  />
+                </td>
                 <td className={cn(tdRight, "font-medium")}>
-                  {money(row.ventasTotales)}
+                  <MoneyWithHint
+                    amount={row.ventasTotales}
+                    hint={
+                      row.ventasTotales > 0 ? "Incluye POS y palcos" : null
+                    }
+                  />
                 </td>
               </tr>
             );
@@ -103,13 +136,22 @@ export function CorteReporteProductosGeneralTable({
               <td className={tdRight}>{qty(t.ventas)}</td>
               <td className={tdRight}>—</td>
               <td className={tdRight}>{qty(t.cortesias)}</td>
+              <td className={tdRight}>
+                <MoneyWithHint
+                  amount={t.ventaPalcos}
+                  hint={t.ventaPalcos > 0 ? "incluido en total" : null}
+                />
+              </td>
               <td className={cn(tdRight, "font-bold text-green-dark")}>
-                {money(t.ventasTotales)}
+                <MoneyWithHint
+                  amount={t.ventasTotales}
+                  hint={t.ventasTotales > 0 ? "Incluye POS y palcos" : null}
+                />
               </td>
             </tr>
             {mostrarPuntos && (
               <tr className="bg-muted/20">
-                <td className={tdClass} colSpan={6}>
+                <td className={tdClass} colSpan={7}>
                   {etiquetaPuntos}
                 </td>
                 <td className={cn(tdRight, "text-destructive")}>
@@ -118,7 +160,7 @@ export function CorteReporteProductosGeneralTable({
               </tr>
             )}
             <tr className="bg-green-muted font-bold">
-              <td className={cn(tdClass, "text-green-dark")} colSpan={6}>
+              <td className={cn(tdClass, "text-green-dark")} colSpan={7}>
                 Dinero real
               </td>
               <td

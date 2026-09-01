@@ -163,6 +163,7 @@ export function useDetalleVentas(filters?: {
   sucursalId?: string;
   cajaId?: string;
   inventarioId?: string;
+  jornadaId?: string;
 }) {
   const { token } = useAuth();
   const [ventas, setVentas] = useState<ComprobanteVenta[]>([]);
@@ -185,6 +186,7 @@ export function useDetalleVentas(filters?: {
       if (filters?.sucursalId) qs.set("sucursalId", filters.sucursalId);
       if (filters?.cajaId) qs.set("cajaId", filters.cajaId);
       if (filters?.inventarioId) qs.set("inventarioId", filters.inventarioId);
+      if (filters?.jornadaId) qs.set("jornadaId", filters.jornadaId);
       const query = qs.toString();
       const path = query ? `${apiPaths.detalleVenta}?${query}` : apiPaths.detalleVenta;
       const res = await api.get<ApiResponse<ComprobanteVenta[]>>(path, token);

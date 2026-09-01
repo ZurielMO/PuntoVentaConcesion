@@ -15,12 +15,14 @@ const qty = (value: number) => (value > 0 ? value.toLocaleString("es-MX") : "—
 function MoneyWithHint({
   amount,
   hint,
+  className,
 }: {
   amount: number;
   hint?: string | null;
+  className?: string;
 }) {
   return (
-    <div className="flex flex-col items-end gap-0.5">
+    <div className={cn("flex flex-col items-end gap-0.5", className)}>
       <span>{money(amount)}</span>
       {hint ? (
         <span className="text-[1.1rem] font-normal text-muted-foreground">
@@ -55,7 +57,7 @@ export function CorteReporteProductosTable({
 
   return (
     <div className="-mx-1 overflow-x-auto px-1">
-      <table className="w-full min-w-[76rem] border-collapse text-sm">
+      <table className="w-full min-w-[84rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-border">
             <th className={thClass}>Producto</th>
@@ -67,6 +69,7 @@ export function CorteReporteProductosTable({
             <th className={cn(thClass, "text-right")}>Precio abonado</th>
             <th className={cn(thClass, "text-right")}>Cortesías</th>
             <th className={cn(thClass, "text-right")}>Puntos ($)</th>
+            <th className={cn(thClass, "text-right")}>Venta palcos</th>
             <th className={cn(thClass, "text-right")}>Ventas totales</th>
           </tr>
         </thead>
@@ -80,6 +83,7 @@ export function CorteReporteProductosTable({
               row.descuentoAbonado != null && row.descuentoAbonado > 0
                 ? `(-${formatPrice(row.descuentoAbonado)})`
                 : null;
+            const ventaPalcos = Number(row.ventaPalcos ?? 0);
 
             return (
               <tr key={row.productoId} className="border-b border-border/60">
@@ -101,8 +105,19 @@ export function CorteReporteProductosTable({
                 </td>
                 <td className={tdRight}>{qty(row.cortesias)}</td>
                 <td className={tdRight}>{money(row.puntosCanjeados)}</td>
+                <td className={tdRight}>
+                  <MoneyWithHint
+                    amount={ventaPalcos}
+                    hint={ventaPalcos > 0 ? "incluido en total" : null}
+                  />
+                </td>
                 <td className={cn(tdRight, "font-medium")}>
-                  {money(row.ventasTotales)}
+                  <MoneyWithHint
+                    amount={row.ventasTotales}
+                    hint={
+                      row.ventasTotales > 0 ? "Incluye POS y palcos" : null
+                    }
+                  />
                 </td>
               </tr>
             );
@@ -120,12 +135,27 @@ export function CorteReporteProductosTable({
               <td className={tdRight}>{money(totales.ventasAbonado)}</td>
               <td className={tdRight}>{qty(totales.cortesias)}</td>
               <td className={tdRight}>{money(totales.puntosCanjeados)}</td>
+              <td className={tdRight}>
+                <MoneyWithHint
+                  amount={Number(totales.ventaPalcos ?? 0)}
+                  hint={
+                    Number(totales.ventaPalcos ?? 0) > 0
+                      ? "incluido en total"
+                      : null
+                  }
+                />
+              </td>
               <td className={cn(tdRight, "font-bold text-green-dark")}>
-                {money(totales.ventasTotales)}
+                <MoneyWithHint
+                  amount={totales.ventasTotales}
+                  hint={
+                    totales.ventasTotales > 0 ? "Incluye POS y palcos" : null
+                  }
+                />
               </td>
             </tr>
             <tr className="bg-muted/20">
-              <td className={tdClass} colSpan={9}>
+              <td className={tdClass} colSpan={10}>
                 Menos puntos canjeados
               </td>
               <td className={cn(tdRight, "text-destructive")}>
@@ -135,7 +165,7 @@ export function CorteReporteProductosTable({
               </td>
             </tr>
             <tr className="bg-green-muted font-bold">
-              <td className={cn(tdClass, "text-green-dark")} colSpan={9}>
+              <td className={cn(tdClass, "text-green-dark")} colSpan={10}>
                 Dinero real
               </td>
               <td

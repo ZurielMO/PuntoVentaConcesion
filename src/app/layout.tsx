@@ -12,6 +12,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "PuntoVenta — Concesiones Estadio",
   description: "Sistema de punto de venta para concesiones del estadio",
+  icons: {
+    icon: { url: "/brand/leon-icon.png", type: "image/png", sizes: "128x128" },
+    apple: { url: "/brand/leon-icon-180.png", sizes: "180x180" },
+  },
 };
 
 export default function RootLayout({

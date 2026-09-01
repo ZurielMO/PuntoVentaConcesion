@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatPrice } from "@/lib/format";
+import { parseJornadaId, ramaLabel } from "@/lib/jornada";
 import {
   alignNumericColumns,
   alignNumericHead,
@@ -26,17 +27,45 @@ const dashOrMoney = (value: number) => (value > 0 ? money(value) : "—");
 const dashOrQty = (value: number) =>
   value > 0 ? value.toLocaleString("es-MX") : "—";
 
+/** Venta total (comisión): monto + nota de que incluye POS y palcos. */
+const moneyTotalIncluyePosPalcos = (value: number) =>
+  `${money(value)}\nIncluye POS y palcos`;
+
+/** Venta palcos (comisión): monto + qty o “Sin ventas palcos”. */
+const moneyVentaPalcosComision = (monto: number, qty: number) => {
+  const line = money(monto);
+  if (qty > 0) {
+    return `${line}\n${qty} venta${qty === 1 ? "" : "s"} · incluido en total`;
+  }
+  return `${line}\nSin ventas palcos`;
+};
+
+/** Venta palcos por producto: monto con nota, o guión si es 0. */
+const moneyProductoPalcos = (value: number) =>
+  value > 0 ? `${money(value)}\nincluido en total` : "—";
+
+/** V. totales por producto: monto + nota de inclusión. */
+const moneyTotalesIncluyePosPalcos = (value: number) =>
+  value > 0 ? `${money(value)}\nIncluye POS y palcos` : "—";
+
 const getFinalY = (doc: jsPDF) =>
   (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
 
 /** Espacio minimo para no dejar un titulo de seccion solo al pie de la hoja. */
 const SECTION_MIN_SPACE = 30;
 
-const metaItems = (reporte: ReporteCortes) => [
-  { label: "Jornada", value: `Jornada ${reporte.jornada.numero}` },
-  { label: "Fecha", value: reporte.jornada.fecha },
-  { label: "Generado", value: new Date().toLocaleString("es-MX") },
-];
+const metaItems = (reporte: ReporteCortes) => {
+  const rama =
+    reporte.jornada.rama ??
+    parseJornadaId(reporte.jornada.jornadaId)?.rama ??
+    "varonil";
+  return [
+    { label: "Jornada", value: `Jornada ${reporte.jornada.numero}` },
+    { label: "Rama", value: ramaLabel(rama) },
+    { label: "Fecha", value: reporte.jornada.fecha },
+    { label: "Generado", value: new Date().toLocaleString("es-MX") },
+  ];
+};
 
 /** Precio único compartido por todos los productos (para encabezado del PDF). */
 const sharedUnitPrice = (
@@ -105,6 +134,7 @@ const productosTableCerveceria = (reporte: ReporteCortes): ProductosTable => {
       : "Precio abonado",
     "Cortesías",
     "Puntos ($)",
+    "Venta palcos",
     "V. totales",
   ];
 
@@ -118,7 +148,8 @@ const productosTableCerveceria = (reporte: ReporteCortes): ProductosTable => {
     dashOrMoney(row.ventasAbonado),
     dashOrQty(row.cortesias),
     dashOrMoney(row.puntosCanjeados),
-    dashOrMoney(row.ventasTotales),
+    moneyProductoPalcos(Number(row.ventaPalcos ?? 0)),
+    moneyTotalesIncluyePosPalcos(row.ventasTotales),
   ]);
 
   const t = reporte.productoTotales;
@@ -134,7 +165,8 @@ const productosTableCerveceria = (reporte: ReporteCortes): ProductosTable => {
     dashOrMoney(t.ventasAbonado),
     dashOrQty(t.cortesias),
     dashOrMoney(t.puntosCanjeados),
-    dashOrMoney(t.ventasTotales),
+    moneyProductoPalcos(Number(t.ventaPalcos ?? 0)),
+    moneyTotalesIncluyePosPalcos(t.ventasTotales),
   ]);
   body.push(
     footerRow(
@@ -168,6 +200,7 @@ const productosTableGeneral = (reporte: ReporteCortes): ProductosTable => {
       ? `Precio unit. (${money(precioShared)})`
       : "Precio unit.",
     "Cortesías",
+    "Venta palcos",
     "V. totales",
   ];
 
@@ -182,7 +215,8 @@ const productosTableGeneral = (reporte: ReporteCortes): ProductosTable => {
         ? `${dashOrMoney(row.precioUnitario)} (cobrado ${money(divergente)})`
         : dashOrMoney(row.precioUnitario),
       dashOrQty(row.cortesias),
-      dashOrMoney(row.ventasTotales),
+      moneyProductoPalcos(row.ventaPalcos),
+      moneyTotalesIncluyePosPalcos(row.ventasTotales),
     ];
   });
 
@@ -198,7 +232,8 @@ const productosTableGeneral = (reporte: ReporteCortes): ProductosTable => {
     dashOrQty(t.ventas),
     "—",
     dashOrQty(t.cortesias),
-    dashOrMoney(t.ventasTotales),
+    moneyProductoPalcos(t.ventaPalcos),
+    moneyTotalesIncluyePosPalcos(t.ventasTotales),
   ]);
 
   let footerCount = 2;
@@ -311,18 +346,29 @@ export function buildReporteConcesionDoc(
       ...tableTheme(9),
       startY: cursorY,
       head: [
-        ["Concesión", "Comisión %", "Venta total", "Comisión", "Total final"],
+        [
+          "Concesión",
+          "Comisión %",
+          "Venta total",
+          "Venta Palcos",
+          "Comisión",
+          "Total final",
+        ],
       ],
       body: [
         [
           resumen.nombre,
           `${resumen.porcentajeComision}%`,
-          money(resumen.totalVenta),
+          moneyTotalIncluyePosPalcos(resumen.totalVenta),
+          moneyVentaPalcosComision(
+            Number(resumen.ventaPalcos ?? 0),
+            Number(resumen.cantidadVentasPalcos ?? 0),
+          ),
           money(resumen.comision),
           money(resumen.gananciaConcesion),
         ],
       ],
-      columnStyles: alignNumericColumns(5),
+      columnStyles: alignNumericColumns(6),
       didParseCell: alignNumericHead,
       didDrawPage: () => drawReportHeader(doc, header),
     });
@@ -345,16 +391,29 @@ export function buildReporteConsolidadoDoc(reporte: ReporteCortes): jsPDF {
   const totals = reporte.resumen.reduce(
     (acc, row) => ({
       totalVenta: acc.totalVenta + row.totalVenta,
+      ventaPalcos: acc.ventaPalcos + Number(row.ventaPalcos ?? 0),
+      cantidadVentasPalcos:
+        acc.cantidadVentasPalcos + Number(row.cantidadVentasPalcos ?? 0),
       comision: acc.comision + row.comision,
       gananciaConcesion: acc.gananciaConcesion + row.gananciaConcesion,
     }),
-    { totalVenta: 0, comision: 0, gananciaConcesion: 0 },
+    {
+      totalVenta: 0,
+      ventaPalcos: 0,
+      cantidadVentasPalcos: 0,
+      comision: 0,
+      gananciaConcesion: 0,
+    },
   );
 
   const body = reporte.resumen.map((row) => [
     row.nombre,
     `${row.porcentajeComision}%`,
-    money(row.totalVenta),
+    moneyTotalIncluyePosPalcos(row.totalVenta),
+    moneyVentaPalcosComision(
+      Number(row.ventaPalcos ?? 0),
+      Number(row.cantidadVentasPalcos ?? 0),
+    ),
     money(row.comision),
     money(row.gananciaConcesion),
   ]);
@@ -363,7 +422,8 @@ export function buildReporteConsolidadoDoc(reporte: ReporteCortes): jsPDF {
     body.push([
       "TOTAL",
       "—",
-      money(totals.totalVenta),
+      moneyTotalIncluyePosPalcos(totals.totalVenta),
+      moneyVentaPalcosComision(totals.ventaPalcos, totals.cantidadVentasPalcos),
       money(totals.comision),
       money(totals.gananciaConcesion),
     ]);
@@ -375,10 +435,17 @@ export function buildReporteConsolidadoDoc(reporte: ReporteCortes): jsPDF {
     ...tableTheme(9),
     startY: cursorY,
     head: [
-      ["Concesión", "Comisión %", "Venta total", "Comisión", "Total final"],
+      [
+        "Concesión",
+        "Comisión %",
+        "Venta total",
+        "Venta Palcos",
+        "Comisión",
+        "Total final",
+      ],
     ],
     body,
-    columnStyles: alignNumericColumns(5),
+    columnStyles: alignNumericColumns(6),
     didParseCell: (data) => {
       alignNumericHead(data);
       if (

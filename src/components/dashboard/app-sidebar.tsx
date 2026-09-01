@@ -17,11 +17,10 @@ export function AppSidebar() {
 
   return (
     <aside
-      className="hidden w-[var(--sidebar-width)] shrink-0 flex-col border-r border-border bg-[var(--sidebar-bg)] md:flex"
-      style={{ width: "var(--sidebar-width)" }}
+      className="hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col border-r border-border bg-[var(--sidebar-bg)] md:flex"
       aria-busy={isLocked || undefined}
     >
-      <div className="flex h-[var(--topbar-height)] items-center border-b border-border px-5">
+      <div className="flex h-[var(--topbar-height)] shrink-0 items-center border-b border-border px-5">
         <Link
           href="/"
           tabIndex={isLocked ? -1 : undefined}
@@ -34,10 +33,10 @@ export function AppSidebar() {
           PuntoVenta
         </Link>
       </div>
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="min-h-0 flex-1 overflow-y-auto py-2">
         <AppSidebarNav groups={groups} />
       </div>
-      <div className="border-t border-border p-4">
+      <div className="shrink-0 border-t border-border p-4">
         <p className="text-[1.2rem] text-muted-foreground">Concesiones Estadio</p>
       </div>
     </aside>

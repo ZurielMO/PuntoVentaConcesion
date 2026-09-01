@@ -118,10 +118,63 @@ if (fs.existsSync(indexHtml)) {
   console.log("→ out/index.html reescrito como redirección a /login/");
 }
 
+// Apache/cPanel a veces prioriza index.php sobre index.html.
+const indexPhp = path.join(outDir, "index.php");
+fs.writeFileSync(
+  indexPhp,
+  `<?php
+// Fallback si DirectoryIndex no incluye index.html.
+readfile(__DIR__ . '/index.html');
+`,
+  "utf8",
+);
+console.log("→ out/index.php escrito (fallback Apache)");
+
+const builtAt = new Date().toISOString();
+fs.writeFileSync(
+  path.join(outDir, "version.json"),
+  JSON.stringify(
+    {
+      app: "puntoventa-front",
+      builtAt,
+      apiBaseUrl:
+        env.NEXT_PUBLIC_API_BASE_URL ||
+        "(definido en .env.local / entorno de build)",
+      site: "foodmarket.clubleon.mx",
+    },
+    null,
+    2,
+  ),
+  "utf8",
+);
+console.log(`→ out/version.json (${builtAt})`);
+
+fs.writeFileSync(
+  path.join(outDir, "DEPLOY.txt"),
+  `Despliegue FTP — foodmarket.clubleon.mx
+Build: ${builtAt}
+
+IMPORTANTE (si ves diseño viejo o selects sin estilo):
+1. En Cyberduck, BORRA por completo la carpeta remota "_next" (no solo sobrescribas).
+2. Sube TODO el contenido INTERNO de esta carpeta "out/" a la raíz "/"
+   (login, cortes, ventas, _next, brand, index.html, index.php, etc.).
+3. No subas la carpeta "out" como carpeta padre; sube lo de adentro.
+4. En el navegador: Ctrl+Shift+R (recarga forzada) o ventana de incógnito.
+5. Verifica el build en: https://foodmarket.clubleon.mx/version.json
+
+No subas .htaccess (este host responde 500 con ese archivo).
+`,
+  "utf8",
+);
+console.log("→ out/DEPLOY.txt con instrucciones de subida");
+
 console.log(
   "\n✔ Build FTP listo. Sube el contenido de la carpeta `out/` a la raíz del hosting",
   "(foodmarket.clubleon.mx o concesiones.clubleon.mx).",
 );
 console.log(
   "  El mismo `out/` vale para ambos: CSS/JS van por /_next/ (HTTP y HTTPS).",
+);
+console.log(
+  "  Si el diseño no cambia: borra _next remoto, vuelve a subir todo, Ctrl+Shift+R.",
 );

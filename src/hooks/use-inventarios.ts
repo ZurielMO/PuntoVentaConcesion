@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, apiPaths, type ApiResponse } from "@/lib/api/client";
 import { useAuth } from "@/hooks/use-auth";
+import type { JornadaRama } from "@/lib/jornada";
 import type {
   Inventario,
   InventarioJornadaActivaData,
@@ -10,28 +11,43 @@ import type {
   InventarioProducto,
   JornadaActivaValue,
   JornadaDisponible,
+  JornadasActivasPorRama,
 } from "@/lib/types";
 
 export function useJornadas() {
   const { token } = useAuth();
-  const [jornadaActiva, setJornadaActiva] = useState<Record<string, JornadaActivaValue>>({});
+  const [jornadaActiva, setJornadaActiva] = useState<
+    Record<string, JornadaActivaValue>
+  >({});
+  const [activas, setActivas] = useState<JornadasActivasPorRama>({
+    varonil: null,
+    femenil: null,
+  });
   const [loading, setLoading] = useState(true);
 
   const fetchJornada = useCallback(async () => {
     if (!token) {
       setJornadaActiva({});
+      setActivas({ varonil: null, femenil: null });
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const res = await api.get<{ jornada_activa: Record<string, JornadaActivaValue> }>(
-        `${apiPaths.jornadas}/activa`,
-        token,
-      );
+      const res = await api.get<{
+        jornada_activa: Record<string, JornadaActivaValue>;
+        activas?: JornadasActivasPorRama;
+      }>(`${apiPaths.jornadas}/activa`, token);
       setJornadaActiva(res.jornada_activa ?? {});
+      setActivas(
+        res.activas ?? {
+          varonil: null,
+          femenil: null,
+        },
+      );
     } catch {
       setJornadaActiva({});
+      setActivas({ varonil: null, femenil: null });
     } finally {
       setLoading(false);
     }
@@ -41,12 +57,13 @@ export function useJornadas() {
     fetchJornada();
   }, [fetchJornada]);
 
-  return { jornadaActiva, loading, refetch: fetchJornada };
+  return { jornadaActiva, activas, loading, refetch: fetchJornada };
 }
 
 export function useJornadasDisponibles(filters?: {
   concesionId?: string;
   sucursalId?: string;
+  rama?: JornadaRama;
 }) {
   const { token } = useAuth();
   const [jornadas, setJornadas] = useState<JornadaDisponible[]>([]);
@@ -65,6 +82,7 @@ export function useJornadasDisponibles(filters?: {
       const qs = new URLSearchParams();
       if (filters?.concesionId) qs.set("concesionId", filters.concesionId);
       if (filters?.sucursalId) qs.set("sucursalId", filters.sucursalId);
+      if (filters?.rama) qs.set("rama", filters.rama);
       const query = qs.toString();
       const path = query
         ? `${apiPaths.jornadas}/disponibles?${query}`
@@ -88,10 +106,11 @@ export function useJornadasDisponibles(filters?: {
 
 export function useInventarioJornadaActiva(
   sucursalId?: string,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean; rama?: JornadaRama },
 ) {
   const { token } = useAuth();
   const enabled = options?.enabled !== false;
+  const rama: JornadaRama = options?.rama ?? "varonil";
   const [inventario, setInventario] = useState<Inventario | null>(null);
   const [jornada, setJornada] = useState<JornadaActivaValue | null>(null);
   const [movimientos, setMovimientos] = useState<InventarioMovimiento[]>([]);
@@ -125,7 +144,7 @@ export function useInventarioJornadaActiva(
     setLoading(true);
     setError(null);
     try {
-      const qs = new URLSearchParams({ includeProductos: "true" });
+      const qs = new URLSearchParams({ includeProductos: "true", rama });
       if (sucursalId) qs.set("sucursalId", sucursalId);
       const res = await api.get<ApiResponse<InventarioJornadaActivaData>>(
         `${apiPaths.inventarios}/jornada-activa?${qs.toString()}`,
@@ -142,11 +161,12 @@ export function useInventarioJornadaActiva(
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar inventario");
       setInventario(null);
+      setJornada(null);
       setMovimientos([]);
     } finally {
       setLoading(false);
     }
-  }, [token, enabled, sucursalId, fetchMovimientos]);
+  }, [token, enabled, sucursalId, rama, fetchMovimientos]);
 
   const openInventarioJornadaActiva = useCallback(async () => {
     if (!token) throw new Error("Sin sesión");
@@ -154,7 +174,7 @@ export function useInventarioJornadaActiva(
     setError(null);
     const res = await api.post<ApiResponse<InventarioJornadaActivaData>>(
       `${apiPaths.inventarios}/jornada-activa`,
-      { sucursalId },
+      { sucursalId, rama },
       token,
     );
     const payload = res.data!;
@@ -164,7 +184,7 @@ export function useInventarioJornadaActiva(
       await fetchMovimientos(payload.inventario.id);
     }
     return payload;
-  }, [token, sucursalId, fetchMovimientos]);
+  }, [token, sucursalId, rama, fetchMovimientos]);
 
   const upsertProducto = useCallback(
     async (
@@ -249,14 +269,17 @@ export function useInventarios(includeProductos = false) {
     }
   }, [token, includeProductos]);
 
-  const getInventarioJornadaActiva = useCallback(async () => {
-    if (!token) throw new Error("Sin sesión");
-    const res = await api.get<ApiResponse<InventarioJornadaActivaData>>(
-      `${apiPaths.inventarios}/jornada-activa?includeProductos=true`,
-      token,
-    );
-    return res.data!;
-  }, [token]);
+  const getInventarioJornadaActiva = useCallback(
+    async (rama: JornadaRama = "varonil") => {
+      if (!token) throw new Error("Sin sesión");
+      const res = await api.get<ApiResponse<InventarioJornadaActivaData>>(
+        `${apiPaths.inventarios}/jornada-activa?includeProductos=true&rama=${rama}`,
+        token,
+      );
+      return res.data!;
+    },
+    [token],
+  );
 
   useEffect(() => {
     fetchInventarios();

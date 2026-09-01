@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { CheckCircle2, ClipboardCheck, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -15,12 +15,23 @@ import {
 import { RequireRole } from "@/components/auth/require-role";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
-import { useInventarioJornadaActiva } from "@/hooks/use-inventarios";
+import { useInventarioJornadaActiva, useJornadas } from "@/hooks/use-inventarios";
 import { useProducts } from "@/hooks/use-products";
 import { useSucursales } from "@/hooks/use-sucursales";
 import { api, apiPaths, ApiError, type ApiResponse } from "@/lib/api/client";
 import { formatPrice } from "@/lib/format";
+import {
+  buildJornadaId,
+  buildJornadaSelectLabel,
+  normalizeFechaJornada,
+  parseJornadaId,
+  type JornadaRama,
+} from "@/lib/jornada";
 import { UserRole, type Corte, type InventarioProducto } from "@/lib/types";
+import {
+  JornadaSelect,
+  type JornadaSelectOption,
+} from "@/components/dashboard/jornada-select";
 import "@/styles/wizard-alta.css";
 
 type ConteoRow = {
@@ -38,14 +49,64 @@ export default function HacerCortePage() {
   const perms = usePermissions();
   const { products } = useProducts();
   const { sucursales } = useSucursales();
+  const { activas, loading: jornadasLoading } = useJornadas();
 
   const sucursalId = perms.sucursalId ?? "";
   const sucursalNombre =
     sucursales.find((s) => s.id === sucursalId)?.nombre ?? sucursalId;
 
+  const [selectedJornadaId, setSelectedJornadaId] = useState("");
+
+  const jornadaOptions = useMemo<JornadaSelectOption[]>(() => {
+    const opts: JornadaSelectOption[] = [];
+    for (const ramaOpt of ["varonil", "femenil"] as const) {
+      const j = activas[ramaOpt];
+      if (!j?.fecha || j.jornada == null) continue;
+      const fecha = normalizeFechaJornada(String(j.fecha));
+      const numero = Number(j.jornada);
+      opts.push({
+        jornadaId: buildJornadaId(fecha, numero, ramaOpt),
+        numero,
+        fecha,
+        rama: ramaOpt,
+        activa: true,
+        equipoLocal: j.equipo_local,
+        equipoVisitante: j.equipo_visitante,
+        etiqueta: buildJornadaSelectLabel({
+          numero,
+          fecha,
+          rama: ramaOpt,
+          equipoLocal: j.equipo_local,
+          equipoVisitante: j.equipo_visitante,
+          activa: true,
+        }),
+      });
+    }
+    return opts;
+  }, [activas]);
+
+  useEffect(() => {
+    if (jornadasLoading) return;
+    if (
+      selectedJornadaId &&
+      jornadaOptions.some((j) => j.jornadaId === selectedJornadaId)
+    ) {
+      return;
+    }
+    if (jornadaOptions.length > 0) {
+      setSelectedJornadaId(jornadaOptions[0].jornadaId);
+    } else if (selectedJornadaId) {
+      setSelectedJornadaId("");
+    }
+  }, [jornadasLoading, jornadaOptions, selectedJornadaId]);
+
+  const rama: JornadaRama =
+    parseJornadaId(selectedJornadaId)?.rama ?? "varonil";
+
   const { inventario, jornada, loading, error, refetch } =
     useInventarioJornadaActiva(sucursalId || undefined, {
-      enabled: Boolean(sucursalId),
+      enabled: Boolean(sucursalId) && Boolean(selectedJornadaId),
+      rama,
     });
 
   const [conteos, setConteos] = useState<Record<string, string>>({});
@@ -106,13 +167,29 @@ export default function HacerCortePage() {
     setActionError(null);
   };
 
-  const jornadaLabel = jornada
-    ? `Jornada ${jornada.jornada ?? "—"}${jornada.fecha ? ` · ${jornada.fecha}` : ""}${
-        jornada.equipo_local || jornada.equipo_visitante
-          ? ` · ${jornada.equipo_local ?? "—"} vs ${jornada.equipo_visitante ?? "—"}`
-          : ""
-      }`
-    : "Sin jornada activa";
+  const jornadaSeleccionada = jornadaOptions.find(
+    (j) => j.jornadaId === selectedJornadaId,
+  );
+
+  const jornadaLabel = jornadaSeleccionada
+    ? buildJornadaSelectLabel({
+        numero: jornadaSeleccionada.numero,
+        fecha: jornadaSeleccionada.fecha,
+        rama: jornadaSeleccionada.rama,
+        equipoLocal: jornadaSeleccionada.equipoLocal,
+        equipoVisitante: jornadaSeleccionada.equipoVisitante,
+        activa: true,
+      })
+    : jornada
+      ? buildJornadaSelectLabel({
+          numero: Number(jornada.jornada ?? 0),
+          fecha: String(jornada.fecha ?? ""),
+          rama,
+          equipoLocal: jornada.equipo_local,
+          equipoVisitante: jornada.equipo_visitante,
+          activa: true,
+        })
+      : "Sin jornada activa";
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -222,6 +299,23 @@ export default function HacerCortePage() {
                 </h2>
                 <p className="wizard-alta__panel-sub">{jornadaLabel}</p>
               </div>
+            </div>
+            <div className="min-w-[22rem]">
+              <Field label="Jornada" htmlFor="jornada-corte">
+                <JornadaSelect
+                  id="jornada-corte"
+                  value={selectedJornadaId}
+                  onValueChange={(id) => {
+                    setSelectedJornadaId(id);
+                    setConteos({});
+                    setCorteCerrado(null);
+                    setActionError(null);
+                  }}
+                  options={jornadaOptions}
+                  loading={jornadasLoading}
+                  placeholder="Selecciona jornada activa"
+                />
+              </Field>
             </div>
           </div>
 

@@ -74,10 +74,7 @@ export function AppTopbar() {
   const roleLabel = perms.role ? roleLabels[perms.role] ?? perms.role : "Usuario";
 
   return (
-    <header
-      className="sticky top-0 z-30 flex h-[var(--topbar-height)] items-center justify-between border-b border-border bg-white px-4 md:px-6"
-      style={{ height: "var(--topbar-height)" }}
-    >
+    <header className="z-30 flex h-[var(--topbar-height)] shrink-0 items-center justify-between border-b border-border bg-white px-4 md:px-6">
       <div className="flex items-center gap-3">
         <Sheet
           open={isLocked ? false : mobileOpen}

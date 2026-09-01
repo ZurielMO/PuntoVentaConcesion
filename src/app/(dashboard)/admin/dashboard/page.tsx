@@ -30,16 +30,28 @@ export default function AdminDashboardPage() {
 
   // Ventas de la jornada activa (el inventario ahora es por sucursal,
   // por lo que se filtra por jornadaId en lugar de inventarioId).
-  const jornadaId = useMemo(() => {
+  const jornadaIds = useMemo(() => {
     const entries = Object.values(jornadaActiva);
-    const activa = entries.find((j) => j.activo) ?? entries[0];
-    if (!activa?.fecha || activa.jornada == null) return null;
-    return buildJornadaId(String(activa.fecha), Number(activa.jornada));
+    const ids = new Set<string>();
+    for (const activa of entries) {
+      if (!activa?.fecha || activa.jornada == null) continue;
+      ids.add(
+        buildJornadaId(
+          String(activa.fecha),
+          Number(activa.jornada),
+          activa.rama,
+        ),
+      );
+    }
+    return ids;
   }, [jornadaActiva]);
 
   const ventas = useMemo(
-    () => (jornadaId ? ventasAll.filter((v) => v.jornadaId === jornadaId) : []),
-    [ventasAll, jornadaId],
+    () =>
+      jornadaIds.size > 0
+        ? ventasAll.filter((v) => v.jornadaId && jornadaIds.has(v.jornadaId))
+        : [],
+    [ventasAll, jornadaIds],
   );
 
   const productoNombre = (id: string) =>

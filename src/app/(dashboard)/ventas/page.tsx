@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Eye, Minus, Plus, RefreshCw, ShoppingBag, CalendarDays } from "lucide-react";
+import { Eye, Minus, Plus, RefreshCw, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
@@ -21,15 +21,35 @@ import { VentaDetalleDialog } from "@/components/dashboard/venta-detalle-dialog"
 import { MetricCard } from "@/components/pos/metric-card";
 import { PosProductTile } from "@/components/pos/pos-product-tile";
 import { useDetalleVentas } from "@/hooks/use-cortes";
-import { useInventarioJornadaActiva } from "@/hooks/use-inventarios";
+import {
+  useInventarioJornadaActiva,
+  useJornadas,
+  useJornadasDisponibles,
+} from "@/hooks/use-inventarios";
 import { useProducts, type Product } from "@/hooks/use-products";
 import { useSucursales } from "@/hooks/use-sucursales";
 import { useConcessions } from "@/hooks/use-concessions";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useAsignacionesCajas } from "@/hooks/use-asignaciones-cajas";
 import { formatDateTime, formatPrice } from "@/lib/format";
-import { buildJornadaId } from "@/lib/jornada";
+import {
+  buildJornadaSelectLabel,
+  formatJornadaLabel,
+  isJornadaTodas,
+  JORNADA_TODAS_LABEL,
+  normalizeRama,
+  parseJornadaId,
+  type JornadaRama,
+} from "@/lib/jornada";
+import { buildJornadaSelectOptions } from "@/lib/jornada-select-options";
+import { isVentaPalcos } from "@/lib/venta-palcos";
 import type { ComprobanteVenta } from "@/lib/types";
+import {
+  JornadaSelect,
+  type JornadaSelectOption,
+} from "@/components/dashboard/jornada-select";
+import { Badge } from "@/components/ui/badge";
+import { Field } from "@/components/ui/field";
 
 export default function VentasPage() {
   const perms = usePermissions();
@@ -37,20 +57,69 @@ export default function VentasPage() {
   const { products } = useProducts();
   const { sucursales } = useSucursales();
   const { fetchMiCaja } = useAsignacionesCajas();
+  const { activas, loading: activasLoading } = useJornadas();
 
   const [filterConcesionId, setFilterConcesionId] = useState("");
   const [filterSucursalId, setFilterSucursalId] = useState("");
   const [filterCajaId, setFilterCajaId] = useState("");
+  const [selectedJornadaId, setSelectedJornadaId] = useState("");
   const [miCajaNombre, setMiCajaNombre] = useState<string | null>(null);
   const [detalleVenta, setDetalleVenta] = useState<ComprobanteVenta | null>(null);
 
+  const effectiveConcesionId = useMemo(() => {
+    if (perms.isSuperAdmin) return filterConcesionId;
+    return perms.concesionId ?? filterConcesionId;
+  }, [perms.isSuperAdmin, perms.concesionId, filterConcesionId]);
+
+  const { jornadas, loading: jornadasLoading } = useJornadasDisponibles({
+    concesionId: effectiveConcesionId || undefined,
+    sucursalId: filterSucursalId || undefined,
+  });
+
+  const jornadaOptions = useMemo<JornadaSelectOption[]>(
+    () => buildJornadaSelectOptions(jornadas, activas),
+    [jornadas, activas],
+  );
+
+  const jornadasReady = !jornadasLoading && !activasLoading;
+
+  useEffect(() => {
+    if (!jornadasReady) return;
+    if (
+      selectedJornadaId &&
+      (isJornadaTodas(selectedJornadaId) ||
+        jornadaOptions.some((j) => j.jornadaId === selectedJornadaId))
+    ) {
+      return;
+    }
+    const activaOpt = jornadaOptions.find((j) => j.activa);
+    if (activaOpt) {
+      setSelectedJornadaId(activaOpt.jornadaId);
+    } else if (jornadaOptions.length > 0) {
+      setSelectedJornadaId(jornadaOptions[0].jornadaId);
+    } else if (selectedJornadaId) {
+      setSelectedJornadaId("");
+    }
+  }, [jornadasReady, jornadaOptions, selectedJornadaId]);
+
+  const todasLasJornadas = isJornadaTodas(selectedJornadaId);
+
+  const selectedJornada = todasLasJornadas
+    ? undefined
+    : jornadaOptions.find((j) => j.jornadaId === selectedJornadaId);
+  const rama: JornadaRama =
+    parseJornadaId(selectedJornadaId)?.rama ??
+    normalizeRama(selectedJornada?.rama);
+  const selectedIsActive = Boolean(selectedJornada?.activa);
+
   const sucursalId = perms.sucursalId ?? filterSucursalId;
 
-  // El inventario ahora es por sucursal: vendedor usa la suya, admin/superadmin
-  // usan la sucursal seleccionada en el filtro.
+  // Inventario solo para POS en jornada activa.
   const inventarioSucursalId = perms.isVendedor
     ? perms.sucursalId ?? undefined
     : filterSucursalId || undefined;
+
+  const showPos = perms.canManageVentas && !perms.isSuperAdmin;
 
   const {
     inventario,
@@ -59,44 +128,60 @@ export default function VentasPage() {
     error: inventarioError,
     refetch: refetchInventario,
   } = useInventarioJornadaActiva(inventarioSucursalId, {
-    enabled: Boolean(inventarioSucursalId),
+    enabled:
+      showPos &&
+      selectedIsActive &&
+      Boolean(inventarioSucursalId) &&
+      Boolean(selectedJornadaId),
+    rama,
   });
-  const jornadaId =
-    inventario?.jornada_fecha && inventario?.jornada_numero != null
-      ? buildJornadaId(inventario.jornada_fecha, inventario.jornada_numero)
-      : jornada?.fecha && jornada?.jornada != null
-        ? buildJornadaId(String(jornada.fecha), Number(jornada.jornada))
-        : undefined;
+
+  const jornadaId = todasLasJornadas ? undefined : selectedJornadaId || undefined;
 
   const ventaFilters = useMemo(() => {
+    const base: {
+      concesionId?: string;
+      sucursalId?: string;
+      cajaId?: string;
+      jornadaId?: string;
+    } = {};
+
+    if (!todasLasJornadas && selectedJornadaId) {
+      base.jornadaId = selectedJornadaId;
+    }
+
     if (perms.isSuperAdmin) {
       return {
+        ...base,
         concesionId: filterConcesionId || undefined,
         sucursalId: filterSucursalId || undefined,
         cajaId: filterCajaId || undefined,
-        inventarioId: inventario?.id,
       };
     }
     if (perms.isAdmin) {
       return {
-        inventarioId: inventario?.id,
+        ...base,
+        concesionId: perms.concesionId || undefined,
         sucursalId: filterSucursalId || undefined,
         cajaId: filterCajaId || undefined,
       };
     }
     return {
-      inventarioId: inventario?.id,
+      ...base,
+      concesionId: perms.concesionId || undefined,
       sucursalId: sucursalId || undefined,
       cajaId: filterCajaId || perms.cajaId || undefined,
     };
   }, [
     perms.isSuperAdmin,
     perms.isAdmin,
+    perms.concesionId,
     perms.cajaId,
     filterConcesionId,
     filterSucursalId,
     filterCajaId,
-    inventario?.id,
+    selectedJornadaId,
+    todasLasJornadas,
     sucursalId,
   ]);
 
@@ -108,14 +193,12 @@ export default function VentasPage() {
   const [cartOpen, setCartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const showPos = perms.canManageVentas && !perms.isSuperAdmin;
-
   const sucursalesFiltradas = useMemo(() => {
-    const activas = sucursales.filter((s) => s.activo !== false);
+    const list = sucursales.filter((s) => s.activo !== false);
     if (perms.isSuperAdmin && filterConcesionId) {
-      return activas.filter((s) => s.concesion_id === filterConcesionId);
+      return list.filter((s) => s.concesion_id === filterConcesionId);
     }
-    return activas;
+    return list;
   }, [sucursales, perms.isSuperAdmin, filterConcesionId]);
 
   const cajasFiltradas = useMemo(() => {
@@ -127,12 +210,14 @@ export default function VentasPage() {
   }, [sucursales, filterSucursalId, sucursalId, perms.isAdmin, perms.isSuperAdmin]);
 
   useEffect(() => {
-    if (!jornadaId || !sucursalId || !perms.isVendedor) return;
+    if (!jornadaId || !sucursalId || !perms.isVendedor || !selectedIsActive) {
+      return;
+    }
     void fetchMiCaja(jornadaId, sucursalId).then((caja) => {
       setMiCajaNombre(caja?.nombre ?? null);
       if (caja?.id) setFilterCajaId(caja.id);
     });
-  }, [jornadaId, sucursalId, perms.isVendedor, fetchMiCaja]);
+  }, [jornadaId, sucursalId, perms.isVendedor, selectedIsActive, fetchMiCaja]);
 
   const stockMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -157,13 +242,27 @@ export default function VentasPage() {
   const sucursalNombreLabel = (id?: string | null) =>
     sucursales.find((s) => s.id === id)?.nombre ?? id ?? "—";
 
-  const jornadaLabel = jornada
-    ? `Jornada ${jornada.jornada ?? "—"}${jornada.fecha ? ` · ${jornada.fecha}` : ""}${
-        jornada.equipo_local && jornada.equipo_visitante
-          ? ` · ${jornada.equipo_local} vs ${jornada.equipo_visitante}`
-          : ""
-      }`
-    : "Sin jornada activa";
+  const jornadaLabel = todasLasJornadas
+    ? JORNADA_TODAS_LABEL
+    : selectedJornada
+      ? buildJornadaSelectLabel({
+          numero: selectedJornada.numero,
+          fecha: selectedJornada.fecha,
+          rama: selectedJornada.rama,
+          equipoLocal: selectedJornada.equipoLocal,
+          equipoVisitante: selectedJornada.equipoVisitante,
+          activa: selectedIsActive,
+        })
+      : jornada
+        ? buildJornadaSelectLabel({
+            numero: Number(jornada.jornada ?? 0),
+            fecha: String(jornada.fecha ?? ""),
+            rama,
+            equipoLocal: jornada.equipo_local,
+            equipoVisitante: jornada.equipo_visitante,
+            activa: selectedIsActive,
+          })
+        : "Sin jornada seleccionada";
 
   const cajaLabel =
     miCajaNombre ??
@@ -171,7 +270,11 @@ export default function VentasPage() {
     (perms.cajaId ? "Caja asignada" : "Sin caja");
 
   const canSell = Boolean(
-    showPos && inventario?.id && perms.concesionId && sucursalId,
+    showPos &&
+      selectedIsActive &&
+      inventario?.id &&
+      perms.concesionId &&
+      sucursalId,
   );
 
   const openCart = (product: Product) => {
@@ -268,12 +371,25 @@ export default function VentasPage() {
               ? "Ventas por caja"
               : "Mis ventas"}
           </h2>
-          <div className="flex flex-wrap gap-2">
-            {perms.isSuperAdmin && (
+        </div>
+
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Jornada" htmlFor="filtro-jornada-ventas">
+            <JornadaSelect
+              id="filtro-jornada-ventas"
+              value={selectedJornadaId}
+              onValueChange={setSelectedJornadaId}
+              options={jornadaOptions}
+              loading={!jornadasReady}
+              placeholder="Selecciona jornada"
+              includeAllOption
+            />
+          </Field>
+          {perms.isSuperAdmin && (
+            <Field label="Concesión" htmlFor="filtro-concesion-ventas">
               <NativeSelect
-                className="w-52"
+                id="filtro-concesion-ventas"
                 value={filterConcesionId}
-                aria-label="Filtrar por concesión"
                 onChange={(e) => {
                   setFilterConcesionId(e.target.value);
                   setFilterSucursalId("");
@@ -289,13 +405,14 @@ export default function VentasPage() {
                     </option>
                   ))}
               </NativeSelect>
-            )}
-            {(perms.isAdmin || perms.isSuperAdmin) && (
-              <>
+            </Field>
+          )}
+          {(perms.isAdmin || perms.isSuperAdmin) && (
+            <>
+              <Field label="Sucursal" htmlFor="filtro-sucursal-ventas">
                 <NativeSelect
-                  className="w-52"
+                  id="filtro-sucursal-ventas"
                   value={filterSucursalId}
-                  aria-label="Filtrar por sucursal"
                   onChange={(e) => {
                     setFilterSucursalId(e.target.value);
                     setFilterCajaId("");
@@ -308,10 +425,11 @@ export default function VentasPage() {
                     </option>
                   ))}
                 </NativeSelect>
+              </Field>
+              <Field label="Caja" htmlFor="filtro-caja-ventas">
                 <NativeSelect
-                  className="w-44"
+                  id="filtro-caja-ventas"
                   value={filterCajaId}
-                  aria-label="Filtrar por caja"
                   onChange={(e) => setFilterCajaId(e.target.value)}
                   disabled={!filterSucursalId}
                 >
@@ -322,13 +440,13 @@ export default function VentasPage() {
                     </option>
                   ))}
                 </NativeSelect>
-              </>
-            )}
-          </div>
+              </Field>
+            </>
+          )}
         </div>
 
         {error && (
-          <div className="mb-4 rounded-[8px] border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
+          <div className="mb-4 rounded-sm border border-destructive/20 bg-red-50 p-4 text-[1.4rem] text-destructive">
             {error}
           </div>
         )}
@@ -337,13 +455,30 @@ export default function VentasPage() {
           loading={loading}
           data={ventas}
           getRowKey={(v) => v.id}
-          emptyMessage="No hay ventas para los filtros seleccionados."
+          pageSize={20}
+          emptyMessage={
+            todasLasJornadas
+              ? "No hay ventas con los filtros seleccionados."
+              : selectedJornadaId
+                ? "No hay ventas para esta jornada con los filtros seleccionados."
+                : "Selecciona una jornada para ver las ventas."
+          }
           columns={[
             {
               key: "fecha",
               header: "Fecha",
               cell: (v) => formatDateTime(v.fecha ?? v.createdAt),
             },
+            ...(todasLasJornadas
+              ? [
+                  {
+                    key: "jornada",
+                    header: "Jornada",
+                    cell: (v: ComprobanteVenta) =>
+                      v.jornadaId ? formatJornadaLabel(v.jornadaId) : "—",
+                  },
+                ]
+              : []),
             ...(perms.isSuperAdmin
               ? [
                   {
@@ -361,7 +496,19 @@ export default function VentasPage() {
             {
               key: "caja",
               header: "Caja",
-              cell: (v) => v.cajaNombre ?? "—",
+              cell: (v) => (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span>{v.cajaNombre ?? "—"}</span>
+                  {isVentaPalcos(v) && (
+                    <Badge
+                      variant="secondary"
+                      className="border-sky-200 bg-sky-50 text-sky-900"
+                    >
+                      Palcos
+                    </Badge>
+                  )}
+                </div>
+              ),
             },
             {
               key: "cajero",
