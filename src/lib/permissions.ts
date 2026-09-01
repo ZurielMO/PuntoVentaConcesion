@@ -52,6 +52,8 @@ export type PermissionFlags = {
   canViewSucursales: boolean;
   /** Cierre de día por conteo de inventario final (admin cervecería). */
   canHacerCorte: boolean;
+  /** Central VIP / KDS: mismos roles que el backend (`requireAdminOrSuperAdmin`). */
+  canAccessVipCentral: boolean;
 };
 
 export const getPermissions = (posUser: PosUser | null | undefined): PermissionFlags => {
@@ -97,6 +99,7 @@ export const getPermissions = (posUser: PosUser | null | undefined): PermissionF
     canViewCortes: isSuperAdmin || isAdmin || isAdminCerveceria || isVendedor,
     canViewSucursales: isSuperAdmin || isAdmin || isAdminCerveceria,
     canHacerCorte: isAdminCerveceria,
+    canAccessVipCentral: isSuperAdmin || isAdmin,
   };
 };
 

@@ -18,6 +18,7 @@ async function handleProxy(
     const value = request.headers.get(name);
     if (value) headers[name] = value;
   }
+  headers["x-forwarded-origin"] = request.nextUrl.origin;
 
   const init: RequestInit = {
     method: request.method,
@@ -68,6 +69,8 @@ async function handleProxy(
   }
   const requestId = backendRes.headers.get("x-request-id");
   if (requestId) responseHeaders["x-request-id"] = requestId;
+  const cacheControl = backendRes.headers.get("Cache-Control");
+  if (cacheControl) responseHeaders["Cache-Control"] = cacheControl;
 
   return new NextResponse(responseBody, {
     status,

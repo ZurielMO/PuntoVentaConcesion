@@ -11,6 +11,13 @@ const nextConfig: NextConfig = isFtpExport
       // Un prefijo http:// lo bloquea Chrome por mixed-content al forzar HTTPS.
     }
   : {
+      allowedDevOrigins: ["172.18.2.131", "http://172.18.2.131:9002"],
+      async redirects() {
+        return [
+          { source: "/vip", destination: "/servicio-palcos", permanent: true },
+          { source: "/vip/:path*", destination: "/servicio-palcos/:path*", permanent: true },
+        ];
+      },
       async headers() {
         return [
           {

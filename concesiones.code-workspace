@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../PuntoVentaConcesionBackend"
+		},
+		{
+			"path": "../../BackendCL"
+		}
+	],
+	"settings": {}
+}

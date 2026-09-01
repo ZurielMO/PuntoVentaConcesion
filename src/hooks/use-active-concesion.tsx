@@ -26,7 +26,9 @@ const ActiveConcesionContext = createContext<ActiveConcesionContextValue | null>
 
 export function ActiveConcesionProvider({ children }: { children: ReactNode }) {
   const perms = usePermissions();
-  const { concessions } = useConcessions();
+  const { concessions } = useConcessions({
+    enabled: !perms.loading && perms.isSuperAdmin,
+  });
   const [activeConcesionId, setActiveConcesionIdState] = useState<string | null>(
     null,
   );
