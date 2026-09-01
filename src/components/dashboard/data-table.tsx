@@ -19,6 +19,10 @@ type Column<T> = {
   header: string;
   cell: (row: T) => ReactNode;
   className?: string;
+  /** Oculta la columna en la vista de tarjetas móvil. */
+  hideOnMobile?: boolean;
+  /** "action" muestra el contenido como botón ancho al pie de la tarjeta. */
+  mobileRole?: "action" | "primary";
 };
 
 type DataTableProps<T> = {
@@ -31,6 +35,57 @@ type DataTableProps<T> = {
   /** Si se define, pagina los registros en el cliente. */
   pageSize?: number;
 };
+
+function TablePagination({
+  from,
+  to,
+  total,
+  safePage,
+  totalPages,
+  onPrev,
+  onNext,
+}: {
+  from: number;
+  to: number;
+  total: number;
+  safePage: number;
+  totalPages: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 border-t border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+      <p className="text-center text-[1.25rem] text-muted-foreground sm:text-left sm:text-[1.3rem]">
+        Mostrando {from}–{to} de {total}
+      </p>
+      <div className="flex items-center justify-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={safePage <= 1}
+          onClick={onPrev}
+        >
+          <ChevronLeft className="size-4" />
+          Anterior
+        </Button>
+        <span className="min-w-[6rem] text-center text-[1.25rem] font-medium sm:min-w-[7rem] sm:text-[1.3rem]">
+          {safePage} / {totalPages}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={safePage >= totalPages}
+          onClick={onNext}
+        >
+          Siguiente
+          <ChevronRight className="size-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function DataTable<T>({
   columns,
@@ -60,6 +115,21 @@ export function DataTable<T>({
     return data.slice(start, start + effectivePageSize);
   }, [data, effectivePageSize, safePage]);
 
+  const mobileColumns = useMemo(
+    () => columns.filter((col) => !col.hideOnMobile),
+    [columns],
+  );
+
+  const mobileDataColumns = useMemo(
+    () => mobileColumns.filter((col) => col.mobileRole !== "action"),
+    [mobileColumns],
+  );
+
+  const mobileActionColumns = useMemo(
+    () => mobileColumns.filter((col) => col.mobileRole === "action"),
+    [mobileColumns],
+  );
+
   if (loading) {
     return (
       <div className={cn("dashboard-card overflow-hidden", className)}>
@@ -74,8 +144,10 @@ export function DataTable<T>({
 
   if (data.length === 0) {
     return (
-      <div className={cn("dashboard-card p-8 text-center", className)}>
-        <p className="text-[1.4rem] text-muted-foreground">{emptyMessage}</p>
+      <div className={cn("dashboard-card p-6 text-center sm:p-8", className)}>
+        <p className="text-[1.35rem] text-muted-foreground sm:text-[1.4rem]">
+          {emptyMessage}
+        </p>
       </div>
     );
   }
@@ -87,9 +159,46 @@ export function DataTable<T>({
     ? Math.min(safePage * effectivePageSize, data.length)
     : data.length;
 
+  const showPagination = Boolean(effectivePageSize && data.length > effectivePageSize);
+
   return (
     <div className={cn("dashboard-card overflow-hidden", className)}>
-      <div className="overflow-x-auto">
+      {/* Vista móvil: tarjetas apiladas */}
+      <div className="divide-y divide-border md:hidden">
+        {pageRows.map((row) => (
+          <article key={getRowKey(row)} className="space-y-2.5 p-4">
+            {mobileDataColumns.map((col) => (
+              <div
+                key={col.key}
+                className={cn(
+                  "flex items-start justify-between gap-3",
+                  col.mobileRole === "primary" && "border-b border-border/60 pb-2.5",
+                )}
+              >
+                <span className="shrink-0 text-[1.2rem] font-medium text-muted-foreground">
+                  {col.header}
+                </span>
+                <div
+                  className={cn(
+                    "min-w-0 text-right text-[1.35rem]",
+                    col.mobileRole === "primary" && "font-semibold text-green-dark",
+                  )}
+                >
+                  {col.cell(row)}
+                </div>
+              </div>
+            ))}
+            {mobileActionColumns.map((col) => (
+              <div key={col.key} className="pt-1 [&_button]:w-full">
+                {col.cell(row)}
+              </div>
+            ))}
+          </article>
+        ))}
+      </div>
+
+      {/* Vista escritorio: tabla */}
+      <div className="hidden overflow-x-auto md:block">
         <Table className="w-full">
           <TableHeader>
             <TableRow>
@@ -114,37 +223,16 @@ export function DataTable<T>({
         </Table>
       </div>
 
-      {effectivePageSize && data.length > effectivePageSize && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
-          <p className="text-[1.3rem] text-muted-foreground">
-            Mostrando {from}–{to} de {data.length}
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={safePage <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              <ChevronLeft className="size-4" />
-              Anterior
-            </Button>
-            <span className="min-w-[7rem] text-center text-[1.3rem] font-medium">
-              {safePage} / {totalPages}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={safePage >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Siguiente
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </div>
+      {showPagination && (
+        <TablePagination
+          from={from}
+          to={to}
+          total={data.length}
+          safePage={safePage}
+          totalPages={totalPages}
+          onPrev={() => setPage((p) => Math.max(1, p - 1))}
+          onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+        />
       )}
     </div>
   );

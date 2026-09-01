@@ -131,7 +131,7 @@ export function CorteResumenPanel({
         <h3 className={sectionTitle}>Productos vendidos</h3>
         {tableWrap(
           <DataTable<CorteResumenProducto>
-            className="min-w-[32rem]"
+            className="md:min-w-[32rem]"
             data={resumen.productos}
             getRowKey={(p) => `${p.productoId}-${p.precioUnitario}`}
             emptyMessage="Sin productos vendidos en este periodo."
@@ -175,7 +175,7 @@ export function CorteResumenPanel({
           <h3 className={sectionTitle}>Combos vendidos</h3>
           {tableWrap(
             <DataTable<CorteResumenComboLinea>
-              className="min-w-[24rem]"
+              className="md:min-w-[24rem]"
               data={resumen.combos.items}
               getRowKey={(c) => c.comboId}
               emptyMessage="Sin combos vendidos."

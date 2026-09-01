@@ -779,13 +779,13 @@ export default function SucursalesPage() {
                         </p>
                       ) : (
                         <div
-                          className={`wizard-alta__table-wrap${
+                          className={`wizard-alta__table-wrap wizard-alta__table-wrap--cards${
                             equipoDeSucursal.length > 6
                               ? " wizard-alta__table-wrap--scroll"
                               : ""
                           }`}
                         >
-                          <table className="wizard-alta__table">
+                          <table className="wizard-alta__table wizard-alta__table--cards">
                             <thead>
                               <tr>
                                 <th>Nombre</th>
@@ -821,21 +821,27 @@ export default function SucursalesPage() {
                                         : "wizard-alta__table-row--off"
                                     }
                                   >
-                                    <td>
+                                    <td className="wizard-alta__table-card-title">
                                       <span className="wizard-alta__table-name">
                                         {v.nombre}
                                       </span>
                                     </td>
-                                    <td className="wizard-alta__table-muted">
+                                    <td
+                                      className="wizard-alta__table-muted"
+                                      data-label="Correo"
+                                    >
                                       {v.email}
                                     </td>
-                                    <td>
+                                    <td data-label="Caja">
                                       <span className="wizard-alta__chip">
                                         {cajaNombreAsignada}
                                       </span>
                                     </td>
                                     {canAssignEquipo && (
-                                      <td className="wizard-alta__table-actions-col">
+                                      <td
+                                        className="wizard-alta__table-actions-col"
+                                        data-label="Acciones"
+                                      >
                                         <div className="wizard-alta__table-actions">
                                           {v.cajaId ? (
                                             <button
@@ -980,13 +986,13 @@ export default function SucursalesPage() {
                         </p>
                       ) : (
                         <div
-                          className={`wizard-alta__table-wrap${
+                          className={`wizard-alta__table-wrap wizard-alta__table-wrap--cards${
                             cajasDeSucursal.length > 5
                               ? " wizard-alta__table-wrap--scroll"
                               : ""
                           }`}
                         >
-                          <table className="wizard-alta__table">
+                          <table className="wizard-alta__table wizard-alta__table--cards">
                             <thead>
                               <tr>
                                 <th>Nombre</th>
@@ -1010,12 +1016,12 @@ export default function SucursalesPage() {
                                         : "wizard-alta__table-row--off"
                                     }
                                   >
-                                    <td>
+                                    <td className="wizard-alta__table-card-title">
                                       <span className="wizard-alta__table-name">
                                         {c.nombre ?? c.id}
                                       </span>
                                     </td>
-                                    <td>
+                                    <td data-label="Estado">
                                       <span
                                         className={`wizard-alta__status-pill ${
                                           activa
@@ -1027,7 +1033,10 @@ export default function SucursalesPage() {
                                       </span>
                                     </td>
                                     {perms.canManageSucursales && (
-                                      <td className="wizard-alta__table-actions-col">
+                                      <td
+                                        className="wizard-alta__table-actions-col"
+                                        data-label="Acciones"
+                                      >
                                         <div className="wizard-alta__table-actions">
                                           <button
                                             type="button"

@@ -313,6 +313,7 @@ export default function DescuentosPage() {
           {
             key: "acciones",
             header: "Acciones",
+            mobileRole: "action",
             cell: (d) => (
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => openEdit(d)}>

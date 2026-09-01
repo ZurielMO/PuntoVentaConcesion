@@ -518,6 +518,7 @@ export default function VentasPage() {
             {
               key: "total",
               header: "Total",
+              mobileRole: "primary",
               cell: (v) => (
                 <span className="font-semibold text-green-dark">
                   {formatPrice(Number(v.total))}
@@ -527,6 +528,7 @@ export default function VentasPage() {
             {
               key: "acciones",
               header: "Detalle",
+              mobileRole: "action",
               cell: (v) => (
                 <Button
                   size="sm"

@@ -300,7 +300,7 @@ export default function HacerCortePage() {
                 <p className="wizard-alta__panel-sub">{jornadaLabel}</p>
               </div>
             </div>
-            <div className="min-w-[22rem]">
+            <div className="w-full md:min-w-[22rem] md:w-auto">
               <Field label="Jornada" htmlFor="jornada-corte">
                 <JornadaSelect
                   id="jornada-corte"
@@ -352,11 +352,11 @@ export default function HacerCortePage() {
                   </div>
 
                   <div
-                    className={`wizard-alta__table-wrap${
+                    className={`wizard-alta__table-wrap wizard-alta__table-wrap--cards${
                       rows.length > 8 ? " wizard-alta__table-wrap--scroll" : ""
                     }`}
                   >
-                    <table className="wizard-alta__table">
+                    <table className="wizard-alta__table wizard-alta__table--cards">
                       <thead>
                         <tr>
                           <th>Producto</th>
@@ -370,15 +370,18 @@ export default function HacerCortePage() {
                       <tbody>
                         {parsedRows.map((row) => (
                           <tr key={row.productoId}>
-                            <td>
+                            <td className="wizard-alta__table-card-title">
                               <span className="wizard-alta__table-name">
                                 {row.nombre}
                               </span>
                             </td>
-                            <td className="wizard-alta__table-muted">
+                            <td
+                              className="wizard-alta__table-muted"
+                              data-label="Inicial"
+                            >
                               {row.inicial}
                             </td>
-                            <td>
+                            <td data-label="Inventario final">
                               <Input
                                 type="number"
                                 min={0}
@@ -392,7 +395,7 @@ export default function HacerCortePage() {
                                 disabled={Boolean(corteCerrado) || submitting}
                                 aria-label={`Inventario final de ${row.nombre}`}
                                 aria-invalid={!row.valido}
-                                className={`w-[10rem] ${
+                                className={`w-full max-w-[12rem] sm:w-[10rem] ${
                                   row.valido ? "" : "border-destructive"
                                 }`}
                               />
@@ -402,15 +405,18 @@ export default function HacerCortePage() {
                                 </p>
                               )}
                             </td>
-                            <td>
+                            <td data-label="Vendido">
                               <span className="wizard-alta__chip">
                                 {row.valido ? row.vendido : "—"}
                               </span>
                             </td>
-                            <td className="wizard-alta__table-muted">
+                            <td
+                              className="wizard-alta__table-muted"
+                              data-label="Precio"
+                            >
                               {formatPrice(row.precio)}
                             </td>
-                            <td>
+                            <td data-label="Venta">
                               <span className="wizard-alta__table-name">
                                 {row.valido ? formatPrice(row.venta) : "—"}
                               </span>

@@ -310,12 +310,12 @@ export default function ConcesionesPage() {
                     </p>
                   ) : (
                     <div
-                      className={`wizard-alta__table-wrap${concessionsVisibles.length > 8
+                      className={`wizard-alta__table-wrap wizard-alta__table-wrap--cards${concessionsVisibles.length > 8
                         ? " wizard-alta__table-wrap--scroll"
                         : ""
                         }`}
                     >
-                      <table className="wizard-alta__table">
+                      <table className="wizard-alta__table wizard-alta__table--cards">
                         <thead>
                           <tr>
                             <th>Nombre</th>
@@ -338,14 +338,14 @@ export default function ConcesionesPage() {
                                     : "wizard-alta__table-row--off"
                                 }
                               >
-                                <td>
+                                <td className="wizard-alta__table-card-title">
                                   <div className="flex items-center gap-3">
                                     {img ? (
                                       // eslint-disable-next-line @next/next/no-img-element
                                       <img
                                         src={img}
                                         alt=""
-                                        className="size-8 shrink-0 rounded-md object-cover"
+                                        className="size-10 shrink-0 rounded-md object-cover"
                                         onError={(e) => {
                                           e.currentTarget.style.display =
                                             "none";
@@ -357,7 +357,7 @@ export default function ConcesionesPage() {
                                     </span>
                                   </div>
                                 </td>
-                                <td>
+                                <td data-label="Estado">
                                   <span
                                     className={`wizard-alta__status-pill ${activo
                                       ? "wizard-alta__status-pill--on"
@@ -367,7 +367,10 @@ export default function ConcesionesPage() {
                                     {activo ? "Activa" : "Inactiva"}
                                   </span>
                                 </td>
-                                <td className="wizard-alta__table-actions-col">
+                                <td
+                                  className="wizard-alta__table-actions-col"
+                                  data-label="Acciones"
+                                >
                                   <div className="wizard-alta__table-actions">
                                     <Link
                                       href={concesionHubPath(c.id)}

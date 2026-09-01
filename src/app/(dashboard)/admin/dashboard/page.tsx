@@ -179,11 +179,13 @@ export default function AdminDashboardPage() {
               {
                 key: "total",
                 header: "Total",
+                mobileRole: "primary",
                 cell: (r) => formatPrice(Number(r.total)),
               },
               {
                 key: "detalle",
                 header: "",
+                mobileRole: "action",
                 cell: (r) => (
                   <Button
                     size="sm"

@@ -168,6 +168,7 @@ export default function TrabajadoresClubPage() {
     {
       key: "acciones",
       header: "",
+      mobileRole: "action" as const,
       cell: (row: TrabajadorClub) => (
         <div className="flex items-center gap-1">
           <Button

@@ -15,12 +15,16 @@ export function DashboardBanner({
   className,
 }: DashboardBannerProps) {
   return (
-    <div className={cn("dashboard-banner relative p-6 md:p-8", className)}>
+    <div className={cn("dashboard-banner relative p-5 sm:p-6 md:p-8", className)}>
       <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="!text-[2.4rem] !font-semibold !text-white">{title}</h2>
+          <h2 className="!text-[2rem] !font-semibold !text-white sm:!text-[2.4rem]">
+            {title}
+          </h2>
           {subtitle && (
-            <p className="mt-2 max-w-xl text-[1.5rem] text-white/80">{subtitle}</p>
+            <p className="mt-2 max-w-xl text-[1.4rem] text-white/80 sm:text-[1.5rem]">
+              {subtitle}
+            </p>
           )}
         </div>
         {action}

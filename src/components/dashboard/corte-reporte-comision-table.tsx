@@ -28,7 +28,7 @@ export function CorteReporteComisionTable({
       <div className="-mx-1 overflow-x-auto px-1">
         <DataTable<ReporteConcesionRow>
           loading={loading}
-          className="min-w-[48rem]"
+          className="md:min-w-[48rem]"
           data={data}
           getRowKey={(row) => row.concesionId}
           emptyMessage="Sin datos de comisión para los filtros seleccionados."

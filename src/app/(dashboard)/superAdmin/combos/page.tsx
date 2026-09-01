@@ -321,6 +321,7 @@ export default function CombosPage() {
           {
             key: "acciones",
             header: "Acciones",
+            mobileRole: "action",
             cell: (c) => (
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => openEdit(c)}>

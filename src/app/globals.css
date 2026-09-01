@@ -137,6 +137,20 @@
 
 html {
   font-size: 62.5%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@media (max-width: 767px) {
+  html {
+    font-size: 58%;
+  }
+
+  :root {
+    --topbar-height: 56px;
+    --outer-gutter: 1.2rem;
+    --pos-tile-min: 132px;
+  }
 }
 
 body {
@@ -147,6 +161,7 @@ body {
   line-height: 1.6;
   letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 h1 {
@@ -339,4 +354,25 @@ h2 {
   --text-primary: #172033;
   --text-secondary: #667085;
   --dashboard-bg: #f5f7fa;
+}
+
+/* Scroll hint for wide tables on mobile */
+.table-scroll-hint {
+  display: block;
+  padding: 0.6rem 0.8rem 0;
+  font-size: 1.2rem;
+  color: var(--text-black-soft);
+}
+
+@media (min-width: 768px) {
+  .table-scroll-hint {
+    display: none;
+  }
+}
+
+/* Safe area for notched phones */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .dashboard-main-safe {
+    padding-bottom: max(1.6rem, env(safe-area-inset-bottom));
+  }
 }

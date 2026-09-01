@@ -381,13 +381,13 @@ export default function ProductsPage() {
                         </p>
                       )}
                       <div
-                        className={`wizard-alta__table-wrap${
+                        className={`wizard-alta__table-wrap wizard-alta__table-wrap--cards${
                           filteredProducts.length > 8
                             ? " wizard-alta__table-wrap--scroll"
                             : ""
                         }`}
                       >
-                        <table className="wizard-alta__table">
+                        <table className="wizard-alta__table wizard-alta__table--cards">
                           <thead>
                             <tr>
                               <th>Nombre</th>
@@ -419,14 +419,14 @@ export default function ProductsPage() {
                                       : "wizard-alta__table-row--off"
                                   }
                                 >
-                                  <td>
+                                  <td className="wizard-alta__table-card-title">
                                     <div className="flex items-center gap-3">
                                       {img ? (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
                                           src={img}
                                           alt=""
-                                          className="size-8 shrink-0 rounded-md object-cover"
+                                          className="size-10 shrink-0 rounded-md object-cover"
                                         />
                                       ) : null}
                                       <span className="wizard-alta__table-name">
@@ -434,20 +434,26 @@ export default function ProductsPage() {
                                       </span>
                                     </div>
                                   </td>
-                                  <td>
+                                  <td data-label="Precio">
                                     <span className="wizard-alta__chip">
                                       {formatPrice(Number(p.precio))}
                                     </span>
                                   </td>
-                                  <td className="wizard-alta__table-muted">
+                                  <td
+                                    className="wizard-alta__table-muted"
+                                    data-label="Unidad"
+                                  >
                                     {p.unidad_medida ?? "Unidad"}
                                   </td>
                                   {isSuperAdmin && !concesionFilter && (
-                                    <td className="wizard-alta__table-muted">
+                                    <td
+                                      className="wizard-alta__table-muted"
+                                      data-label="Concesión"
+                                    >
                                       {concesionNombre(concesionId)}
                                     </td>
                                   )}
-                                  <td>
+                                  <td data-label="Estado">
                                     <span
                                       className={`wizard-alta__status-pill ${
                                         activo
@@ -459,7 +465,10 @@ export default function ProductsPage() {
                                     </span>
                                   </td>
                                   {canManage && (
-                                    <td className="wizard-alta__table-actions-col">
+                                    <td
+                                      className="wizard-alta__table-actions-col"
+                                      data-label="Acciones"
+                                    >
                                       <div className="wizard-alta__table-actions">
                                         <button
                                           type="button"

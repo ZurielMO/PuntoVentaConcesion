@@ -544,13 +544,13 @@ export default function UsuariosPage() {
                         </p>
                       ) : (
                         <div
-                          className={`wizard-alta__table-wrap${
+                          className={`wizard-alta__table-wrap wizard-alta__table-wrap--cards${
                             usersVisibles.length > 8
                               ? " wizard-alta__table-wrap--scroll"
                               : ""
                           }`}
                         >
-                          <table className="wizard-alta__table">
+                          <table className="wizard-alta__table wizard-alta__table--cards">
                             <thead>
                               <tr>
                                 <th>Nombre</th>
@@ -575,19 +575,25 @@ export default function UsuariosPage() {
                                         : "wizard-alta__table-row--off"
                                     }
                                   >
-                                    <td>
+                                    <td className="wizard-alta__table-card-title">
                                       <span className="wizard-alta__table-name">
                                         {u.nombre}
                                       </span>
                                     </td>
-                                    <td className="wizard-alta__table-muted">
+                                    <td
+                                      className="wizard-alta__table-muted"
+                                      data-label="Correo"
+                                    >
                                       {u.email}
                                     </td>
-                                    <td>{rolLabel(u)}</td>
-                                    <td className="wizard-alta__table-muted">
+                                    <td data-label="Rol">{rolLabel(u)}</td>
+                                    <td
+                                      className="wizard-alta__table-muted"
+                                      data-label="Ubicación"
+                                    >
                                       {ubicacionLabel(u)}
                                     </td>
-                                    <td>
+                                    <td data-label="Estado">
                                       <span
                                         className={`wizard-alta__status-pill ${
                                           activo
@@ -598,7 +604,10 @@ export default function UsuariosPage() {
                                         {activo ? "Activo" : "Desactivado"}
                                       </span>
                                     </td>
-                                    <td className="wizard-alta__table-actions-col">
+                                    <td
+                                      className="wizard-alta__table-actions-col"
+                                      data-label="Acciones"
+                                    >
                                       <div className="wizard-alta__table-actions">
                                         <button
                                           type="button"

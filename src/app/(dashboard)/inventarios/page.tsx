@@ -611,13 +611,13 @@ export default function InventariosPage() {
                         </div>
                       ) : (
                         <div
-                          className={`wizard-alta__table-wrap${
+                          className={`wizard-alta__table-wrap wizard-alta__table-wrap--cards${
                             productosEnInventario.length > 8
                               ? " wizard-alta__table-wrap--scroll"
                               : ""
                           }`}
                         >
-                          <table className="wizard-alta__table">
+                          <table className="wizard-alta__table wizard-alta__table--cards">
                             <thead>
                               <tr>
                                 <th>Producto</th>
@@ -632,20 +632,23 @@ export default function InventariosPage() {
                                 const row = stockRow(p);
                                 return (
                                   <tr key={p.id ?? p.producto_id}>
-                                    <td>
+                                    <td className="wizard-alta__table-card-title">
                                       <span className="wizard-alta__table-name">
                                         {productoNombre(p.producto_id)}
                                       </span>
                                     </td>
-                                    <td className="wizard-alta__table-muted">
+                                    <td
+                                      className="wizard-alta__table-muted"
+                                      data-label="Inicial"
+                                    >
                                       {row.inicial}
                                     </td>
-                                    <td>
+                                    <td data-label="Vendido">
                                       <span className="wizard-alta__chip">
                                         {row.vendido}
                                       </span>
                                     </td>
-                                    <td>
+                                    <td data-label="Disponible">
                                       <span
                                         className={`wizard-alta__status-pill ${
                                           row.disponible > 0
@@ -657,7 +660,10 @@ export default function InventariosPage() {
                                       </span>
                                     </td>
                                     {perms.canManageInventario && (
-                                      <td>
+                                      <td
+                                        className="wizard-alta__table-actions-col"
+                                        data-label="Acciones"
+                                      >
                                         <button
                                           type="button"
                                           className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
@@ -697,17 +703,17 @@ export default function InventariosPage() {
                         </p>
                       ) : (
                         <div
-                          className={`wizard-alta__table-wrap${
+                          className={`wizard-alta__table-wrap wizard-alta__table-wrap--cards${
                             movimientos.length > 8
                               ? " wizard-alta__table-wrap--scroll"
                               : ""
                           }`}
                         >
-                          <table className="wizard-alta__table">
+                          <table className="wizard-alta__table wizard-alta__table--cards">
                             <thead>
                               <tr>
-                                <th>Tipo</th>
                                 <th>Producto</th>
+                                <th>Tipo</th>
                                 <th>Cantidad</th>
                                 <th>Detalle</th>
                               </tr>
@@ -715,22 +721,28 @@ export default function InventariosPage() {
                             <tbody>
                               {movimientos.map((m) => (
                                 <tr key={m.id}>
-                                  <td>
-                                    <span className="wizard-alta__chip">
-                                      {movimientoLabel(m)}
-                                    </span>
-                                  </td>
-                                  <td>
+                                  <td className="wizard-alta__table-card-title">
                                     <span className="wizard-alta__table-name">
                                       {productoNombre(m.producto_id)}
                                     </span>
                                   </td>
-                                  <td className="wizard-alta__table-muted">
+                                  <td data-label="Tipo">
+                                    <span className="wizard-alta__chip">
+                                      {movimientoLabel(m)}
+                                    </span>
+                                  </td>
+                                  <td
+                                    data-label="Cantidad"
+                                    className="wizard-alta__table-muted"
+                                  >
                                     {m.cantidad > 0 ? "+" : ""}
                                     {m.cantidad} ({m.cantidad_anterior} →{" "}
                                     {m.cantidad_nueva})
                                   </td>
-                                  <td className="wizard-alta__table-muted">
+                                  <td
+                                    data-label="Detalle"
+                                    className="wizard-alta__table-muted"
+                                  >
                                     {[
                                       m.tipo === "VENTA" && m.sucursal_id
                                         ? `Sucursal ${sucursalNombre(m.sucursal_id)}`

@@ -163,13 +163,13 @@ export default function ZonasPage() {
                     desactiva las que ya no uses.
                   </p>
                   <div
-                    className={`wizard-alta__table-wrap${
+                    className={`wizard-alta__table-wrap wizard-alta__table-wrap--cards${
                       zonas.length > 8
                         ? " wizard-alta__table-wrap--scroll"
                         : ""
                     }`}
                   >
-                    <table className="wizard-alta__table">
+                    <table className="wizard-alta__table wizard-alta__table--cards">
                       <thead>
                         <tr>
                           <th>Nombre</th>
@@ -191,12 +191,12 @@ export default function ZonasPage() {
                                   : "wizard-alta__table-row--off"
                               }
                             >
-                              <td>
+                              <td className="wizard-alta__table-card-title">
                                 <span className="wizard-alta__table-name">
                                   {z.zona}
                                 </span>
                               </td>
-                              <td>
+                              <td data-label="Estado">
                                 <span
                                   className={`wizard-alta__status-pill ${
                                     activo
@@ -207,7 +207,10 @@ export default function ZonasPage() {
                                   {activo ? "Activa" : "Inactiva"}
                                 </span>
                               </td>
-                              <td className="wizard-alta__table-actions-col">
+                              <td
+                                className="wizard-alta__table-actions-col"
+                                data-label="Acciones"
+                              >
                                 <div className="wizard-alta__table-actions">
                                   <button
                                     type="button"

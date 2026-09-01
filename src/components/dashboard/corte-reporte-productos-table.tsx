@@ -57,7 +57,8 @@ export function CorteReporteProductosTable({
 
   return (
     <div className="-mx-1 overflow-x-auto px-1">
-      <table className="w-full min-w-[84rem] border-collapse text-sm">
+      <p className="table-scroll-hint">Desliza horizontalmente para ver todas las columnas →</p>
+      <table className="w-full min-w-[56rem] border-collapse text-sm md:min-w-[84rem]">
         <thead>
           <tr className="border-b border-border">
             <th className={thClass}>Producto</th>

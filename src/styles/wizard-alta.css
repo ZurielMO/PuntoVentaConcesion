@@ -210,8 +210,20 @@
 }
 
 .wizard-alta__panel-head {
-  padding: 2rem 2.4rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  padding: 1.6rem 1.6rem 0;
   border-bottom: 1px solid var(--wz-border);
+}
+
+@media (min-width: 768px) {
+  .wizard-alta__panel-head {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 2rem 2.4rem 0;
+  }
 }
 
 @media (min-width: 1280px) {
@@ -1512,6 +1524,281 @@
 .wizard-alta__table th.wizard-alta__table-actions-col,
 .wizard-alta__table td.wizard-alta__table-actions-col {
   text-align: right;
+}
+
+/* ── Mobile: wizard layout + card tables ── */
+@media (max-width: 767px) {
+  .wizard-alta__shell {
+    padding-bottom: 1.6rem;
+  }
+
+  .wizard-alta__hero {
+    padding: 1.6rem 1.4rem;
+    border-radius: 12px;
+  }
+
+  .wizard-alta__hero h1 {
+    font-size: 2.2rem;
+  }
+
+  .wizard-alta__hero p {
+    font-size: 1.35rem;
+    max-width: none;
+  }
+
+  .wizard-alta__hero-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wizard-alta__hero-actions {
+    width: 100%;
+  }
+
+  .wizard-alta__exit {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .wizard-alta__layout {
+    margin-top: 1.2rem;
+    gap: 1.2rem;
+  }
+
+  .wizard-alta__sidebar {
+    padding: 1.2rem;
+  }
+
+  .wizard-alta__sidebar-list {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.6rem;
+    padding-bottom: 0.4rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .wizard-alta__sidebar-item {
+    min-width: 11rem;
+    flex-shrink: 0;
+    padding: 0.9rem 1rem;
+  }
+
+  .wizard-alta__panel-head {
+    padding: 1.2rem 1.2rem 0;
+    gap: 1rem;
+  }
+
+  .wizard-alta__panel-title {
+    font-size: 1.9rem;
+    word-break: break-word;
+  }
+
+  .wizard-alta__panel-sub {
+    font-size: 1.3rem;
+    word-break: break-word;
+    line-height: 1.45;
+  }
+
+  .wizard-alta__panel-tabs {
+    width: 100%;
+    margin-top: 0;
+  }
+
+  .wizard-alta__panel-tab {
+    font-size: 1.25rem;
+    padding: 0.75rem 0.6rem;
+    white-space: normal;
+    line-height: 1.25;
+    text-align: center;
+    min-width: 0;
+  }
+
+  .wizard-alta__panel-tab-count {
+    font-size: 1.05rem;
+  }
+
+  .wizard-alta__panel-body {
+    padding: 1.2rem;
+  }
+
+  .wizard-alta__hint {
+    font-size: 1.35rem;
+    padding: 1rem 1.1rem;
+    word-break: break-word;
+  }
+
+  .wizard-alta__section-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wizard-alta__section-head > .flex {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .wizard-alta__section-head .wizard-alta__btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .wizard-alta__section-title {
+    font-size: 1.65rem;
+  }
+
+  /* Card layout for data tables on mobile */
+  .wizard-alta__table-wrap--cards {
+    overflow: visible;
+    border: none;
+    background: transparent;
+  }
+
+  .wizard-alta__table-wrap--cards.wizard-alta__table-wrap--scroll {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .wizard-alta__table--cards {
+    display: block;
+    font-size: 1.35rem;
+  }
+
+  .wizard-alta__table--cards thead {
+    display: none;
+  }
+
+  .wizard-alta__table--cards tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .wizard-alta__table--cards tbody tr {
+    display: block;
+    border: 1px solid var(--wz-border);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: var(--wz-shadow);
+    overflow: hidden;
+  }
+
+  .wizard-alta__table--cards tbody tr:hover td {
+    background: transparent;
+  }
+
+  .wizard-alta__table--cards td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding: 0.85rem 1.2rem;
+    border-bottom: 1px solid var(--wz-border);
+  }
+
+  .wizard-alta__table--cards td:last-child {
+    border-bottom: none;
+  }
+
+  .wizard-alta__table--cards td[data-label]::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    max-width: 44%;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--wz-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1.35;
+    padding-top: 0.1rem;
+  }
+
+  .wizard-alta__table--cards td[data-label] > * {
+    min-width: 0;
+    text-align: right;
+    flex: 1;
+  }
+
+  .wizard-alta__table--cards td[data-label] > .flex {
+    justify-content: flex-end;
+  }
+
+  .wizard-alta__table--cards td.wizard-alta__table-card-title > .flex {
+    justify-content: flex-start;
+  }
+
+  .wizard-alta__table--cards td[data-label=""]::before,
+  .wizard-alta__table--cards td:not([data-label])::before {
+    display: none;
+  }
+
+  /* Primary cell: product / row title */
+  .wizard-alta__table--cards td.wizard-alta__table-card-title {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+    padding-top: 1rem;
+    padding-bottom: 0.85rem;
+    background: var(--wz-bg);
+    border-bottom: 1px solid var(--wz-border);
+  }
+
+  .wizard-alta__table--cards td.wizard-alta__table-card-title::before {
+    display: none;
+  }
+
+  .wizard-alta__table--cards td.wizard-alta__table-card-title .wizard-alta__table-name {
+    font-size: 1.45rem;
+  }
+
+  .wizard-alta__table--cards td.wizard-alta__table-actions-col {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .wizard-alta__table--cards td.wizard-alta__table-actions-col::before {
+    max-width: none;
+    margin-bottom: 0.2rem;
+  }
+
+  .wizard-alta__table--cards td.wizard-alta__table-actions-col .wizard-alta__table-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .wizard-alta__table--cards td.wizard-alta__table-actions-col .wizard-alta__btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .wizard-alta__table--cards tfoot {
+    display: block;
+    margin-top: 0.8rem;
+  }
+
+  .wizard-alta__table--cards tfoot tr {
+    display: block;
+    border: 2px solid var(--wz-primary);
+    border-radius: 12px;
+    background: var(--wz-soft);
+    padding: 1rem 1.2rem;
+  }
+
+  .wizard-alta__table--cards tfoot td {
+    display: block;
+    border: none;
+    padding: 0.35rem 0;
+  }
+
+  .wizard-alta__table--cards tfoot td::before {
+    display: none;
+  }
+
+  .wizard-alta__dialog--wide {
+    max-width: calc(100vw - 2rem) !important;
+  }
 }
 
 /*
