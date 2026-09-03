@@ -53,6 +53,38 @@ export function ramaLabel(rama?: JornadaRama | string | null): string {
   return normalizeRama(rama) === "femenil" ? "Femenil" : "Varonil";
 }
 
+/** Detecta rama en ids de jornada/inventario (`…__femenil` / `…__femenil__{suc}`). */
+export function ramaFromId(id?: string | null): JornadaRama | null {
+  const raw = String(id ?? "").trim();
+  if (!raw) return null;
+  if (/(?:^|__)femenil(?:__|$)/.test(raw)) return "femenil";
+  if (/^\d{4}-\d{2}-\d{2}__J\d+/.test(raw)) return "varonil";
+  return null;
+}
+
+/**
+ * Alinea etiqueta de jornada con inventario cuando jornadaId quedó sin `__femenil`.
+ */
+export function alignJornadaIdWithInventario(
+  jornadaId?: string | null,
+  inventarioId?: string | null,
+): string | null {
+  const invId = String(inventarioId ?? "").trim();
+  const current = String(jornadaId ?? "").trim();
+  const ramaInv = ramaFromId(invId);
+  if (!ramaInv || !invId) return current || null;
+
+  const parsed = parseJornadaId(current);
+  if (parsed) {
+    if (parsed.rama === ramaInv) return current;
+    return buildJornadaId(parsed.fecha, parsed.numero, ramaInv);
+  }
+
+  const match = invId.match(/^(\d{4}-\d{2}-\d{2})__J(\d+)/);
+  if (match) return buildJornadaId(match[1], Number(match[2]), ramaInv);
+  return current || null;
+}
+
 export function formatFechaDisplay(fecha: string): string {
   const normalized = normalizeFechaJornada(fecha);
   const [y, m, d] = normalized.split("-");
@@ -79,9 +111,13 @@ export function buildJornadaSelectLabel(opts: {
 }
 
 /** "2026-07-14__J11" -> "Jornada 11 · 14/07/2026 · Varonil" */
-export function formatJornadaLabel(jornadaId?: string | null): string {
-  const parsed = parseJornadaId(jornadaId);
-  if (!parsed) return jornadaId ?? "—";
+export function formatJornadaLabel(
+  jornadaId?: string | null,
+  inventarioId?: string | null,
+): string {
+  const aligned = alignJornadaIdWithInventario(jornadaId, inventarioId);
+  const parsed = parseJornadaId(aligned);
+  if (!parsed) return aligned ?? jornadaId ?? "—";
   return buildJornadaSelectLabel({
     numero: parsed.numero,
     fecha: parsed.fecha,

@@ -76,16 +76,24 @@ export default function InventariosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Default: varonil si está activa; si solo femenil, preseleccionar femenil.
+  // Default: rama con jornada realmente activa (activo===true); preferir femenil
+  // solo si es la única activa. No usar solo `.fecha` (jornadas desactivadas).
   useEffect(() => {
     if (jornadaLoading || ramaInitialized.current) return;
-    if (activas.varonil?.activo || activas.varonil?.fecha) {
+    const varonilActiva = Boolean(activas.varonil?.activo);
+    const femenilActiva = Boolean(activas.femenil?.activo);
+    if (varonilActiva && !femenilActiva) {
       setRama("varonil");
       ramaInitialized.current = true;
       return;
     }
-    if (activas.femenil?.activo || activas.femenil?.fecha) {
+    if (femenilActiva) {
       setRama("femenil");
+      ramaInitialized.current = true;
+      return;
+    }
+    if (varonilActiva) {
+      setRama("varonil");
       ramaInitialized.current = true;
     }
   }, [jornadaLoading, activas]);
@@ -150,11 +158,11 @@ export default function InventariosPage() {
     const fromApi = jornada;
     if (fromApi) return fromApi;
     const fromActivas = activas[rama];
-    if (fromActivas) return fromActivas;
+    if (fromActivas?.activo === true) return fromActivas;
     const entries = Object.values(jornadaActiva).filter(
-      (j) => normalizeRama(j.rama) === rama,
+      (j) => normalizeRama(j.rama) === rama && j.activo === true,
     );
-    return entries.find((j) => j.activo) ?? entries[0];
+    return entries[0] ?? null;
   }, [jornada, jornadaActiva, activas, rama]);
 
   // Al elegir sucursal o rama: abrir inventario automáticamente.

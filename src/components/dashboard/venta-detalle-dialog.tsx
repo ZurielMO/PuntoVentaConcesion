@@ -11,6 +11,7 @@ import {
 import { api, apiPaths, type ApiResponse } from "@/lib/api/client";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime, formatPrice } from "@/lib/format";
+import { formatJornadaLabel } from "@/lib/jornada";
 import { isVentaPalcos } from "@/lib/venta-palcos";
 import type { ComprobanteVenta } from "@/lib/types";
 
@@ -123,7 +124,10 @@ export function VentaDetalleDialog({
             <dl className="grid gap-1">
               <TicketRow label="Folio" value={folio} />
               {data.jornadaId && (
-                <TicketRow label="Jornada" value={data.jornadaId} />
+                <TicketRow
+                  label="Jornada"
+                  value={formatJornadaLabel(data.jornadaId, data.inventarioId)}
+                />
               )}
               <TicketRow
                 label="Fecha"

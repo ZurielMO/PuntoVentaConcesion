@@ -203,13 +203,16 @@ export class VipService {
     try {
       const res = await api.get<ApiResponse<VipBackendLocation[]>>("/vip/locations", token);
       if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        return res.data.map((loc) => ({
-          id: loc.id,
-          zonaId: loc.zonaId,
-          zona: isVipStadiumZone(String(loc.zona || "")) ? String(loc.zona) : "Poniente",
-          palco: loc.palco,
-          nivel: loc.nivel,
-        }));
+        return res.data.map((loc) => {
+          const zonaRaw = String(loc.zona || "");
+          return {
+            id: loc.id,
+            zonaId: loc.zonaId,
+            zona: isVipStadiumZone(zonaRaw) ? zonaRaw : "Poniente",
+            palco: loc.palco,
+            nivel: loc.nivel,
+          };
+        });
       }
     } catch {
       // Catálogo oficial incompleto: no inventar palcos.
@@ -789,7 +792,10 @@ export function mapBackendVipOrder(raw: Record<string, unknown>): VipOrder {
       concessionNames.join(" · ") || String(raw.restauranteNombre || firstFulfillment.concessionName || "Servicio Palcos"),
     restauranteLogo: String(raw.restauranteLogo || ""),
     ubicacion: {
-      zona: isVipStadiumZone(String(delivery.zona || "")) ? String(delivery.zona) : "Poniente",
+      zona: (() => {
+        const zonaRaw = String(delivery.zona || "");
+        return isVipStadiumZone(zonaRaw) ? zonaRaw : "Poniente";
+      })(),
       palco: String(delivery.palco || ""),
       nivel: delivery.nivel ? String(delivery.nivel) : undefined,
       notas: delivery.notes

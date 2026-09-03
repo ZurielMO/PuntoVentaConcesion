@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { VipTopBar } from "@/components/vip/ui/top-bar";
 import { VipRestaurantHeader } from "@/components/vip/menu/restaurant-header";
 import { VipMenuItemCard } from "@/components/vip/menu/menu-item-card";
@@ -15,8 +15,13 @@ import { useVipCart } from "@/hooks/vip/use-vip-cart";
 import { VipButton } from "@/components/vip/ui/button";
 import { VipMascot } from "@/components/vip/ui/mascot";
 
-export default function PalcosRestaurantePage() {
+function PalcosRestaurantePageInner() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const restaurantId =
+    params.id && params.id !== "_"
+      ? String(params.id)
+      : String(searchParams.get("id") || "");
   const router = useRouter();
   const { addItem, setRestaurantInfo } = useVipCart();
   const [restaurant, setRestaurant] = useState<VipRestaurant | null>(null);
@@ -28,7 +33,7 @@ export default function PalcosRestaurantePage() {
     let mounted = true;
     async function load() {
       try {
-        const data = await VipService.getRestaurantById(String(params.id || ""));
+        const data = await VipService.getRestaurantById(restaurantId);
         if (!mounted) return;
         setRestaurant(data);
         if (data) setRestaurantInfo(data.id, data.nombre);
@@ -40,7 +45,7 @@ export default function PalcosRestaurantePage() {
     return () => {
       mounted = false;
     };
-  }, [params.id, setRestaurantInfo]);
+  }, [restaurantId, setRestaurantInfo]);
 
   const categories = useMemo<VipCategory[]>(() => {
     if (!restaurant) return ["Todos"];
@@ -144,5 +149,19 @@ export default function PalcosRestaurantePage() {
       />
       <VipCartFloatingBar />
     </div>
+  );
+}
+
+export default function PalcosRestaurantePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#F6F8F7] text-[#7E8E87]">
+          Cargando…
+        </div>
+      }
+    >
+      <PalcosRestaurantePageInner />
+    </Suspense>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { RotateCw, Receipt as ReceiptIcon, ArrowRight } from "lucide-react";
 import type { VipOrder } from "@/lib/vip/types";
 import { formatOrderConcessions } from "@/lib/vip/types";
+import { vipSeguimientoPath } from "@/lib/vip/vip-routes";
 import { VipBadge } from "../ui/badge";
 import { VipMedia } from "../ui/media";
 import { motion } from "motion/react";
@@ -104,7 +105,7 @@ export const VipOrderCard: React.FC<OrderCardProps> = ({
       {/* Active tracker link if order is in progress */}
       {isActive && (
         <Link
-          href={`/servicio-palcos/seguimiento/${order.id}`}
+          href={vipSeguimientoPath(order.id)}
           className="bg-gradient-to-r from-[#102D24] to-[#187B56] text-white p-3.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all shadow-xs hover:brightness-105 active:scale-[0.99] border border-[#187B56]/30"
         >
           <span className="flex items-center gap-2.5">

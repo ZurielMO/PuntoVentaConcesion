@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, apiPaths, type ApiResponse } from "@/lib/api/client";
 import { useAuth } from "@/hooks/use-auth";
 import type {
@@ -127,8 +127,10 @@ export function useReporteCortes(filters?: ReporteCortesFilters) {
   const [reporte, setReporte] = useState<ReporteCortes | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
 
   const query = buildReporteQuery(filters);
+  const jornadaId = filters?.jornadaId?.trim() || "";
 
   const fetchReporte = useCallback(async () => {
     if (!token) {
@@ -136,23 +138,39 @@ export function useReporteCortes(filters?: ReporteCortesFilters) {
       setLoading(false);
       return;
     }
+    // Sin jornada no pedimos reporte (evita totales de una jornada por defecto).
+    if (!jornadaId) {
+      setReporte(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
+    setReporte(null);
     try {
       const base = `${apiPaths.cortes}/reporte`;
       const path = query ? `${base}?${query}` : base;
       const res = await api.get<ApiResponse<ReporteCortes>>(path, token);
-      setReporte(res.data ?? null);
+      if (requestId !== requestIdRef.current) return;
+      const data = res.data ?? null;
+      if (data?.jornada?.jornadaId && data.jornada.jornadaId !== jornadaId) {
+        return;
+      }
+      setReporte(data);
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(err instanceof Error ? err.message : "Error al cargar el reporte");
       setReporte(null);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
-  }, [token, query]);
+  }, [token, query, jornadaId]);
 
   useEffect(() => {
-    fetchReporte();
+    void fetchReporte();
   }, [fetchReporte]);
 
   return { reporte, loading, error, refetch: fetchReporte };

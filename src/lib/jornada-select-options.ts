@@ -13,9 +13,13 @@ type ActivasPorRama = {
   femenil: JornadaActivaValue | null;
 };
 
+function isActivaReal(j: JornadaActivaValue | null | undefined): boolean {
+  return Boolean(j && j.activo === true && j.fecha && j.jornada != null);
+}
+
 /**
  * Une jornadas históricas (Firestore) con activas (RTDB) para el select.
- * Marca activas, añade rival y ordena activas primero.
+ * Marca activas solo con activo===true. Conserva historial de ambas ramas.
  */
 export function buildJornadaSelectOptions(
   jornadas: JornadaDisponible[],
@@ -29,13 +33,13 @@ export function buildJornadaSelectOptions(
 
   for (const rama of ["varonil", "femenil"] as const) {
     const j = activas[rama];
-    if (!j?.fecha || j.jornada == null) continue;
-    const fecha = normalizeFechaJornada(String(j.fecha));
-    const id = buildJornadaId(fecha, Number(j.jornada), rama);
+    if (!isActivaReal(j)) continue;
+    const fecha = normalizeFechaJornada(String(j!.fecha));
+    const id = buildJornadaId(fecha, Number(j!.jornada), rama);
     activeIds.add(id);
     activeMeta.set(id, {
-      equipoLocal: j.equipo_local,
-      equipoVisitante: j.equipo_visitante,
+      equipoLocal: j!.equipo_local,
+      equipoVisitante: j!.equipo_visitante,
     });
   }
 
@@ -68,40 +72,41 @@ export function buildJornadaSelectOptions(
   for (const jornadaId of activeIds) {
     if (byId.has(jornadaId)) continue;
     const meta = activeMeta.get(jornadaId);
-    // Reconstruct from activas
     for (const rama of ["varonil", "femenil"] as const) {
       const j = activas[rama];
-      if (!j?.fecha || j.jornada == null) continue;
-      const fecha = normalizeFechaJornada(String(j.fecha));
-      const id = buildJornadaId(fecha, Number(j.jornada), rama);
+      if (!isActivaReal(j)) continue;
+      const fecha = normalizeFechaJornada(String(j!.fecha));
+      const id = buildJornadaId(fecha, Number(j!.jornada), rama);
       if (id !== jornadaId) continue;
       byId.set(id, {
         jornadaId: id,
-        numero: Number(j.jornada),
+        numero: Number(j!.jornada),
         fecha,
         rama,
         activa: true,
-        equipoLocal: meta?.equipoLocal ?? j.equipo_local,
-        equipoVisitante: meta?.equipoVisitante ?? j.equipo_visitante,
+        equipoLocal: meta?.equipoLocal ?? j!.equipo_local,
+        equipoVisitante: meta?.equipoVisitante ?? j!.equipo_visitante,
         etiqueta: buildJornadaSelectLabel({
-          numero: Number(j.jornada),
+          numero: Number(j!.jornada),
           fecha,
           rama,
-          equipoLocal: j.equipo_local,
-          equipoVisitante: j.equipo_visitante,
+          equipoLocal: j!.equipo_local,
+          equipoVisitante: j!.equipo_visitante,
           activa: true,
         }),
       });
     }
   }
 
-  // Si hay femenil y varonil fantasma (misma fecha/número) y solo femenil está activa,
-  // ocultar el varonil no activo.
+  // Fantasma: varonil no activo, misma fecha/número que femenil, y el varonil
+  // no vino del listado histórico (solo se habría inyectado por error).
+  // Si está en `jornadas` con rama varonil, se conserva (contabilidad).
+  const historicoIds = new Set(jornadas.map((j) => j.jornadaId));
   for (const opt of [...byId.values()]) {
     if (opt.rama !== "varonil" || opt.activa) continue;
+    if (historicoIds.has(opt.jornadaId)) continue;
     const femenilId = buildJornadaId(opt.fecha, opt.numero, "femenil");
-    const femenil = byId.get(femenilId);
-    if (femenil) {
+    if (byId.has(femenilId)) {
       byId.delete(opt.jornadaId);
     }
   }

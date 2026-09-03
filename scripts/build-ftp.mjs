@@ -71,14 +71,23 @@ if (result.status !== 0) {
   process.exit(result.status ?? 1);
 }
 
-// Este hosting Apache responde 500 si hay .htaccess (incluso vacío).
+// Este hosting Apache responde 500 si hay .htaccess EN LA RAÍZ (incluso vacío).
 // El export ya trae carpetas con index.html; no hace falta rewrite.
 if (fs.existsSync(outDir)) {
   const htaccessOut = path.join(outDir, ".htaccess");
   if (fs.existsSync(htaccessOut)) {
     fs.rmSync(htaccessOut);
-    console.log("→ .htaccess omitido (el host responde 500 con ese archivo)");
+    console.log("→ .htaccess de raíz omitido (el host responde 500 con él)");
   }
+}
+
+// Este host tampoco acepta .htaccess en subcarpetas (responde 500 porque no
+// permite directivas Sec* fuera de la config del servidor). El bloqueo de
+// mod_security en el retorno de Stripe se resolvió renombrando el query
+// `session_id` a `cs`, así que aquí solo se limpia cualquier resto.
+const palcosHtaccess = path.join(outDir, "servicio-palcos", ".htaccess");
+if (fs.existsSync(palcosHtaccess)) {
+  fs.rmSync(palcosHtaccess);
 }
 
 // La raíz usa `redirect()` de servidor, que en `output: export` no se puede
@@ -162,7 +171,9 @@ IMPORTANTE (si ves diseño viejo o selects sin estilo):
 4. En el navegador: Ctrl+Shift+R (recarga forzada) o ventana de incógnito.
 5. Verifica el build en: https://foodmarket.clubleon.mx/version.json
 
-No subas .htaccess (este host responde 500 con ese archivo).
+.htaccess: NO subas ninguno. Este host responde 500 con .htaccess, tanto en la
+raíz "/" como en subcarpetas (no permite directivas Sec*). Si ya subiste uno a
+"/servicio-palcos", BÓRRALO (Cyberduck > Visualización > Mostrar archivos ocultos).
 `,
   "utf8",
 );

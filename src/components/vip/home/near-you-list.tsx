@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { MapPin, ArrowRight } from "lucide-react";
 import type { VipRestaurant } from "@/lib/vip/types";
+import { vipRestaurantPath } from "@/lib/vip/vip-routes";
 import { VipMedia } from "../ui/media";
 import { motion } from "motion/react";
 
@@ -32,7 +33,7 @@ export const VipNearYouList: React.FC<NearYouListProps> = ({ restaurants }) => {
             className="bg-white rounded-2xl p-3.5 border border-[#E2E8E5] shadow-sm hover:shadow-md transition-all group"
           >
             <Link
-              href={`/servicio-palcos/restaurante/${restaurant.id}`}
+              href={vipRestaurantPath(restaurant.id)}
               className="flex items-center gap-3.5"
             >
               {/* Thumbnail */}

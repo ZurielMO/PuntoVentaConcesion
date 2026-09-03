@@ -59,9 +59,11 @@ export default function HacerCortePage() {
 
   const jornadaOptions = useMemo<JornadaSelectOption[]>(() => {
     const opts: JornadaSelectOption[] = [];
-    for (const ramaOpt of ["varonil", "femenil"] as const) {
+    // Preferir femenil primero cuando ambas estén activas no aplica al historial;
+    // aquí solo hay activas: orden femenil luego varonil evita default varonil.
+    for (const ramaOpt of ["femenil", "varonil"] as const) {
       const j = activas[ramaOpt];
-      if (!j?.fecha || j.jornada == null) continue;
+      if (!j?.activo || !j?.fecha || j.jornada == null) continue;
       const fecha = normalizeFechaJornada(String(j.fecha));
       const numero = Number(j.jornada);
       opts.push({

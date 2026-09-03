@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Clock, ArrowRight, MapPin, Sparkles } from "lucide-react";
 import type { VipRestaurant } from "@/lib/vip/types";
+import { vipRestaurantPath } from "@/lib/vip/vip-routes";
 import { VipBadge } from "../ui/badge";
 import { VipMedia } from "../ui/media";
 import { VipMascot } from "../ui/mascot";
@@ -42,7 +43,7 @@ export const VipFeaturedRestaurants: React.FC<FeaturedRestaurantsProps> = ({ res
             className="group relative bg-white rounded-2xl sm:rounded-[22px] border border-[#DFE5E2] shadow-xs hover:shadow-[0_12px_32px_rgba(10,28,22,0.08)] overflow-hidden flex flex-col transition-all cursor-pointer"
           >
             <Link
-              href={`/servicio-palcos/restaurante/${restaurant.id}`}
+              href={vipRestaurantPath(restaurant.id)}
               className="flex flex-col h-full select-none"
               aria-label={`Ver menú de ${restaurant.nombre}`}
             >

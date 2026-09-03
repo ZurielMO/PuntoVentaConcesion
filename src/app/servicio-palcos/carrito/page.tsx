@@ -17,6 +17,7 @@ import { VIP_STRIPE_PAYMENT_METHOD, normalizeVipFloor } from "@/lib/vip/types";
 import { isValidMxPhone } from "@/lib/vip/phone";
 import { vipToast } from "@/hooks/vip/use-vip-toast";
 import { ApiError } from "@/lib/api/client";
+import { vipRestaurantPath } from "@/lib/vip/vip-routes";
 import { motion } from "motion/react";
 
 export default function VipCarritoPage() {
@@ -33,8 +34,9 @@ export default function VipCarritoPage() {
     restaurantNombre,
   } = useVipCart();
 
-  const menuHref = restaurantId || items[0]?.producto.concesionId
-    ? `/servicio-palcos/restaurante/${restaurantId || items[0]?.producto.concesionId}`
+  const menuRestaurantId = restaurantId || items[0]?.producto.concesionId || "";
+  const menuHref = menuRestaurantId
+    ? vipRestaurantPath(menuRestaurantId)
     : "/servicio-palcos/inicio";
 
   const { createOrder } = useVipOrders();

@@ -475,7 +475,9 @@ export default function VentasPage() {
                     key: "jornada",
                     header: "Jornada",
                     cell: (v: ComprobanteVenta) =>
-                      v.jornadaId ? formatJornadaLabel(v.jornadaId) : "—",
+                      v.jornadaId
+                        ? formatJornadaLabel(v.jornadaId, v.inventarioId)
+                        : "—",
                   },
                 ]
               : []),

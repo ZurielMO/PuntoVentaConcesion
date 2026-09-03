@@ -18,7 +18,8 @@ export default function VipPagoCanceladoPage() {
     started.current = true;
     const stored = readPendingCheckout();
     const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get("session_id") || stored?.checkoutSessionId || "";
+    const sessionId =
+      params.get("cs") || params.get("session_id") || stored?.checkoutSessionId || "";
     const orderId = params.get("order_id") || stored?.orderId || "";
     const trackingToken = stored?.trackingToken || "";
 

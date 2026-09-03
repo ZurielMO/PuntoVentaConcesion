@@ -120,7 +120,13 @@ export interface InventarioProducto {
   cantidad_vendida?: number;
 }
 
-export type InventarioMovimientoTipo = "CARGA_INICIAL" | "AJUSTE" | "VENTA";
+export type InventarioMovimientoTipo =
+  | "CARGA_INICIAL"
+  | "AJUSTE"
+  | "VENTA"
+  | "RESERVA_VIP"
+  | "LIBERACION_RESERVA_VIP"
+  | "REINTEGRO_VIP";
 
 export interface InventarioMovimiento {
   id: string;

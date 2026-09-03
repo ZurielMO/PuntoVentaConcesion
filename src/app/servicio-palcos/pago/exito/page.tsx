@@ -44,8 +44,12 @@ export default function VipPagoExitoPage() {
     setPending(stored);
     clearCartRef.current();
 
+    const params = new URLSearchParams(window.location.search);
+    // `cs` es el nombre actual; `session_id` se sigue leyendo por si Stripe
+    // reenvía a un checkout creado antes del cambio.
     const sessionId =
-      new URLSearchParams(window.location.search).get("session_id") ||
+      params.get("cs") ||
+      params.get("session_id") ||
       stored?.checkoutSessionId ||
       "";
 

@@ -42,7 +42,7 @@ const nullableMoney = (value?: number | null) =>
 
 const formatJornadaCorte = (corte: Corte) => {
   if (corte.jornadaId) {
-    return formatJornadaLabel(corte.jornadaId);
+    return formatJornadaLabel(corte.jornadaId, corte.inventarioId);
   }
   return corte.fecha;
 };
@@ -152,7 +152,8 @@ export default function CortesPage() {
   };
 
   const handlePdfConcesion = () => {
-    if (!reporte || !effectiveConcesionId) return;
+    if (!reporte || !effectiveConcesionId || loadingReporte) return;
+    if (reporte.jornada?.jornadaId !== jornadaId) return;
     const nombre =
       concesionActual?.nombre ??
       reporte.resumen[0]?.nombre ??
@@ -161,14 +162,20 @@ export default function CortesPage() {
   };
 
   const handlePdfConsolidado = () => {
-    if (!reporte) return;
+    if (!reporte || loadingReporte) return;
+    if (reporte.jornada?.jornadaId !== jornadaId) return;
     downloadReporteConsolidadoPdf(reporte);
   };
 
   const showProductosTable = Boolean(effectiveConcesionId);
-  const canPdfConcesion = Boolean(effectiveConcesionId && reporte);
+  const reporteListo =
+    Boolean(reporte) &&
+    !loadingReporte &&
+    Boolean(jornadaId) &&
+    reporte?.jornada?.jornadaId === jornadaId;
+  const canPdfConcesion = Boolean(effectiveConcesionId && reporteListo);
   const canPdfConsolidado =
-    perms.isSuperAdmin && !effectiveConcesionId && Boolean(reporte);
+    perms.isSuperAdmin && !effectiveConcesionId && Boolean(reporteListo);
 
   return (
     <RequireRole authenticated>
@@ -290,7 +297,7 @@ export default function CortesPage() {
             <Skeleton className="h-32 w-full rounded-md" />
             <Skeleton className="h-48 w-full rounded-md" />
           </div>
-        ) : reporte && jornadaId ? (
+        ) : reporteListo ? (
           <div className="space-y-8">
             {reporte.ingresos && (
               <div>
