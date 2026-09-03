@@ -118,17 +118,16 @@ function concessionGroups(order: VipOrder): Array<{ id: string; name: string; it
 export function buildOrderTicketJobs(order: VipOrder): TicketJob[] {
   const groups = concessionGroups(order);
   const jobs: TicketJob[] = [];
-  if (groups.length > 1) {
-    for (const group of groups) {
-      jobs.push({
-        variant: "kitchen",
-        concessionLabel: group.name,
-        items: group.items,
-        includeSignature: false,
-        includeTotals: false,
-        includeQr: true,
-      });
-    }
+  // Siempre un ticket por concesión (restaurante/cocina) + uno general (cliente).
+  for (const group of groups) {
+    jobs.push({
+      variant: "kitchen",
+      concessionLabel: group.name,
+      items: group.items,
+      includeSignature: false,
+      includeTotals: false,
+      includeQr: true,
+    });
   }
   jobs.push({
     variant: "general",
@@ -341,6 +340,14 @@ async function ticketHtml(order: VipOrder, job: TicketJob, qrPayload: string): P
   .center { text-align: center; }
   .muted { color: #444; font-size: 10px; }
   .id { font-size: 13px; font-weight: 800; word-break: break-all; }
+  .palco {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin: 6px 0 2px;
+    line-height: 1.1;
+  }
   .hr { border-top: 1px dashed #111; margin: 8px 0; }
   .row { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0; }
   .qr { display: flex; justify-content: center; margin: 6px 0; }
@@ -357,8 +364,9 @@ async function ticketHtml(order: VipOrder, job: TicketJob, qrPayload: string): P
     <div class="center id">${escapeHtml(order.id)}</div>
     <div class="hr"></div>
     ${order.nombreCliente ? `<div><strong>Cliente:</strong> ${escapeHtml(order.nombreCliente)}</div>` : ""}
-    <div><strong>Palco ${escapeHtml(order.ubicacion.palco)}</strong> · ${escapeHtml(order.ubicacion.zona)}</div>
-    ${order.ubicacion.nivel ? `<div class="muted">${escapeHtml(order.ubicacion.nivel)}</div>` : ""}
+    <div class="palco">PALCO ${escapeHtml(order.ubicacion.palco)}</div>
+    <div class="center"><strong>${escapeHtml(order.ubicacion.zona)}</strong></div>
+    ${order.ubicacion.nivel ? `<div class="center muted">${escapeHtml(order.ubicacion.nivel)}</div>` : ""}
     ${order.telefonoCliente ? `<div>Tel. ${escapeHtml(order.telefonoCliente)}</div>` : ""}
     <div class="hr"></div>
     ${items}

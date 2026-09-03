@@ -240,13 +240,13 @@ export class VipService {
       },
     );
     if (!res.data?.checkoutUrl) {
-      throw new ApiError(502, "Stripe no devolvió una URL de pago.", "VIP_PAYMENT_FAILED");
+      throw new ApiError(502, "No se pudo obtener la URL de pago.", "VIP_PAYMENT_FAILED");
     }
     return res.data;
   }
 
   /**
-   * Confirma el pago consultando la sesión en Stripe (backup del webhook, necesario en local).
+   * Confirma el pago consultando la sesión de cobro (backup del webhook, necesario en local).
    */
   static async confirmCheckout(
     sessionId: string,
@@ -262,7 +262,7 @@ export class VipService {
   }
 
   /**
-   * Libera la reserva de inventario si el invitado cancela Stripe antes de pagar.
+   * Libera la reserva de inventario si el invitado cancela el cobro antes de pagar.
    */
   static async abandonCheckout(input: {
     orderId?: string;

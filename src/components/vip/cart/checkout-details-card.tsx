@@ -14,7 +14,7 @@ export type VipCheckoutDetails = {
 };
 
 const inputBaseClass =
-  "w-full h-12 px-3.5 rounded-xl border border-[#DFE5E2] bg-[#F6F8F7] text-sm font-medium text-[#111614] placeholder:text-[#8A9992] transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#187B56]/25 focus:border-[#187B56]";
+  "w-full h-12 px-3.5 rounded-xl border border-[#DFE5E2] bg-[#F6F8F7] text-base font-medium text-[#111614] placeholder:text-[#8A9992] transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#187B56]/25 focus:border-[#187B56]";
 
 export function VipCheckoutDetailsCard({
   value,
@@ -34,10 +34,10 @@ export function VipCheckoutDetailsCard({
             <User className="w-5 h-5" />
           </div>
           <div>
-            <span className="font-label-sm text-[10px] text-[#9E7844] uppercase tracking-wider font-extrabold">
+            <span className="font-label-sm text-xs text-[#9E7844] uppercase tracking-wider font-extrabold">
               Paso 1 de 2
             </span>
-            <h3 className="font-headline-md text-sm sm:text-base font-extrabold text-[#111614] tracking-tight">
+            <h3 className="font-headline-md text-base sm:text-lg font-extrabold text-[#111614] tracking-tight">
               Datos de Contacto
             </h3>
           </div>
@@ -46,7 +46,7 @@ export function VipCheckoutDetailsCard({
         <div className="flex flex-col gap-3.5">
           {/* Nombre */}
           <div>
-            <label className="block text-xs font-bold text-[#4E5C56] mb-1.5">
+            <label className="block text-sm font-bold text-[#4E5C56] mb-1.5">
               Nombre de quien recibe en el palco
             </label>
             <div className="relative">
@@ -63,8 +63,8 @@ export function VipCheckoutDetailsCard({
 
           {/* Correo */}
           <div>
-            <label className="block text-xs font-bold text-[#4E5C56] mb-1.5">
-              Correo electrónico (para tu recibo de Stripe)
+            <label className="block text-sm font-bold text-[#4E5C56] mb-1.5">
+              Correo electrónico (para tu recibo)
             </label>
             <div className="relative">
               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7E8E87] pointer-events-none" />
@@ -81,7 +81,7 @@ export function VipCheckoutDetailsCard({
 
           {/* Teléfono */}
           <div>
-            <label className="block text-xs font-bold text-[#4E5C56] mb-1.5">
+            <label className="block text-sm font-bold text-[#4E5C56] mb-1.5">
               Teléfono de contacto (obligatorio)
             </label>
             <div className="relative">
@@ -107,10 +107,10 @@ export function VipCheckoutDetailsCard({
             <Armchair className="w-5 h-5" />
           </div>
           <div>
-            <span className="font-label-sm text-[10px] text-[#9E7844] uppercase tracking-wider font-extrabold">
+            <span className="font-label-sm text-xs text-[#9E7844] uppercase tracking-wider font-extrabold">
               Paso 2 de 2
             </span>
-            <h3 className="font-headline-md text-sm sm:text-base font-extrabold text-[#111614] tracking-tight">
+            <h3 className="font-headline-md text-base sm:text-lg font-extrabold text-[#111614] tracking-tight">
               Ubicación en el Estadio León
             </h3>
           </div>
@@ -120,7 +120,7 @@ export function VipCheckoutDetailsCard({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {/* Zona */}
             <div>
-              <label className="block text-xs font-bold text-[#4E5C56] mb-1.5">
+              <label className="block text-sm font-bold text-[#4E5C56] mb-1.5">
                 Zona del Estadio
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -138,7 +138,7 @@ export function VipCheckoutDetailsCard({
                           nivel: floors.includes(current) ? vipFloorLabel(current) : "",
                         });
                       }}
-                      className={`h-12 rounded-xl border font-extrabold text-sm transition-all ${
+                      className={`h-12 rounded-xl border font-extrabold text-base transition-all ${
                         selected
                           ? "bg-[#187B56] text-white border-[#187B56] shadow-sm"
                           : "bg-[#F6F8F7] text-[#111614] border-[#DFE5E2] hover:border-[#187B56]"
@@ -153,7 +153,7 @@ export function VipCheckoutDetailsCard({
 
             {/* Palco */}
             <div>
-              <label className="block text-xs font-bold text-[#4E5C56] mb-1.5">
+              <label className="block text-sm font-bold text-[#4E5C56] mb-1.5">
                 Número de Palco
               </label>
               <input
@@ -168,7 +168,7 @@ export function VipCheckoutDetailsCard({
 
           {/* Piso */}
           <div>
-            <label className="block text-xs font-bold text-[#4E5C56] mb-1.5">
+            <label className="block text-sm font-bold text-[#4E5C56] mb-1.5">
               Piso {value.zona ? `(${value.zona})` : ""} — obligatorio
             </label>
             {value.zona ? (
@@ -181,7 +181,7 @@ export function VipCheckoutDetailsCard({
                       key={floor}
                       type="button"
                       onClick={() => set({ nivel: label })}
-                      className={`h-12 rounded-xl border font-extrabold text-sm transition-all ${
+                      className={`h-12 rounded-xl border font-extrabold text-base transition-all ${
                         selected
                           ? "bg-[#187B56] text-white border-[#187B56] shadow-sm"
                           : "bg-[#F6F8F7] text-[#111614] border-[#DFE5E2] hover:border-[#187B56]"
@@ -193,7 +193,7 @@ export function VipCheckoutDetailsCard({
                 })}
               </div>
             ) : (
-              <p className="text-xs text-[#7E8E87] bg-[#F6F8F7] border border-[#DFE5E2] rounded-xl px-3.5 py-3">
+              <p className="text-sm text-[#7E8E87] bg-[#F6F8F7] border border-[#DFE5E2] rounded-xl px-3.5 py-3">
                 Elige Oriente o Poniente para ver los pisos disponibles.
               </p>
             )}

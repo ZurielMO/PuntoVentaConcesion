@@ -122,7 +122,7 @@ export interface VipPaymentMethod {
 export const VIP_STRIPE_PAYMENT_METHOD: VipPaymentMethod = {
   id: "stripe-checkout",
   tipo: "CARD",
-  titulo: "Stripe Checkout",
+  titulo: "Pago con tarjeta",
   detalle: "Pago seguro con tarjeta",
   icono: "credit_card",
   predeterminado: true,

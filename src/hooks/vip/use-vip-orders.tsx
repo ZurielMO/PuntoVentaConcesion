@@ -273,7 +273,7 @@ export function VipOrdersProvider({ children }: { children: React.ReactNode }) {
       timeline: [
         {
           estado: "PENDING_PAYMENT",
-          titulo: "Pago en Stripe",
+          titulo: "Pago con tarjeta",
           descripcion: "Completa el pago para enviar la orden a cocina",
           hora: timeStr,
           completado: false,

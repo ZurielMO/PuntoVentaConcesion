@@ -35,7 +35,7 @@ export const VipSupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose }
               ¿Necesito cuenta para ordenar?
             </summary>
             <p className="mt-2 text-[#66706B] text-[11px] leading-relaxed">
-              No. Indica tu nombre, correo, zona y palco al pagar. Stripe confirma el cobro y cocina recibe el pedido.
+              No. Indica tu nombre, correo, zona y palco al pagar. Al confirmar el cobro, cocina recibe el pedido.
             </p>
           </details>
           <details className="bg-[#F5F7F6] p-3.5 rounded-xl border border-[#E2E8E5] cursor-pointer">

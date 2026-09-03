@@ -46,7 +46,7 @@ export const VipReceiptModal: React.FC<ReceiptModalProps> = ({
           </p>
           <div className="flex items-center gap-1 text-[11px] text-[#187B56] font-bold mt-1 bg-white px-2.5 py-0.5 rounded-full border border-[#187B56]/20">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Pago Verificado vía Stripe</span>
+            <span>Pago verificado</span>
           </div>
         </div>
 

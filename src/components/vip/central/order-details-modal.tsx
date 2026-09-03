@@ -38,6 +38,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
   const canDeliver = isVipDeliverableStatus(order.estado);
   const canAccept = isVipNewStatus(order.estado);
+  const canPrint = order.estado !== "ENTREGADO" && order.estado !== "DELIVERED";
   const canCancel =
     order.estado !== "CANCELADO" &&
     order.estado !== "CANCELLED" &&
@@ -46,6 +47,10 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     order.estado !== "REFUNDED";
 
   const handlePrint = async () => {
+    if (!canPrint) {
+      vipToast.error("No se puede reimprimir el ticket de un pedido ya entregado.");
+      return;
+    }
     setPrinting(true);
     try {
       await printOrderTickets(order);
@@ -56,6 +61,10 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       setPrinting(false);
     }
   };
+
+  let printLabel = "Imprimir Ticket";
+  if (printing) printLabel = "Imprimiendo…";
+  else if (!canPrint) printLabel = "Ya entregado";
 
   const handleConfirmCancel = () => {
     if (!cancelReason.trim()) {
@@ -216,11 +225,11 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           <button
             type="button"
             onClick={handlePrint}
-            disabled={printing}
-            className="flex-1 min-w-[140px] min-h-14 py-3 px-3 bg-[#F5F7F6] hover:bg-[#EEF2F0] border border-[#E2E8E5] rounded-xl font-headline-md font-bold text-base flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
+            disabled={printing || !canPrint}
+            className="flex-1 min-w-[140px] min-h-14 py-3 px-3 bg-[#F5F7F6] hover:bg-[#EEF2F0] border border-[#E2E8E5] rounded-xl font-headline-md font-bold text-base flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Printer className="w-6 h-6 text-[#187B56]" />
-            <span>{printing ? "Imprimiendo…" : "Imprimir Ticket"}</span>
+            <span>{printLabel}</span>
           </button>
 
           {canAccept && onAdvance && (

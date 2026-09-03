@@ -54,28 +54,28 @@ export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
       <div className="hidden sm:flex items-start justify-between gap-4 w-full">
         <div className="flex flex-col flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap mb-1">
-            <h3 className="font-headline-md text-base sm:text-lg font-extrabold text-[#111614] group-hover:text-[#187B56] transition-colors line-clamp-1 tracking-tight">
+            <h3 className="font-headline-md text-lg sm:text-xl font-extrabold text-[#111614] group-hover:text-[#187B56] transition-colors line-clamp-1 tracking-tight">
               {product.nombre}
             </h3>
             {product.esRecomendado && (
-              <span className="inline-flex items-center gap-0.5 text-[9px] font-extrabold text-[#9E7844] bg-[#9E7844]/12 px-2 py-0.5 rounded-full border border-[#9E7844]/25">
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-extrabold text-[#9E7844] bg-[#9E7844]/12 px-2 py-0.5 rounded-full border border-[#9E7844]/25">
                 <Sparkles className="w-2.5 h-2.5" />
                 <span>Recomendado</span>
               </span>
             )}
             {product.disponible === false && (
-              <span className="inline-flex items-center text-[9px] font-extrabold text-[#C43D3D] bg-[#C43D3D]/10 px-2 py-0.5 rounded-full border border-[#C43D3D]/25">
+              <span className="inline-flex items-center text-[10px] font-extrabold text-[#C43D3D] bg-[#C43D3D]/10 px-2 py-0.5 rounded-full border border-[#C43D3D]/25">
                 Agotado
               </span>
             )}
           </div>
 
           {product.descripcion ? (
-            <p className="font-body-md text-xs text-[#4E5C56] line-clamp-2 leading-relaxed">
+            <p className="font-body-md text-sm text-[#4E5C56] line-clamp-2 leading-relaxed">
               {product.descripcion}
             </p>
           ) : (
-            <p className="font-body-md text-xs text-[#7E8E87] italic">
+            <p className="font-body-md text-sm text-[#7E8E87] italic">
               Preparado al momento en el estadio
             </p>
           )}
@@ -100,25 +100,25 @@ export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
 
       <div className="flex-1 min-w-0 sm:hidden">
         <div className="flex items-center gap-1.5">
-          <h3 className="font-headline-md text-[15px] font-extrabold text-[#111614] truncate">
+          <h3 className="font-headline-md text-base font-extrabold text-[#111614] truncate">
             {product.nombre}
           </h3>
           {product.esRecomendado && <Sparkles className="w-3.5 h-3.5 text-[#9E7844] shrink-0" />}
         </div>
-        <p className="font-headline-md text-base font-extrabold text-[#187B56] leading-tight mt-0.5">
+        <p className="font-headline-md text-lg font-extrabold text-[#187B56] leading-tight mt-0.5">
           ${product.precio}
         </p>
         {product.disponible === false && (
-          <p className="text-[11px] font-bold text-[#C43D3D]">Agotado</p>
+          <p className="text-xs font-bold text-[#C43D3D]">Agotado</p>
         )}
       </div>
 
       <div className="hidden sm:flex items-center justify-between gap-3 pt-3 border-t border-[#E9EFEB] w-full">
         <div>
-          <span className="text-[10px] text-[#7E8E87] uppercase tracking-wider font-bold block">
+          <span className="text-xs text-[#7E8E87] uppercase tracking-wider font-bold block">
             Precio
           </span>
-          <span className="font-headline-md text-lg font-extrabold text-[#187B56]">
+          <span className="font-headline-md text-xl font-extrabold text-[#187B56]">
             ${product.precio}.00 MXN
           </span>
         </div>
@@ -127,7 +127,7 @@ export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
           type="button"
           onClick={handleActionClick}
           disabled={product.disponible === false}
-          className="min-h-[42px] px-4 rounded-xl bg-[#187B56] hover:bg-[#136244] text-white flex items-center justify-center gap-1.5 shadow-[0_3px_10px_rgba(24,123,86,0.25)] active:scale-95 transition-all cursor-pointer font-headline-md text-xs font-bold border border-[#00FF85]/20 disabled:opacity-45 disabled:pointer-events-none"
+          className="min-h-[42px] px-4 rounded-xl bg-[#187B56] hover:bg-[#136244] text-white flex items-center justify-center gap-1.5 shadow-[0_3px_10px_rgba(24,123,86,0.25)] active:scale-95 transition-all cursor-pointer font-headline-md text-sm font-bold border border-[#00FF85]/20 disabled:opacity-45 disabled:pointer-events-none"
           aria-label={
             product.disponible === false
               ? `${product.nombre} agotado`
@@ -143,7 +143,7 @@ export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
         type="button"
         onClick={handleActionClick}
         disabled={product.disponible === false}
-        className="sm:hidden min-h-11 min-w-11 px-3 rounded-xl bg-[#187B56] text-white flex items-center justify-center gap-1 shadow-[0_3px_10px_rgba(24,123,86,0.25)] active:scale-95 font-headline-md text-xs font-bold disabled:opacity-45 disabled:pointer-events-none shrink-0"
+        className="sm:hidden min-h-11 min-w-11 px-3 rounded-xl bg-[#187B56] text-white flex items-center justify-center gap-1 shadow-[0_3px_10px_rgba(24,123,86,0.25)] active:scale-95 font-headline-md text-sm font-bold disabled:opacity-45 disabled:pointer-events-none shrink-0"
         aria-label={
           product.disponible === false
             ? `${product.nombre} agotado`

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { VipTopBar } from "@/components/vip/ui/top-bar";
 import { VipRestaurantHeader } from "@/components/vip/menu/restaurant-header";
@@ -8,9 +8,8 @@ import { VipMenuItemCard } from "@/components/vip/menu/menu-item-card";
 import { VipProductDetailModal } from "@/components/vip/menu/product-detail-modal";
 import { VipCartFloatingBar } from "@/components/vip/menu/cart-floating-bar";
 import { VipMenuItemSkeleton } from "@/components/vip/ui/skeleton";
-import { VipCategoryChips } from "@/components/vip/home/category-chips";
 import { VipService } from "@/lib/vip/vip-service";
-import type { VipCategory, VipProduct, VipRestaurant } from "@/lib/vip/types";
+import type { VipProduct, VipRestaurant } from "@/lib/vip/types";
 import { useVipCart } from "@/hooks/vip/use-vip-cart";
 import { VipButton } from "@/components/vip/ui/button";
 import { VipMascot } from "@/components/vip/ui/mascot";
@@ -26,7 +25,6 @@ function PalcosRestaurantePageInner() {
   const { addItem, setRestaurantInfo } = useVipCart();
   const [restaurant, setRestaurant] = useState<VipRestaurant | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<VipCategory>("Todos");
   const [selectedProduct, setSelectedProduct] = useState<VipProduct | null>(null);
 
   useEffect(() => {
@@ -47,19 +45,7 @@ function PalcosRestaurantePageInner() {
     };
   }, [restaurantId, setRestaurantInfo]);
 
-  const categories = useMemo<VipCategory[]>(() => {
-    if (!restaurant) return ["Todos"];
-    const fromRestaurant = restaurant.categorias.filter(Boolean);
-    return fromRestaurant.length ? fromRestaurant : ["Todos"];
-  }, [restaurant]);
-
-  const products = useMemo(() => {
-    if (!restaurant) return [];
-    if (activeCategory === "Todos") return restaurant.productos;
-    return restaurant.productos.filter(
-      (product) => product.categoria.toLowerCase() === String(activeCategory).toLowerCase(),
-    );
-  }, [restaurant, activeCategory]);
+  const products = restaurant?.productos || [];
 
   const handleQuickAdd = (product: VipProduct) => {
     if (!product.disponible) return;
@@ -77,7 +63,7 @@ function PalcosRestaurantePageInner() {
         />
         <div className="flex flex-col items-center justify-center flex-1 gap-3 px-6 text-center">
           <VipMascot name="cta" size="empty" />
-          <p className="font-headline-md text-base font-extrabold">No encontramos esta concesión</p>
+          <p className="font-headline-md text-lg font-extrabold">No encontramos esta concesión</p>
           <VipButton onClick={() => router.push("/servicio-palcos/inicio")}>Volver al menú</VipButton>
         </div>
       </div>
@@ -104,13 +90,6 @@ function PalcosRestaurantePageInner() {
           </div>
         ) : (
           <>
-            {categories.length > 1 && (
-              <VipCategoryChips
-                categories={categories}
-                activeCategory={activeCategory}
-                onSelectCategory={setActiveCategory}
-              />
-            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
               {products.map((product) => (
                 <VipMenuItemCard
@@ -124,8 +103,8 @@ function PalcosRestaurantePageInner() {
             {products.length === 0 && (
               <div className="flex flex-col items-center gap-3 py-8 text-center">
                 <VipMascot name="postres" size="empty" decorative />
-                <p className="text-sm text-[#4E5C56]">
-                  No hay productos en esta categoría.
+                <p className="text-base text-[#4E5C56]">
+                  No hay productos disponibles en esta concesión.
                 </p>
               </div>
             )}

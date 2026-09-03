@@ -12,20 +12,34 @@ android {
         applicationId = "mx.clubleon.vippda"
         minSdk = 26
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.0.11"
-        buildConfigField("String", "CENTRAL_URL", "\"http://172.18.2.131:9002/servicio-palcos/central\"")
+        versionCode = 13
+        versionName = "1.0.12"
+        buildConfigField("String", "CENTRAL_URL", "\"https://foodmarket.clubleon.mx/servicio-palcos/central\"")
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a")
         }
     }
 
     buildTypes {
+        debug {
+            buildConfigField(
+                "String",
+                "CENTRAL_URL",
+                "\"http://172.18.2.131:9002/servicio-palcos/central\"",
+            )
+        }
         release {
             isMinifyEnabled = false
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
+            )
+            buildConfigField(
+                "String",
+                "CENTRAL_URL",
+                "\"https://foodmarket.clubleon.mx/servicio-palcos/central\"",
             )
         }
     }

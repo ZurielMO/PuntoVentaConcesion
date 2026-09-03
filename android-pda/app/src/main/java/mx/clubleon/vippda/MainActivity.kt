@@ -352,6 +352,7 @@ class MainActivity : AppCompatActivity() {
 
         private fun isAllowedHost(host: String): Boolean {
             if (host == "172.18.2.131" || host == "localhost" || host == "127.0.0.1") return true
+            if (host == "foodmarket.clubleon.mx") return true
             if (host == "concesiones.clubleon.mx" || host.endsWith(".clubleon.mx")) return true
             return false
         }

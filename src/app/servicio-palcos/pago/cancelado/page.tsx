@@ -53,10 +53,10 @@ export default function VipPagoCanceladoPage() {
         >
           <VipMascot name="pagos" size="empty" className="-my-2" />
           <div>
-            <h1 className="font-headline-md text-xl sm:text-2xl font-extrabold text-[#111614] tracking-tight">
+            <h1 className="font-headline-md text-2xl sm:text-3xl font-extrabold text-[#111614] tracking-tight">
               Proceso Cancelado
             </h1>
-            <p className="font-body-md text-xs sm:text-sm text-[#4E5C56] mt-1.5 leading-relaxed">
+            <p className="font-body-md text-base sm:text-lg text-[#4E5C56] mt-2 leading-relaxed">
               {releasing
                 ? "Estamos liberando la reserva de inventario. No se realizó ningún cargo en tu tarjeta."
                 : "No se realizó ningún cargo en tu tarjeta. Los productos siguen guardados en tu carrito para cuando desees reintentar."}

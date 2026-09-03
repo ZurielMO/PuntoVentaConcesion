@@ -55,7 +55,7 @@ export default function VipPagoExitoPage() {
 
     if (!sessionId) {
       setConfirming(false);
-      setError("No encontramos la sesión de Stripe para confirmar el pedido.");
+      setError("No encontramos la sesión de pago para confirmar el pedido.");
       return;
     }
 
@@ -135,10 +135,10 @@ export default function VipPagoExitoPage() {
           </div>
 
           <div>
-            <h1 className="font-headline-md text-xl sm:text-2xl font-extrabold text-[#111614] tracking-tight">
-              {confirming ? "Confirmando pago con Stripe…" : paid ? "¡Pago Confirmado!" : "Pago recibido en Stripe"}
+            <h1 className="font-headline-md text-2xl sm:text-3xl font-extrabold text-[#111614] tracking-tight">
+              {confirming ? "Confirmando pago…" : paid ? "¡Pago Confirmado!" : "Pago recibido"}
             </h1>
-            <p className="font-body-md text-xs sm:text-sm text-[#4E5C56] mt-1.5 leading-relaxed">
+            <p className="font-body-md text-base sm:text-lg text-[#4E5C56] mt-2 leading-relaxed">
               {confirming
                 ? "Estamos notificando a la cocina de la concesión."
                 : paid

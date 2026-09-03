@@ -128,8 +128,21 @@ export function buildVipEscPosTicket(input: {
   ];
 
   if (input.customerName) lines.push(text(`Cliente: ${input.customerName}\n`));
-  lines.push(text(`Palco ${input.palco} - ${input.zona}\n`));
+  lines.push(
+    text("--------------------------------\n"),
+    cmd(ESC, 0x61, 0x01),
+    cmd(ESC, 0x45, 0x01),
+    cmd(GS, 0x21, 0x11),
+    text(`PALCO ${input.palco}\n`),
+    cmd(GS, 0x21, 0x00),
+    cmd(ESC, 0x45, 0x00),
+    text(`${input.zona}\n`),
+  );
   if (input.nivel) lines.push(text(`${input.nivel}\n`));
+  lines.push(
+    cmd(ESC, 0x61, 0x00),
+    text("--------------------------------\n"),
+  );
   if (input.phone) lines.push(text(`Tel. ${input.phone}\n`));
   lines.push(text("--------------------------------\n"));
 

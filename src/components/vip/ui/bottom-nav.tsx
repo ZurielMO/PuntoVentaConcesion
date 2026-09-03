@@ -61,7 +61,7 @@ export const VipBottomNav: React.FC = () => {
                 )}
               </div>
 
-              <span className="text-[11px] font-label-sm font-semibold mt-0.5 tracking-tight">
+              <span className="text-xs font-label-sm font-semibold mt-0.5 tracking-tight">
                 {item.label}
               </span>
             </Link>

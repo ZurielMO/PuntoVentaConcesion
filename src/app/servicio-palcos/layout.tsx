@@ -42,7 +42,7 @@ export default function VipRootLayout({
     <div
       className={`
         ${montserrat.variable} ${inter.variable}
-        min-h-screen bg-[#F6F8F7] text-[#111614] antialiased
+        min-h-screen bg-[#F6F8F7] text-[#111614] antialiased text-[16px] sm:text-[15px]
         selection:bg-[#187B56] selection:text-white
       `}
       style={{

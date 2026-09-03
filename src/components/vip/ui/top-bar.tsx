@@ -50,14 +50,14 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
-                <span className="font-headline-md text-base sm:text-lg font-extrabold tracking-tight text-white leading-none">
+                <span className="font-headline-md text-lg sm:text-xl font-extrabold tracking-tight text-white leading-none">
                   Servicio Palcos
                 </span>
-                <span className="text-[9px] font-label-sm uppercase font-extrabold tracking-wider bg-[#9E7844]/25 text-[#C5A059] border border-[#9E7844]/40 px-1.5 py-0.2 rounded-md">
+                <span className="text-[10px] font-label-sm uppercase font-extrabold tracking-wider bg-[#9E7844]/25 text-[#C5A059] border border-[#9E7844]/40 px-1.5 py-0.2 rounded-md">
                   Palcos
                 </span>
               </div>
-              <span className="text-[10px] font-label-sm text-[#7E8E87] tracking-wider uppercase font-semibold mt-0.5">
+              <span className="text-xs font-label-sm text-[#7E8E87] tracking-wider uppercase font-semibold mt-0.5">
                 Club León
               </span>
             </div>
@@ -77,11 +77,11 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
               )}
             </button>
             <div className="flex flex-col min-w-0">
-              <h1 className="font-headline-md text-sm sm:text-base font-extrabold text-white truncate max-w-[200px] sm:max-w-sm tracking-tight leading-tight">
+              <h1 className="font-headline-md text-base sm:text-lg font-extrabold text-white truncate max-w-[200px] sm:max-w-sm tracking-tight leading-tight">
                 {title || (variant === "modal" ? "Detalle" : "Servicio Palcos")}
               </h1>
               {subtitle && (
-                <span className="text-[10px] font-body-md text-[#D3DCD7] truncate">
+                <span className="text-xs font-body-md text-[#D3DCD7] truncate">
                   {subtitle}
                 </span>
               )}
@@ -93,13 +93,13 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
           {/* Cart CTA Button */}
           <Link
             href="/servicio-palcos/carrito"
-            className="relative flex items-center gap-2 h-10 px-3.5 sm:px-4 rounded-xl bg-[#187B56] hover:bg-[#136244] text-white font-headline-md text-xs sm:text-sm font-extrabold transition-all shadow-[0_4px_14px_rgba(24,123,86,0.3)] hover:shadow-[0_6px_18px_rgba(24,123,86,0.4)] cursor-pointer active:scale-95 border border-[#187B56]/30 select-none"
+            className="relative flex items-center gap-2 h-10 px-3.5 sm:px-4 rounded-xl bg-[#187B56] hover:bg-[#136244] text-white font-headline-md text-sm font-extrabold transition-all shadow-[0_4px_14px_rgba(24,123,86,0.3)] hover:shadow-[0_6px_18px_rgba(24,123,86,0.4)] cursor-pointer active:scale-95 border border-[#187B56]/30 select-none"
             aria-label={`Ver carrito (${totalItems} artículos)`}
           >
             <ShoppingBag className="w-4 h-4 stroke-[2.2]" />
             <span className="hidden sm:inline">Carrito</span>
             {totalItems > 0 && (
-              <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#9E7844] text-white font-extrabold text-[11px] flex items-center justify-center border border-white/20 shadow-xs">
+              <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#9E7844] text-white font-extrabold text-xs flex items-center justify-center border border-white/20 shadow-xs">
                 {totalItems}
               </span>
             )}
