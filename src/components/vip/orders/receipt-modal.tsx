@@ -3,6 +3,7 @@
 import React from "react";
 import { MapPin, Receipt, ShieldCheck } from "lucide-react";
 import type { VipOrder } from "@/lib/vip/types";
+import { formatVipMxn } from "@/lib/vip/money";
 import { formatOrderConcessions } from "@/lib/vip/types";
 import { VipModal } from "../ui/modal";
 import { VipButton } from "../ui/button";
@@ -82,7 +83,7 @@ export const VipReceiptModal: React.FC<ReceiptModalProps> = ({
                   )}
                 </div>
                 <span className="font-headline-md font-bold text-[#111614]">
-                  ${item.subtotal}.00 MXN
+                  {formatVipMxn(item.subtotal)}
                 </span>
               </div>
             ))}
@@ -92,22 +93,12 @@ export const VipReceiptModal: React.FC<ReceiptModalProps> = ({
         {/* Totals Breakdown */}
         <div className="bg-[#F6F8F7] p-4 rounded-2xl border border-[#DFE5E2] flex flex-col gap-2 text-xs">
           <div className="flex justify-between text-[#4E5C56]">
-            <span>Subtotal</span>
-            <span className="font-semibold text-[#111614]">${order.subtotal}.00 MXN</span>
+            <span>Productos</span>
+            <span className="font-semibold text-[#111614]">{formatVipMxn(order.subtotal)}</span>
           </div>
-          <div className="flex justify-between text-[#4E5C56]">
-            <span>Servicio de entrega a palco</span>
-            <span className="font-semibold text-[#111614]">${order.cargoServicio}.00 MXN</span>
-          </div>
-          {order.propina > 0 && (
-            <div className="flex justify-between text-[#4E5C56]">
-              <span>Propina</span>
-              <span className="font-bold text-[#187B56]">+${order.propina}.00 MXN</span>
-            </div>
-          )}
           <div className="flex justify-between text-sm font-headline-md font-extrabold text-[#187B56] pt-2.5 border-t border-[#DFE5E2]">
             <span>Total Pagado</span>
-            <span>${order.total}.00 MXN</span>
+            <span>{formatVipMxn(order.total)}</span>
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { RotateCw, Receipt as ReceiptIcon, ArrowRight } from "lucide-react";
 import type { VipOrder } from "@/lib/vip/types";
+import { formatVipMxn } from "@/lib/vip/money";
 import { formatOrderConcessions } from "@/lib/vip/types";
 import { vipSeguimientoPath } from "@/lib/vip/vip-routes";
 import { VipBadge } from "../ui/badge";
@@ -94,7 +95,7 @@ export const VipOrderCard: React.FC<OrderCardProps> = ({
               isCancelled ? "text-[#7E8E87] line-through" : "text-[#187B56]"
             }`}
           >
-            ${order.total}.00 MXN
+            {formatVipMxn(order.total)}
           </span>
           <span className="font-label-sm text-xs text-[#7E8E87] font-semibold">
             {totalItems} {totalItems === 1 ? "producto" : "productos"}

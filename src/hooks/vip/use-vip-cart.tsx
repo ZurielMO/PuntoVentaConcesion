@@ -173,9 +173,9 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
     [items],
   );
 
-  const cargoServicio = subtotal > 0 ? 20 : 0;
+  const cargoServicio = 0;
   const descuento = 0;
-  const total = subtotal + cargoServicio - descuento;
+  const total = subtotal;
 
   return (
     <VipCartContext.Provider

@@ -3,6 +3,7 @@
 import React from "react";
 import { Clock, Share2, MapPin, Sparkles } from "lucide-react";
 import type { VipRestaurant } from "@/lib/vip/types";
+import { formatVipAmount } from "@/lib/vip/money";
 import { VipMedia } from "../ui/media";
 import { VipMascot } from "../ui/mascot";
 import { vipToast } from "@/hooks/vip/use-vip-toast";
@@ -89,7 +90,7 @@ export const VipRestaurantHeader: React.FC<RestaurantHeaderProps> = ({ restauran
               </span>
 
               <span className="hidden sm:inline text-[#D3DCD7] bg-[#16382D] px-3 py-1 rounded-xl border border-[#234D41]">
-                Consumo mín: <strong className="text-white">${restaurant.precioMinimo}.00</strong>
+                Consumo mín: <strong className="text-white">${formatVipAmount(restaurant.precioMinimo)}</strong>
               </span>
             </div>
           </div>

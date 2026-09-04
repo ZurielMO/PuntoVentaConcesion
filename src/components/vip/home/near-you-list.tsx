@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { MapPin, ArrowRight } from "lucide-react";
 import type { VipRestaurant } from "@/lib/vip/types";
+import { formatVipAmount } from "@/lib/vip/money";
 import { vipRestaurantPath } from "@/lib/vip/vip-routes";
 import { VipMedia } from "../ui/media";
 import { motion } from "motion/react";
@@ -66,7 +67,7 @@ export const VipNearYouList: React.FC<NearYouListProps> = ({ restaurants }) => {
                   </span>
 
                   <span className="font-headline-md text-xs font-bold text-[#187B56] flex items-center gap-0.5">
-                    <span>${restaurant.precioMinimo}+</span>
+                    <span>${formatVipAmount(restaurant.precioMinimo)}+</span>
                     <ArrowRight className="w-3 h-3" />
                   </span>
                 </div>

@@ -3,6 +3,7 @@
 import React from "react";
 import { Clock, MapPin, ArrowRight, FileText, Phone } from "lucide-react";
 import type { VipOrder, VipOrderStatus } from "@/lib/vip/types";
+import { formatVipAmount } from "@/lib/vip/money";
 import { concessionLabelForItem, formatOrderConcessions, isVipHistoryStatus, isVipNewStatus, isVipOnTheWayStatus, uniqueOrderConcessionNames } from "@/lib/vip/types";
 
 interface KdsTicketCardProps {
@@ -94,7 +95,7 @@ export const KdsTicketCard: React.FC<KdsTicketCardProps> = ({
                 {item.producto.nombre}
               </span>
               <span className="font-bold text-base text-[#66706B] shrink-0 pt-0.5">
-                ${item.subtotal}.00
+                ${formatVipAmount(item.subtotal)}
               </span>
             </div>
             {uniqueOrderConcessionNames(order).length > 1 && (
@@ -134,7 +135,7 @@ export const KdsTicketCard: React.FC<KdsTicketCardProps> = ({
         <div className="flex flex-col">
           <span className="text-sm uppercase font-label-sm text-[#66706B] font-bold tracking-wide">Total</span>
           <span className="font-headline-md text-xl font-extrabold text-[#187B56] leading-tight">
-            ${order.total}.00
+            ${formatVipAmount(order.total)}
           </span>
         </div>
 

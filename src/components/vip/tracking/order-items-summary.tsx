@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { VipCartItem } from "@/lib/vip/types";
+import { formatVipMxn } from "@/lib/vip/money";
 import { VipMedia } from "../ui/media";
 
 interface OrderItemsSummaryProps {
@@ -40,7 +41,7 @@ export const VipOrderItemsSummary: React.FC<OrderItemsSummaryProps> = ({ items }
             </div>
 
             <span className="font-headline-md text-xs sm:text-sm font-extrabold text-[#187B56] shrink-0">
-              ${item.subtotal}.00 MXN
+              {formatVipMxn(item.subtotal)}
             </span>
           </div>
         ))}

@@ -309,16 +309,10 @@ async function ticketHtml(order: VipOrder, job: TicketJob, qrPayload: string): P
     Number(order.descuento || 0) > 0
       ? `<div class="row"><span>Descuento</span><span>-$${Number(order.descuento).toFixed(2)}</span></div>`
       : "";
-  const tipRow =
-    Number(order.propina || 0) > 0
-      ? `<div class="row"><span>Propina</span><span>$${Number(order.propina).toFixed(2)}</span></div>`
-      : "";
   const totals = job.includeTotals
     ? `<div class="hr"></div>
-    <div class="row"><span>Subtotal</span><span>$${Number(order.subtotal || 0).toFixed(2)}</span></div>
-    <div class="row"><span>Cargo por servicio</span><span>$${Number(order.cargoServicio || 0).toFixed(2)}</span></div>
+    <div class="row"><span>Productos</span><span>$${Number(order.subtotal || 0).toFixed(2)}</span></div>
     ${discountRow}
-    ${tipRow}
     <div class="hr"></div>
     <div class="row"><strong>TOTAL</strong><strong>$${Number(order.total).toFixed(2)} MXN</strong></div>`
     : "";

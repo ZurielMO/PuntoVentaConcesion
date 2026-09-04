@@ -18,6 +18,7 @@ import { isValidMxPhone } from "@/lib/vip/phone";
 import { vipToast } from "@/hooks/vip/use-vip-toast";
 import { ApiError } from "@/lib/api/client";
 import { vipRestaurantPath } from "@/lib/vip/vip-routes";
+import { formatVipMxn } from "@/lib/vip/money";
 import { motion } from "motion/react";
 
 export default function VipCarritoPage() {
@@ -41,7 +42,6 @@ export default function VipCarritoPage() {
 
   const { createOrder } = useVipOrders();
 
-  const [propina, setPropina] = useState(20);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutDetails, setCheckoutDetails] = useState<VipCheckoutDetails>({
     name: "",
@@ -52,7 +52,7 @@ export default function VipCarritoPage() {
     nivel: "",
   });
 
-  const finalTotal = total + propina;
+  const finalTotal = total;
 
   const handleCheckout = async () => {
     if (items.length === 0) return;
@@ -107,7 +107,7 @@ export default function VipCarritoPage() {
         subtotal,
         cargoServicio,
         descuento,
-        propina,
+        propina: 0,
         total: finalTotal,
         metodoPago: VIP_STRIPE_PAYMENT_METHOD,
       });
@@ -168,7 +168,7 @@ export default function VipCarritoPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen pb-56 lg:pb-16 bg-[#F6F8F7] text-[#111614]">
+    <div className="flex flex-col min-h-screen pb-44 lg:pb-16 bg-[#F6F8F7] text-[#111614]">
       {/* Top Header */}
       <VipTopBar
         variant="linear"
@@ -181,7 +181,7 @@ export default function VipCarritoPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-6"
+        className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-5 sm:py-8"
       >
         {/* Desktop 2-Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-6 items-start">
@@ -192,15 +192,15 @@ export default function VipCarritoPage() {
 
             {/* Cart Items Section */}
             <section className="flex flex-col gap-3.5">
-              <div className="flex justify-between items-center border-b border-[#DFE5E2] pb-2 gap-3">
-                <h3 className="font-headline-md text-lg sm:text-xl font-extrabold text-[#111614] tracking-tight">
+              <div className="flex justify-between items-center border-b border-[#DFE5E2] pb-3 gap-3">
+                <h3 className="font-headline-md text-xl sm:text-2xl font-extrabold text-[#111614] tracking-tight">
                   Productos en la Orden
                 </h3>
                 <Link
                   href={menuHref}
-                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-headline-md font-bold text-[#187B56] hover:text-[#136244] hover:bg-[#187B56]/8 border border-transparent hover:border-[#187B56]/20 transition-colors"
+                  className="inline-flex items-center gap-1.5 min-h-[38px] px-3.5 rounded-xl text-sm sm:text-base font-headline-md font-bold text-[#187B56] hover:text-[#136244] hover:bg-[#187B56]/8 border border-transparent hover:border-[#187B56]/20 transition-colors"
                 >
-                  <Utensils className="w-3.5 h-3.5" />
+                  <Utensils className="w-4 h-4" />
                   Volver al menú
                 </Link>
               </div>
@@ -223,40 +223,33 @@ export default function VipCarritoPage() {
             {/* Payment Method Card */}
             <VipPaymentSelectorCard />
 
-            {/* Order Summary & Tip Selector */}
-            <VipOrderBreakdownCard
-              subtotal={subtotal}
-              cargoServicio={cargoServicio}
-              propina={propina}
-              onSelectPropina={setPropina}
-              total={total}
-            />
+            <VipOrderBreakdownCard subtotal={subtotal} total={total} />
 
             {/* Desktop Pay CTA */}
-            <div className="hidden lg:flex flex-col gap-2">
+            <div className="hidden lg:flex flex-col gap-2.5">
               <VipButton
                 onClick={handleCheckout}
                 loading={isSubmitting}
                 variant="primary"
                 size="lg"
                 fullWidth
-                className="font-headline-md font-extrabold text-base tracking-wide shadow-md cursor-pointer"
+                className="font-headline-md font-extrabold text-lg min-h-[54px] tracking-wide shadow-md cursor-pointer"
               >
-                Pagar con tarjeta ${finalTotal}.00 MXN
+                Pagar con tarjeta {formatVipMxn(finalTotal)}
               </VipButton>
               <VipButton
                 type="button"
                 variant="outline"
                 size="md"
                 fullWidth
-                className="font-headline-md font-bold"
+                className="font-headline-md font-bold text-base"
                 onClick={() => router.push(menuHref)}
               >
                 <ArrowLeft className="w-4 h-4" />
                 Volver al menú
               </VipButton>
               <div className="flex items-center justify-center gap-1.5 text-sm text-[#7E8E87] font-medium text-center">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#187B56]" />
+                <ShieldCheck className="w-4 h-4 text-[#187B56]" />
                 <span>Transacción segura encriptada</span>
               </div>
             </div>
@@ -265,28 +258,30 @@ export default function VipCarritoPage() {
       </motion.main>
 
       {/* Fixed Bottom Checkout Action for Mobile */}
-      <div className="lg:hidden fixed bottom-[72px] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#DFE5E2] px-4 py-3 shadow-[0_-10px_30px_rgba(10,28,22,0.12)]">
-        <div className="max-w-2xl mx-auto flex flex-col gap-1.5">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#DFE5E2] px-4 pt-3.5 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_rgba(10,28,22,0.14)]">
+        <div className="max-w-2xl mx-auto flex flex-col gap-2">
           <VipButton
             onClick={handleCheckout}
             loading={isSubmitting}
             variant="primary"
             size="lg"
             fullWidth
-            className="font-headline-md font-extrabold text-base cursor-pointer"
+            className="font-headline-md font-black text-lg min-h-[56px] shadow-lg cursor-pointer tracking-tight"
           >
-            Pagar con tarjeta ${finalTotal}.00 MXN
+            Pagar con tarjeta {formatVipMxn(finalTotal)}
           </VipButton>
-          <Link
-            href={menuHref}
-            className="flex items-center justify-center gap-1.5 min-h-10 text-sm font-headline-md font-bold text-[#187B56]"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Volver al menú
-          </Link>
-          <div className="flex items-center justify-center gap-1 text-xs text-[#7E8E87] font-medium">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#187B56]" />
-            <span>Pago seguro con tarjeta</span>
+          <div className="flex items-center justify-between px-1">
+            <Link
+              href={menuHref}
+              className="inline-flex items-center gap-1.5 min-h-[38px] text-sm sm:text-base font-headline-md font-bold text-[#187B56]"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Volver al menú
+            </Link>
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-[#7E8E87] font-medium">
+              <ShieldCheck className="w-4 h-4 text-[#187B56]" />
+              <span>Pago seguro con tarjeta</span>
+            </div>
           </div>
         </div>
       </div>

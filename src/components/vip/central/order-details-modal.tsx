@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { VipModal } from "@/components/vip/ui/modal";
 import { VipButton } from "@/components/vip/ui/button";
 import type { VipOrder, VipOrderStatus } from "@/lib/vip/types";
+import { formatVipAmount, formatVipMxn } from "@/lib/vip/money";
 import {
   formatOrderConcessions,
   groupOrderItemsByConcession,
@@ -162,7 +163,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                         </p>
                       )}
                     </div>
-                    <span className="font-bold text-base shrink-0">${item.subtotal}.00</span>
+                    <span className="font-bold text-base shrink-0">${formatVipAmount(item.subtotal)}</span>
                   </div>
                 ))}
               </div>
@@ -172,20 +173,12 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
         <div className="bg-[#F5F7F6] p-4 rounded-xl border border-[#E2E8E5] space-y-2 text-base">
           <div className="flex justify-between text-[#66706B]">
-            <span>Subtotal</span>
-            <span>${order.subtotal}.00 MXN</span>
-          </div>
-          <div className="flex justify-between text-[#66706B]">
-            <span>Cargo por servicio</span>
-            <span>${order.cargoServicio}.00 MXN</span>
-          </div>
-          <div className="flex justify-between text-[#66706B]">
-            <span>Propina</span>
-            <span>${order.propina}.00 MXN</span>
+            <span>Productos</span>
+            <span>{formatVipMxn(order.subtotal)}</span>
           </div>
           <div className="flex justify-between text-[#171A19] font-extrabold text-xl border-t border-[#E2E8E5] pt-2 mt-1">
             <span>TOTAL</span>
-            <span className="text-[#187B56]">${order.total}.00 MXN</span>
+            <span className="text-[#187B56]">{formatVipMxn(order.total)}</span>
           </div>
         </div>
 

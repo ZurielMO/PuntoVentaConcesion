@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Clock, ArrowRight, MapPin, Sparkles } from "lucide-react";
 import type { VipRestaurant } from "@/lib/vip/types";
+import { formatVipAmount } from "@/lib/vip/money";
 import { vipRestaurantPath } from "@/lib/vip/vip-routes";
 import { VipBadge } from "../ui/badge";
 import { VipMedia } from "../ui/media";
@@ -103,7 +104,7 @@ export const VipFeaturedRestaurants: React.FC<FeaturedRestaurantsProps> = ({ res
                       Desde
                     </span>
                     <span className="font-headline-md text-sm sm:text-base font-extrabold text-[#187B56]">
-                      ${restaurant.precioMinimo}
+                      ${formatVipAmount(restaurant.precioMinimo)}
                     </span>
                   </div>
 
