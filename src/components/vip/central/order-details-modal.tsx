@@ -176,6 +176,10 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             <span>Productos</span>
             <span>{formatVipMxn(order.subtotal)}</span>
           </div>
+          <div className="flex justify-between text-[#66706B]">
+            <span>Cargo por servicio</span>
+            <span>{formatVipMxn(order.cargoServicio)}</span>
+          </div>
           <div className="flex justify-between text-[#171A19] font-extrabold text-xl border-t border-[#E2E8E5] pt-2 mt-1">
             <span>TOTAL</span>
             <span className="text-[#187B56]">{formatVipMxn(order.total)}</span>

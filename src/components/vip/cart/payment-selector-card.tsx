@@ -18,17 +18,12 @@ export const VipPaymentSelectorCard: React.FC = () => {
               <span className="font-label-sm text-xs sm:text-sm text-[#9E7844] uppercase tracking-wider font-black">
                 Pago Seguro
               </span>
-              <span className="inline-flex items-center gap-1 text-xs text-[#187B56] font-bold bg-[#187B56]/10 px-2 py-0.5 rounded-md">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>SSL 256-bit</span>
-              </span>
+              
             </div>
             <h4 className="font-headline-md text-lg sm:text-xl font-extrabold text-[#111614] truncate tracking-tight mt-0.5">
               Pago con tarjeta
             </h4>
-            <span className="font-body-md text-sm sm:text-base text-[#4E5C56]">
-              Acepta tarjetas de crédito y débito bancarias.
-            </span>
+            
           </div>
         </div>
         <VipMascot name="pagos" size="card" decorative className="shrink-0 -mr-1" />

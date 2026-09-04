@@ -96,6 +96,10 @@ export const VipReceiptModal: React.FC<ReceiptModalProps> = ({
             <span>Productos</span>
             <span className="font-semibold text-[#111614]">{formatVipMxn(order.subtotal)}</span>
           </div>
+          <div className="flex justify-between text-[#4E5C56]">
+            <span>Cargo por servicio</span>
+            <span className="font-semibold text-[#111614]">{formatVipMxn(order.cargoServicio)}</span>
+          </div>
           <div className="flex justify-between text-sm font-headline-md font-extrabold text-[#187B56] pt-2.5 border-t border-[#DFE5E2]">
             <span>Total Pagado</span>
             <span>{formatVipMxn(order.total)}</span>

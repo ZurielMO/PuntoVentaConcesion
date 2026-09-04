@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useState, useEffect, useMemo } from "react";
 import type { VipCartItem, VipProduct } from "@/lib/vip/types";
+import { vipServiceFeeFromSubtotal } from "@/lib/vip/money";
 import { vipToast } from "./use-vip-toast";
 
 interface AddItemOptions {
@@ -173,9 +174,9 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
     [items],
   );
 
-  const cargoServicio = 0;
+  const cargoServicio = vipServiceFeeFromSubtotal(subtotal);
   const descuento = 0;
-  const total = subtotal;
+  const total = Number((subtotal + cargoServicio).toFixed(2));
 
   return (
     <VipCartContext.Provider

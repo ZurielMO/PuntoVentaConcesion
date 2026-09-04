@@ -5,11 +5,13 @@ import { formatVipMxn } from "@/lib/vip/money";
 
 interface OrderBreakdownCardProps {
   subtotal: number;
+  cargoServicio: number;
   total: number;
 }
 
 export const VipOrderBreakdownCard: React.FC<OrderBreakdownCardProps> = ({
   subtotal,
+  cargoServicio,
   total,
 }) => {
   return (
@@ -24,6 +26,10 @@ export const VipOrderBreakdownCard: React.FC<OrderBreakdownCardProps> = ({
         <div className="flex justify-between items-center">
           <span className="font-body-md text-[#4E5C56]">Productos</span>
           <span className="font-headline-md font-bold text-[#111614]">{formatVipMxn(subtotal)}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="font-body-md text-[#4E5C56]">Cargo por servicio</span>
+          <span className="font-headline-md font-bold text-[#111614]">{formatVipMxn(cargoServicio)}</span>
         </div>
       </div>
 

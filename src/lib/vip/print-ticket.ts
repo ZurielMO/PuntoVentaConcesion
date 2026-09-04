@@ -312,6 +312,7 @@ async function ticketHtml(order: VipOrder, job: TicketJob, qrPayload: string): P
   const totals = job.includeTotals
     ? `<div class="hr"></div>
     <div class="row"><span>Productos</span><span>$${Number(order.subtotal || 0).toFixed(2)}</span></div>
+    <div class="row"><span>Cargo por servicio</span><span>$${Number(order.cargoServicio || 0).toFixed(2)}</span></div>
     ${discountRow}
     <div class="hr"></div>
     <div class="row"><strong>TOTAL</strong><strong>$${Number(order.total).toFixed(2)} MXN</strong></div>`

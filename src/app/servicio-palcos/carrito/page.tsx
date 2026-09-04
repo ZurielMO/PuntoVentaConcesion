@@ -223,7 +223,11 @@ export default function VipCarritoPage() {
             {/* Payment Method Card */}
             <VipPaymentSelectorCard />
 
-            <VipOrderBreakdownCard subtotal={subtotal} total={total} />
+            <VipOrderBreakdownCard
+              subtotal={subtotal}
+              cargoServicio={cargoServicio}
+              total={total}
+            />
 
             {/* Desktop Pay CTA */}
             <div className="hidden lg:flex flex-col gap-2.5">
