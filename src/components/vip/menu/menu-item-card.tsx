@@ -3,6 +3,7 @@
 import React from "react";
 import { Plus, Sparkles, SlidersHorizontal } from "lucide-react";
 import type { VipProduct } from "@/lib/vip/types";
+import { formatVipAmount, formatVipMxn } from "@/lib/vip/money";
 import { VipMedia } from "../ui/media";
 import { motion } from "motion/react";
 
@@ -106,7 +107,7 @@ export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
           {product.esRecomendado && <Sparkles className="w-3.5 h-3.5 text-[#9E7844] shrink-0" />}
         </div>
         <p className="font-headline-md text-lg font-extrabold text-[#187B56] leading-tight mt-0.5">
-          ${product.precio}
+          ${formatVipAmount(product.precio)}
         </p>
         {product.disponible === false && (
           <p className="text-xs font-bold text-[#C43D3D]">Agotado</p>
@@ -119,7 +120,7 @@ export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
             Precio
           </span>
           <span className="font-headline-md text-xl font-extrabold text-[#187B56]">
-            ${product.precio}.00 MXN
+            {formatVipMxn(product.precio)}
           </span>
         </div>
 

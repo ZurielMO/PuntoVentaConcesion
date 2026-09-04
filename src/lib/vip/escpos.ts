@@ -155,14 +155,11 @@ export function buildVipEscPosTicket(input: {
   if (includeTotals) {
     const breakdown = [
       text("--------------------------------\n"),
-      text(pairLine("Subtotal", money(input.subtotal))),
+      text(pairLine("Productos", money(input.subtotal))),
       text(pairLine("Cargo por servicio", money(input.cargoServicio))),
     ];
     if (Number(input.descuento || 0) > 0) {
       breakdown.push(text(pairLine("Descuento", `-${money(input.descuento || 0)}`)));
-    }
-    if (Number(input.propina || 0) > 0) {
-      breakdown.push(text(pairLine("Propina", money(input.propina || 0))));
     }
     lines.push(...breakdown);
     lines.push(

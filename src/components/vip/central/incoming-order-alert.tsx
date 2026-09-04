@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { MapPin, ArrowRight } from "lucide-react";
 import type { VipOrder } from "@/lib/vip/types";
+import { formatVipAmount } from "@/lib/vip/money";
 import { concessionLabelForItem, formatOrderConcessions, uniqueOrderConcessionNames } from "@/lib/vip/types";
 
 interface IncomingOrderAlertProps {
@@ -129,7 +130,7 @@ export const IncomingOrderAlert: React.FC<IncomingOrderAlertProps> = ({
               Total
             </p>
             <p className="font-black text-[#187B56] leading-none" style={{ fontSize: "clamp(1.6rem, 7vw, 2.8rem)" }}>
-              ${Number(order.total).toFixed(0)}
+              ${formatVipAmount(order.total)}
             </p>
           </div>
           <button

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Minus, Check } from "lucide-react";
 import type { VipProduct } from "@/lib/vip/types";
+import { formatVipAmount, formatVipMxn } from "@/lib/vip/money";
 import { VipModal } from "../ui/modal";
 import { VipButton } from "../ui/button";
 import { VipMedia } from "../ui/media";
@@ -158,7 +159,7 @@ export const VipProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         </div>
                         {opt.precioExtra > 0 && (
                           <span className="font-bold text-[#187B56] shrink-0 ml-1">
-                            +${opt.precioExtra}
+                            +${formatVipAmount(opt.precioExtra)}
                           </span>
                         )}
                       </button>
@@ -217,7 +218,7 @@ export const VipProductDetailModal: React.FC<ProductDetailModalProps> = ({
             disabled={product.disponible === false}
             className="text-xs sm:text-sm font-extrabold shadow-md"
           >
-            {product.disponible === false ? "Agotado" : `Agregar por $${itemTotal}.00 MXN`}
+            {product.disponible === false ? "Agotado" : `Agregar por ${formatVipMxn(itemTotal)}`}
           </VipButton>
         </div>
       </div>

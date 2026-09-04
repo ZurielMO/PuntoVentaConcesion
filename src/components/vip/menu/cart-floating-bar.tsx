@@ -4,10 +4,11 @@ import React from "react";
 import Link from "next/link";
 import { ArrowRight, ShoppingBag } from "lucide-react";
 import { useVipCart } from "@/hooks/vip/use-vip-cart";
+import { formatVipMxn } from "@/lib/vip/money";
 import { motion, AnimatePresence } from "motion/react";
 
 export const VipCartFloatingBar: React.FC = () => {
-  const { items, totalItems, total } = useVipCart();
+  const { items, totalItems, subtotal } = useVipCart();
 
   if (items.length === 0) return null;
 
@@ -32,7 +33,7 @@ export const VipCartFloatingBar: React.FC = () => {
               <div className="flex flex-col">
                 <div className="flex items-baseline gap-1.5">
                   <span className="font-headline-md text-base sm:text-lg font-extrabold text-white">
-                    ${total}.00 MXN
+                    {formatVipMxn(subtotal)}
                   </span>
                 </div>
                 <span className="text-[11px] text-[#D3DCD7] font-semibold">

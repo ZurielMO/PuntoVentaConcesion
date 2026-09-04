@@ -165,6 +165,21 @@ html {
   }
 }
 
+/* VIP Fan App (Servicio Palcos) Isolation:
+   Restore standard 1rem = 16px (100%) so that mobile & desktop
+   interfaces render with full, readable dimensions and comfortable touch targets */
+html:has([data-vip-root]),
+html.vip-root {
+  font-size: 100% !important;
+}
+
+@media (max-width: 767px) {
+  html:has([data-vip-root]),
+  html.vip-root {
+    font-size: 100% !important;
+  }
+}
+
 body {
   background: var(--dashboard-bg);
   color: var(--text-black);

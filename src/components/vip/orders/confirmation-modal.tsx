@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { VipModal } from "@/components/vip/ui/modal";
 import { VipButton } from "@/components/vip/ui/button";
 import type { VipOrder } from "@/lib/vip/types";
+import { formatVipMxn } from "@/lib/vip/money";
 import { formatOrderConcessions, uniqueOrderConcessionNames } from "@/lib/vip/types";
 import { CheckCircle2, Clock, MapPin, ArrowRight, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
@@ -115,7 +116,7 @@ export const VipConfirmationModal: React.FC<ConfirmationModalProps> = ({
           <div className="flex justify-between items-center pt-2 border-t border-[#E2E8E5] font-label-md text-xs">
             <span className="text-[#66706B]">Total Pagado:</span>
             <span className="font-extrabold text-[#171A19] text-sm">
-              ${order.total}.00 MXN
+              {formatVipMxn(order.total)}
             </span>
           </div>
         </div>

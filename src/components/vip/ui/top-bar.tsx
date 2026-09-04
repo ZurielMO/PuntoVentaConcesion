@@ -63,11 +63,11 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
             </div>
           </Link>
         ) : (
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3.5 min-w-0">
             <button
               type="button"
               onClick={handleBack}
-              className="w-11 h-11 rounded-xl bg-[#16382D] hover:bg-[#1B4336] border border-[#234D41] flex items-center justify-center text-white transition-all cursor-pointer shrink-0 active:scale-95"
+              className="w-10 h-10 rounded-xl bg-[#16382D] hover:bg-[#1B4336] border border-[#234D41] flex items-center justify-center text-white transition-all cursor-pointer shrink-0 active:scale-95"
               aria-label={variant === "modal" ? "Cerrar" : "Regresar"}
             >
               {variant === "modal" ? (
@@ -77,11 +77,11 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
               )}
             </button>
             <div className="flex flex-col min-w-0">
-              <h1 className="font-headline-md text-base sm:text-lg font-extrabold text-white truncate max-w-[200px] sm:max-w-sm tracking-tight leading-tight">
+              <h1 className="font-headline-md text-lg sm:text-xl font-extrabold text-white truncate max-w-[220px] sm:max-w-sm tracking-tight leading-tight">
                 {title || (variant === "modal" ? "Detalle" : "Servicio Palcos")}
               </h1>
               {subtitle && (
-                <span className="text-xs font-body-md text-[#D3DCD7] truncate">
+                <span className="text-xs sm:text-sm font-body-md text-[#D3DCD7] truncate">
                   {subtitle}
                 </span>
               )}
@@ -93,13 +93,13 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
           {/* Cart CTA Button */}
           <Link
             href="/servicio-palcos/carrito"
-            className="relative flex items-center gap-2 h-12 px-4 sm:px-5 rounded-xl bg-[#0C8643] hover:bg-[#0A6F38] text-white font-headline-md text-sm sm:text-base font-extrabold transition-all shadow-[0_4px_14px_rgba(12,134,67,0.3)] hover:shadow-[0_6px_18px_rgba(12,134,67,0.4)] cursor-pointer active:scale-95 border border-[#0C8643]/30 select-none"
+            className="relative flex items-center gap-2 h-11 px-4 sm:px-4.5 rounded-xl bg-[#187B56] hover:bg-[#136244] text-white font-headline-md text-base font-extrabold transition-all shadow-[0_4px_14px_rgba(24,123,86,0.3)] hover:shadow-[0_6px_18px_rgba(24,123,86,0.4)] cursor-pointer active:scale-95 border border-[#187B56]/30 select-none"
             aria-label={`Ver carrito (${totalItems} artículos)`}
           >
-            <ShoppingBag className="w-5 h-5 stroke-[2.2]" />
+            <ShoppingBag className="w-4.5 h-4.5 stroke-[2.2]" />
             <span className="hidden sm:inline">Carrito</span>
             {totalItems > 0 && (
-              <span className="min-w-[22px] h-6 px-1.5 rounded-full bg-[#FADC06] text-black font-extrabold text-xs flex items-center justify-center border border-black/10 shadow-xs">
+              <span className="min-w-[22px] h-5.5 px-1.5 rounded-full bg-[#9E7844] text-white font-extrabold text-xs flex items-center justify-center border border-white/20 shadow-xs">
                 {totalItems}
               </span>
             )}
