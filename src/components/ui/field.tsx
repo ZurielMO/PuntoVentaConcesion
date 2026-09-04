@@ -27,11 +27,11 @@ export function Field({
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
       {error ? (
-        <p role="alert" className="text-[1.3rem] text-destructive">
+        <p role="alert" className="text-[1.45rem] text-destructive">
           {error}
         </p>
       ) : hint ? (
-        <p className="text-[1.3rem] text-muted-foreground">{hint}</p>
+        <p className="text-[1.45rem] text-muted-foreground">{hint}</p>
       ) : null}
     </div>
   );

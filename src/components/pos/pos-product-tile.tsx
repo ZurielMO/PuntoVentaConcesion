@@ -54,20 +54,20 @@ export function PosProductTile({
         )}
         <span
           className={cn(
-            "absolute right-2 top-2 rounded-full px-3 py-1 text-[1.2rem] font-semibold",
+            "absolute right-2 top-2 rounded-full px-3.5 py-1.5 text-[1.35rem] font-semibold",
             outOfStock
               ? "bg-destructive/90 text-white"
-              : "bg-green-accent/90 text-white",
+              : "bg-[var(--brand-yellow)] text-[var(--leon-black)]",
           )}
         >
           {outOfStock ? "Agotado" : `Disp. ${disponible}`}
         </span>
       </div>
-      <div className="flex flex-1 flex-col gap-1 p-4">
-        <p className="line-clamp-2 text-[1.7rem] font-semibold text-house-green">
+      <div className="flex flex-1 flex-col gap-1.5 p-4 sm:p-5">
+        <p className="line-clamp-2 text-[1.85rem] font-semibold text-house-green">
           {product.nombre ?? "Producto"}
         </p>
-        <p className="text-[2rem] font-bold text-starbucks-green">
+        <p className="text-[2.2rem] font-bold text-starbucks-green">
           {formatPrice(product.precio as number | undefined)}
         </p>
       </div>

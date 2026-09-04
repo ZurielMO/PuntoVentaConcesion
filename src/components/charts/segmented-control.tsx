@@ -27,7 +27,7 @@ export function SegmentedControl<T extends string>({
       role="group"
       aria-label={ariaLabel}
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-[8px] bg-neutral-cool p-0.5",
+        "inline-flex items-center gap-1 rounded-[12px] bg-neutral-cool p-1",
         className,
       )}
     >
@@ -40,7 +40,7 @@ export function SegmentedControl<T extends string>({
             aria-pressed={active}
             onClick={() => onChange(option.value)}
             className={cn(
-              "rounded-[6px] px-2.5 py-1 text-[1.2rem] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-green-accent/40",
+              "min-h-[44px] rounded-[10px] px-4 py-2 text-[1.4rem] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-green-accent/40",
               active
                 ? "bg-white text-green-dark shadow-sm"
                 : "text-muted-foreground hover:text-green-dark",

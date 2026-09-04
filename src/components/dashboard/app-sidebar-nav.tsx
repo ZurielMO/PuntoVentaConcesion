@@ -39,10 +39,10 @@ export function AppSidebarNav({ groups, onNavigate, className }: AppSidebarNavPr
     >
       {groups.map((group) => (
         <div key={group.title}>
-          <p className="mb-2 px-3 text-[1.1rem] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="mb-2.5 px-3 text-[1.25rem] font-semibold uppercase tracking-wide text-muted-foreground">
             {group.title}
           </p>
-          <ul className="space-y-1">
+          <ul className="space-y-1.5">
             {group.items.map((item) => {
               const active = item.href === activeHref;
               const Icon = item.icon;
@@ -61,7 +61,7 @@ export function AppSidebarNav({ groups, onNavigate, className }: AppSidebarNavPr
                     }}
                     className={cn("sidebar-link", active && "sidebar-link-active")}
                   >
-                    <Icon className="size-5 shrink-0" />
+                    <Icon className="size-6 shrink-0" />
                     {item.label}
                   </Link>
                 </li>

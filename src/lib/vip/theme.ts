@@ -1,61 +1,54 @@
 /**
  * VIP Arena Experience Visual System Tokens · Club León
- * 
- * Hospitality Premium + Stadium Venue + Modern Commerce
+ *
+ * Brand-aligned: green #0C8643, yellow #FADC06, black, white
  */
 
 export const VIP_THEME = {
   colors: {
-    // Club León / Emerald Greens
-    primary: "#187B56",
-    primaryHover: "#136244",
-    primaryActive: "#0E4A33",
-    primaryLight: "#E8F4EE",
-    primarySubtle: "rgba(24, 123, 86, 0.08)",
-    primaryBorder: "rgba(24, 123, 86, 0.22)",
+    primary: "#0C8643",
+    primaryHover: "#0A6F38",
+    primaryActive: "#065C2C",
+    primaryLight: "#E3F5EB",
+    primarySubtle: "rgba(12, 134, 67, 0.08)",
+    primaryBorder: "rgba(12, 134, 67, 0.22)",
 
-    // Warm Gold / Champagne VIP Accents
-    gold: "#9E7844",
-    goldHover: "#846335",
-    goldLight: "#F8F3EA",
-    goldSubtle: "rgba(158, 120, 68, 0.12)",
-    goldBorder: "rgba(158, 120, 68, 0.28)",
-    goldText: "#C5A059",
+    gold: "#FADC06",
+    goldHover: "#E5C805",
+    goldLight: "#FFF9D6",
+    goldSubtle: "rgba(250, 220, 6, 0.16)",
+    goldBorder: "rgba(250, 220, 6, 0.4)",
+    goldText: "#8A7600",
 
-    // Stadium Deep Greens
-    darkStadium: "#0A1C16",
-    dark: "#102D24",
-    darkElevated: "#16382D",
-    darkSurface: "#1B4336",
+    darkStadium: "#000000",
+    dark: "#0A1A12",
+    darkElevated: "#102820",
+    darkSurface: "#16352A",
     darkBorder: "#234D41",
     darkBorderLight: "rgba(35, 77, 65, 0.6)",
 
-    // Neutral Surfaces & Warm Background
-    background: "#F6F8F7",
-    backgroundAlt: "#ECEFEA",
+    background: "#F3F6F4",
+    backgroundAlt: "#E8EEEA",
     surface: "#FFFFFF",
-    surfaceMuted: "#F2F5F3",
+    surfaceMuted: "#F1F5F2",
     surfaceElevated: "#FFFFFF",
 
-    // Typography
-    textPrimary: "#111614",
-    textSecondary: "#4E5C56",
-    textTertiary: "#7E8E87",
+    textPrimary: "#000000",
+    textSecondary: "#4A5550",
+    textTertiary: "#7A8781",
     textOnDark: "#FFFFFF",
     textOnDarkMuted: "#D3DCD7",
 
-    // Borders & Dividers
-    border: "#DFE5E2",
-    borderSubtle: "#E9EFEB",
-    borderStrong: "#CBD5D0",
+    border: "#CFD8D3",
+    borderSubtle: "#E5EBE7",
+    borderStrong: "#B8C4BE",
 
-    // Feedback & Operational Status
-    success: "#1F8A55",
-    successSubtle: "rgba(31, 138, 85, 0.1)",
-    warning: "#D99721",
-    warningSubtle: "rgba(217, 151, 33, 0.1)",
+    success: "#0C8643",
+    successSubtle: "rgba(12, 134, 67, 0.1)",
+    warning: "#FADC06",
+    warningSubtle: "rgba(250, 220, 6, 0.18)",
     error: "#C43D3D",
-    errorSubtle: "rgba(196, 61, 61, 0.1)",
+    errorSubtle: "rgba(196, 61, 43, 0.1)",
     info: "#2C7DA0",
     infoSubtle: "rgba(44, 125, 160, 0.1)",
   },
@@ -72,11 +65,11 @@ export const VIP_THEME = {
     full: "9999px",
   },
   shadows: {
-    subtle: "0 2px 8px rgba(10, 28, 22, 0.04)",
-    elevated: "0 8px 24px rgba(10, 28, 22, 0.08)",
-    floating: "0 14px 36px rgba(10, 28, 22, 0.12)",
-    overlay: "0 24px 60px rgba(10, 28, 22, 0.22)",
-    goldGlow: "0 4px 20px rgba(158, 120, 68, 0.18)",
-    greenGlow: "0 4px 20px rgba(24, 123, 86, 0.22)",
+    subtle: "0 2px 8px rgba(0, 0, 0, 0.05)",
+    elevated: "0 8px 24px rgba(0, 0, 0, 0.08)",
+    floating: "0 14px 36px rgba(0, 0, 0, 0.12)",
+    overlay: "0 24px 60px rgba(0, 0, 0, 0.22)",
+    goldGlow: "0 4px 20px rgba(250, 220, 6, 0.28)",
+    greenGlow: "0 4px 20px rgba(12, 134, 67, 0.24)",
   },
 } as const;

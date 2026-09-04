@@ -90,11 +90,14 @@ export function AppTopbar() {
               className="md:hidden"
               disabled={isLocked}
             >
-              <Menu className="size-5" />
+              <Menu className="size-6" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-[var(--sidebar-width)] p-0">
-            <div className="border-b px-4 py-4">
+          <SheetContent
+            side="left"
+            className="flex h-full max-h-[100dvh] w-[var(--sidebar-width)] flex-col gap-0 overflow-hidden p-0"
+          >
+            <div className="shrink-0 border-b px-4 py-5">
               <Link
                 href="/"
                 tabIndex={isLocked ? -1 : undefined}
@@ -102,23 +105,28 @@ export function AppTopbar() {
                 onClick={(e) => {
                   if (isLocked) e.preventDefault();
                 }}
-                className="text-[1.8rem] font-bold tracking-tight text-green-dark"
+                className="text-[2rem] font-bold tracking-tight text-green-dark"
               >
                 PuntoVenta
               </Link>
             </div>
-            <AppSidebarNav groups={navGroups} onNavigate={() => setMobileOpen(false)} />
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1.6rem,env(safe-area-inset-bottom))]">
+              <AppSidebarNav
+                groups={navGroups}
+                onNavigate={() => setMobileOpen(false)}
+              />
+            </div>
           </SheetContent>
         </Sheet>
 
-        <div className="hidden items-center gap-1 text-[1.3rem] text-muted-foreground md:flex">
+        <div className="hidden items-center gap-1.5 text-[1.45rem] text-muted-foreground md:flex">
           <span>Panel</span>
-          <ChevronRight className="size-4" />
+          <ChevronRight className="size-5" />
           <span className="font-semibold text-green-dark">
             {getPageTitle(pathname)}
           </span>
         </div>
-        <p className="text-[1.6rem] font-semibold text-green-dark md:hidden">
+        <p className="text-[1.75rem] font-semibold text-green-dark md:hidden">
           {getPageTitle(pathname)}
         </p>
       </div>
@@ -129,14 +137,14 @@ export function AppTopbar() {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex items-center gap-3 rounded-lg px-2 py-1 hover:bg-neutral-cool"
+            className="flex min-h-[52px] items-center gap-3 rounded-xl px-2.5 py-1.5 hover:bg-neutral-cool"
           >
             <div className="hidden text-right sm:block">
-              <p className="text-[1.3rem] font-medium">{displayName}</p>
-              <p className="text-[1.1rem] text-muted-foreground">{roleLabel}</p>
+              <p className="text-[1.45rem] font-medium">{displayName}</p>
+              <p className="text-[1.25rem] text-muted-foreground">{roleLabel}</p>
             </div>
-            <Avatar className="size-9">
-              <AvatarFallback className="bg-green-soft text-green-accent">
+            <Avatar className="size-11">
+              <AvatarFallback className="bg-green-soft text-[1.4rem] text-green-accent">
                 {getInitials(
                   typeof posUser?.nombre === "string" ? posUser.nombre : null,
                   user?.email,
@@ -152,8 +160,8 @@ export function AppTopbar() {
         >
           <DropdownMenuLabel className="px-3 py-3">
             <div className="flex items-center gap-3">
-              <Avatar className="size-11">
-                <AvatarFallback className="bg-green-soft text-[1.4rem] text-green-accent">
+              <Avatar className="size-12">
+                <AvatarFallback className="bg-green-soft text-[1.5rem] text-green-accent">
                   {getInitials(
                     typeof posUser?.nombre === "string" ? posUser.nombre : null,
                     user?.email,
@@ -161,15 +169,15 @@ export function AppTopbar() {
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <p className="truncate text-[1.5rem] font-semibold text-foreground">
+                <p className="truncate text-[1.6rem] font-semibold text-foreground">
                   {displayName}
                 </p>
                 {user?.email && (
-                  <p className="truncate text-[1.2rem] font-normal text-muted-foreground">
+                  <p className="truncate text-[1.35rem] font-normal text-muted-foreground">
                     {user.email}
                   </p>
                 )}
-                <p className="text-[1.1rem] font-semibold uppercase tracking-wide text-green-accent">
+                <p className="text-[1.25rem] font-semibold uppercase tracking-wide text-green-accent">
                   {roleLabel}
                 </p>
               </div>
@@ -179,7 +187,7 @@ export function AppTopbar() {
           <DropdownMenuItem
             onClick={() => logout()}
             variant="destructive"
-            className="cursor-pointer gap-3 rounded-lg px-3 py-3 text-[1.4rem] font-medium"
+            className="cursor-pointer gap-3 rounded-lg px-3 py-3.5 text-[1.5rem] font-medium"
           >
             <LogOut className="!size-5" />
             Cerrar sesión

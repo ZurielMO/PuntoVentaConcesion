@@ -42,15 +42,15 @@ export default function VipRootLayout({
     <div
       className={`
         ${montserrat.variable} ${inter.variable}
-        min-h-screen bg-[#F6F8F7] text-[#111614] antialiased text-[16px] sm:text-[15px]
-        selection:bg-[#187B56] selection:text-white
+        min-h-screen bg-[#F3F6F4] text-[#000000] antialiased text-[17px] sm:text-[16px]
+        selection:bg-[#0C8643] selection:text-white
       `}
       style={{
         fontFamily: "var(--font-inter-vip), Inter, sans-serif",
       }}
     >
       <VipProviders>
-        <div className="w-full min-h-screen flex flex-col bg-[#F6F8F7] relative">
+        <div className="w-full min-h-screen flex flex-col bg-[#F3F6F4] relative">
           {children}
           <VipMobileChrome />
         </div>

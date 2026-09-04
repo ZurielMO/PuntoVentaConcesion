@@ -1,20 +1,20 @@
-/* Asistente de alta — POS brand (#006A54, #F3C24B, #206734, #0B0B0B) */
+/* Asistente de alta — Club León (#0C8643, #FADC06, #000000, #FFFFFF) */
 
 .wizard-alta {
-  --wz-primary: #006a54;
-  --wz-primary-hover: #005845;
-  --wz-gold: #f3c24b;
-  --wz-accent: #206734;
-  --wz-onyx: #0b0b0b;
+  --wz-primary: #0c8643;
+  --wz-primary-hover: #0a6f38;
+  --wz-gold: #fadc06;
+  --wz-accent: #065c2c;
+  --wz-onyx: #000000;
   --wz-surface: #ffffff;
-  --wz-bg: #f3f5f7;
-  --wz-border: #e5e7eb;
+  --wz-bg: #f3f6f4;
+  --wz-border: #cfd8d3;
   --wz-muted: #6b7280;
-  --wz-soft: #e8f5f0;
+  --wz-soft: #e3f5eb;
   --wz-radius: 14px;
   --wz-radius-pill: 999px;
-  --wz-shadow: 0 4px 24px rgba(11, 11, 11, 0.06);
-  --wz-shadow-lg: 0 12px 40px rgba(0, 106, 84, 0.12);
+  --wz-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --wz-shadow-lg: 0 12px 40px rgba(12, 134, 67, 0.14);
 }
 
 .wizard-alta__shell {
@@ -38,14 +38,25 @@
   overflow: hidden;
   border-radius: var(--wz-radius);
   background: var(--wz-primary);
-  padding: 2.4rem 3rem;
+  padding: 2.6rem 3rem;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(0, 106, 84, 0.35);
+  box-shadow: 0 4px 14px rgba(12, 134, 67, 0.28);
+}
+
+.wizard-alta__hero::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: var(--wz-gold);
+  z-index: 1;
 }
 
 @media (min-width: 1280px) {
   .wizard-alta__hero {
-    padding: 3rem 3.6rem;
+    padding: 3.2rem 3.6rem;
   }
 }
 
@@ -65,7 +76,7 @@
 
 .wizard-alta__hero h1 {
   margin: 0;
-  font-size: 2.8rem;
+  font-size: 3rem;
   font-weight: 700;
   color: #fff;
   letter-spacing: -0.02em;
@@ -73,14 +84,14 @@
 
 @media (min-width: 1280px) {
   .wizard-alta__hero h1 {
-    font-size: 3.2rem;
+    font-size: 3.4rem;
   }
 }
 
 .wizard-alta__hero p {
-  margin: 0.5rem 0 0;
-  font-size: 1.55rem;
-  color: rgba(255, 255, 255, 0.88);
+  margin: 0.6rem 0 0;
+  font-size: 1.65rem;
+  color: rgba(255, 255, 255, 0.9);
   max-width: 52rem;
   line-height: 1.5;
 }
@@ -88,13 +99,14 @@
 .wizard-alta__exit {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
+  min-height: 48px;
   border-radius: var(--wz-radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.12);
-  padding: 0.55rem 1.2rem;
-  font-size: 1.3rem;
-  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.14);
+  padding: 0.85rem 1.6rem;
+  font-size: 1.5rem;
+  font-weight: 600;
   color: #fff;
   text-decoration: none;
   transition: background 0.15s;
@@ -363,7 +375,7 @@
   border: 2px solid var(--wz-primary);
   background: var(--wz-soft);
   cursor: pointer;
-  box-shadow: 0 2px 12px rgba(0, 106, 84, 0.1);
+  box-shadow: 0 2px 12px rgba(12, 134, 67, 0.1);
 }
 
 .wizard-alta__upload-frame--logo {
@@ -426,7 +438,7 @@
   background: linear-gradient(
     180deg,
     rgba(0, 0, 0, 0) 50%,
-    rgba(0, 106, 84, 0.8) 100%
+    rgba(12, 134, 67, 0.8) 100%
   );
   color: #fff;
   font-size: 1.15rem;
@@ -507,7 +519,7 @@
 
 .wizard-alta__caja-card:focus-within {
   border-color: var(--wz-primary);
-  box-shadow: 0 0 0 3px rgba(0, 106, 84, 0.12);
+  box-shadow: 0 0 0 3px rgba(12, 134, 67, 0.12);
 }
 
 .wizard-alta__caja-icon {
@@ -565,7 +577,7 @@
 
 .wizard-alta__product-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 106, 84, 0.14);
+  box-shadow: 0 8px 24px rgba(12, 134, 67, 0.14);
 }
 
 .wizard-alta__product-card-body {
@@ -689,7 +701,7 @@
 .wizard-alta__btn--primary {
   background: var(--wz-primary);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(0, 106, 84, 0.35);
+  box-shadow: 0 4px 14px rgba(12, 134, 67, 0.35);
 }
 
 .wizard-alta__btn--primary:hover:not(:disabled) {
@@ -1073,7 +1085,7 @@
 .wizard-alta select:focus {
   outline: none;
   border-color: var(--wz-primary) !important;
-  box-shadow: 0 0 0 3px rgba(0, 106, 84, 0.15) !important;
+  box-shadow: 0 0 0 3px rgba(12, 134, 67, 0.15) !important;
 }
 
 /* Modal limpio (sucursales / cajas / equipo) */
@@ -1806,12 +1818,12 @@
   html { font-size: 62.5% } → 1rem = 10px. Override shadcn rem defaults.
 */
 .wizard-alta__assign-menu {
-  --wz-primary: #006a54;
-  --wz-primary-hover: #005845;
-  --wz-onyx: #0b0b0b;
-  --wz-border: #e5e7eb;
+  --wz-primary: #0c8643;
+  --wz-primary-hover: #0a6f38;
+  --wz-onyx: #000000;
+  --wz-border: #cfd8d3;
   --wz-muted: #6b7280;
-  --wz-soft: #e8f5f0;
+  --wz-soft: #e3f5eb;
   z-index: 80;
   width: max-content;
   min-width: 24rem;
@@ -1823,7 +1835,7 @@
   color: var(--wz-onyx);
   box-shadow:
     0 4px 16px rgba(11, 11, 11, 0.06),
-    0 12px 32px rgba(0, 106, 84, 0.1) !important;
+    0 12px 32px rgba(12, 134, 67, 0.1) !important;
   font-size: 1.4rem;
   line-height: 1.4;
   overflow: hidden;
@@ -2128,7 +2140,7 @@ a.wizard-alta__setup-quick:hover {
   height: 100%;
   border-radius: inherit;
   background: var(--wz-primary);
-  box-shadow: 0 0 0 1px rgba(0, 106, 84, 0.15);
+  box-shadow: 0 0 0 1px rgba(12, 134, 67, 0.15);
   transition: width 0.45s ease;
 }
 

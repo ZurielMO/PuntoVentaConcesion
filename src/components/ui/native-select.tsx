@@ -15,12 +15,12 @@ function NativeSelect({
     <div className={cn("relative w-full", className)}>
       <select
         data-slot="native-select"
-        className="h-11 w-full appearance-none rounded-[8px] border border-input bg-white pl-3 pr-10 text-[1.4rem] text-foreground transition-colors outline-none focus-visible:border-green-accent focus-visible:ring-2 focus-visible:ring-green-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-[5.2rem] min-h-[52px] w-full appearance-none rounded-[12px] border border-input bg-white pl-4 pr-11 text-[1.55rem] text-foreground transition-colors outline-none focus-visible:border-green-accent focus-visible:ring-2 focus-visible:ring-green-accent/25 disabled:cursor-not-allowed disabled:opacity-50"
         {...props}
       >
         {children}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
     </div>
   );
 }

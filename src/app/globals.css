@@ -1,42 +1,49 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* SaaS Enterprise Analytics — strong green palette */
+/* Club León brand system — green, yellow, black, white */
 
 :root {
-  /* Strong greens (design system) */
-  --green-dark: #052e16;
-  --green-secondary: #14532d;
-  --green-accent: #15803d;
-  --green-light-accent: #22c55e;
-  --green-soft: #dcfce7;
-  --green-muted: #f0fdf4;
+  /* Brand primitives */
+  --leon-green: #0c8643;
+  --leon-yellow: #fadc06;
+  --leon-white: #ffffff;
+  --leon-black: #000000;
+
+  /* Green scale (from brand green) */
+  --green-dark: #065c2c;
+  --green-secondary: #0a6f38;
+  --green-accent: var(--leon-green);
+  --green-light-accent: #12a352;
+  --green-soft: #e3f5eb;
+  --green-muted: #f1faf4;
 
   /* Legacy aliases (existing class names) */
   --starbucks-green: var(--green-dark);
   --house-green: var(--green-secondary);
-  --green-uplift: #166534;
+  --green-uplift: var(--green-secondary);
   --green-light: var(--green-soft);
 
   /* Surfaces */
-  --white: #ffffff;
-  --surface: #ffffff;
-  --accent-bg: #f0fdf4;
-  --neutral-cool: #f4f6f8;
-  --neutral-warm: #f0fdf4;
-  --ceramic: #e8f5e9;
-  --black: #0a0a0a;
+  --white: var(--leon-white);
+  --surface: var(--leon-white);
+  --accent-bg: var(--green-muted);
+  --neutral-cool: #f4f6f5;
+  --neutral-warm: var(--green-muted);
+  --ceramic: #e8f3ec;
+  --black: var(--leon-black);
+  --brand-yellow: var(--leon-yellow);
 
   /* Text */
-  --text-black: rgba(5, 46, 22, 0.92);
-  --text-black-soft: rgba(5, 46, 22, 0.58);
+  --text-black: rgba(0, 0, 0, 0.92);
+  --text-black-soft: rgba(0, 0, 0, 0.58);
   --text-white: rgba(255, 255, 255, 1);
-  --text-white-soft: rgba(255, 255, 255, 0.75);
+  --text-white-soft: rgba(255, 255, 255, 0.78);
 
   /* Semantic */
   --red: #dc2626;
-  --yellow: #f59e0b;
-  --input-border: #d1d5db;
+  --yellow: var(--leon-yellow);
+  --input-border: #cfd8d3;
 
   /* Spacing */
   --space-1: 0.4rem;
@@ -53,13 +60,13 @@
   --outer-gutter-md: 2.4rem;
   --outer-gutter-lg: 4rem;
 
-  /* Components — SaaS Analytics */
-  --card-border-radius: 12px;
+  /* Components */
+  --card-border-radius: 14px;
   --button-border-radius: 12px;
   --button-active-scale: 0.98;
-  --card-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  --nav-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --frap-shadow: 0 4px 16px rgba(21, 128, 61, 0.2);
+  --card-shadow: 0 2px 14px rgba(0, 0, 0, 0.07);
+  --nav-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --frap-shadow: 0 4px 18px rgba(12, 134, 67, 0.28);
 
   /* shadcn semantic mapping */
   --background: var(--neutral-cool);
@@ -83,19 +90,19 @@
   --radius: var(--card-border-radius);
 
   /* Dashboard */
-  --dashboard-bg: #f4f6f8;
-  --sidebar-bg: #ffffff;
-  --sidebar-width: 260px;
+  --dashboard-bg: #f3f6f4;
+  --sidebar-bg: var(--leon-white);
+  --sidebar-width: 280px;
   --sidebar-active: var(--green-accent);
   --sidebar-active-bg: var(--green-soft);
-  --topbar-height: 64px;
-  --card-radius: 12px;
+  --topbar-height: 72px;
+  --card-radius: 14px;
   --navy: var(--green-dark);
   --glass-bg: rgba(255, 255, 255, 0.12);
   --glass-border: rgba(255, 255, 255, 0.2);
   --glass-blur: 12px;
-  --pos-tile-min: 160px;
-  --touch-min: 48px;
+  --pos-tile-min: 176px;
+  --touch-min: 52px;
   --teal-accent: var(--green-accent);
   --teal-light: var(--green-soft);
 }
@@ -129,86 +136,101 @@
   --color-neutral-warm: var(--neutral-warm);
   --color-neutral-cool: var(--neutral-cool);
   --color-ceramic: var(--ceramic);
+  --color-brand-yellow: var(--brand-yellow);
+  --color-leon-green: var(--leon-green);
+  --color-leon-yellow: var(--leon-yellow);
+  --color-leon-black: var(--leon-black);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-outfit);
 }
 
 html {
-  font-size: 62.5%;
+  font-size: 68.75%;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
 @media (max-width: 767px) {
   html {
-    font-size: 58%;
+    font-size: 65%;
   }
 
   :root {
-    --topbar-height: 56px;
-    --outer-gutter: 1.2rem;
-    --pos-tile-min: 132px;
+    --topbar-height: 64px;
+    --outer-gutter: 1.4rem;
+    --pos-tile-min: 148px;
+    --sidebar-width: 300px;
   }
 }
 
 body {
   background: var(--dashboard-bg);
   color: var(--text-black);
-  font-family: var(--font-inter), "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-size: 1.6rem;
-  line-height: 1.6;
+  font-family: var(--font-outfit), "Outfit", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 1.7rem;
+  line-height: 1.55;
   letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 
 h1 {
-  font-size: 2.25rem;
+  font-size: 2.6rem;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
   letter-spacing: -0.02em;
-  color: var(--green-dark);
+  color: var(--leon-black);
 }
 
 h2 {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.35;
   letter-spacing: -0.01em;
   color: var(--text-black);
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid rgba(5, 46, 22, 0.06);
+  border: 1px solid rgba(12, 134, 67, 0.08);
   border-radius: var(--card-border-radius);
   box-shadow: var(--card-shadow);
 }
 
 .pos-gradient-header {
-  background: linear-gradient(
-    135deg,
-    var(--green-dark) 0%,
-    var(--green-secondary) 55%,
-    var(--green-accent) 100%
-  );
+  background: var(--leon-green);
   color: var(--text-white);
   border-radius: var(--card-border-radius);
+  position: relative;
+  overflow: hidden;
+}
+
+.pos-gradient-header::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: var(--leon-yellow);
+  border-radius: var(--card-border-radius) 0 0 var(--card-border-radius);
+  z-index: 1;
 }
 
 .pos-tile {
   min-height: var(--pos-tile-min);
+  min-width: 0;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
 }
 
 .pos-tile:hover:not(:disabled) {
   transform: translateY(-2px) scale(1.01);
-  box-shadow: 0 8px 24px rgba(21, 128, 61, 0.18);
+  box-shadow: 0 8px 24px rgba(12, 134, 67, 0.2);
 }
 
 .pos-tile:active:not(:disabled) {
@@ -223,46 +245,45 @@ h2 {
   background: var(--white);
   border-radius: var(--card-radius);
   box-shadow: var(--card-shadow);
-  border: 1px solid rgba(5, 46, 22, 0.06);
+  border: 1px solid rgba(12, 134, 67, 0.08);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .dashboard-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.09);
 }
 
 .dashboard-banner {
-  background: linear-gradient(
-    135deg,
-    var(--green-dark) 0%,
-    var(--green-secondary) 50%,
-    var(--green-accent) 100%
-  );
+  background: var(--leon-green);
   border-radius: var(--card-radius);
   color: var(--text-white);
   position: relative;
   overflow: hidden;
 }
 
-.dashboard-banner::after {
+.dashboard-banner::before {
   content: "";
   position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    circle at 80% 20%,
-    rgba(255, 255, 255, 0.12) 0%,
-    transparent 50%
-  );
-  pointer-events: none;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: var(--leon-yellow);
+  z-index: 1;
+}
+
+.dashboard-banner::after {
+  display: none;
 }
 
 .sidebar-link {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.65rem 1rem;
-  border-radius: 8px;
-  font-size: 1.4rem;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  min-height: var(--touch-min);
+  border-radius: 10px;
+  font-size: 1.55rem;
   font-weight: 500;
   color: var(--text-black-soft);
   transition: background 0.15s, color 0.15s;
@@ -277,7 +298,7 @@ h2 {
   background: var(--sidebar-active-bg);
   color: var(--sidebar-active);
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--green-accent);
+  box-shadow: inset 4px 0 0 var(--leon-yellow);
 }
 
 .sidebar-link[aria-disabled="true"] {
@@ -286,7 +307,7 @@ h2 {
   cursor: not-allowed;
 }
 
-/* Full-viewport nav lock (asistente create, etc.) — above dashboard shell */
+/* Full-viewport nav lock */
 .app-nav-lock-overlay {
   position: fixed;
   inset: 0;
@@ -295,7 +316,7 @@ h2 {
   align-items: center;
   justify-content: center;
   padding: 2.4rem;
-  background: color-mix(in srgb, #f3f5f7 78%, transparent);
+  background: color-mix(in srgb, #f3f5f4 78%, transparent);
   backdrop-filter: blur(4px);
   pointer-events: auto;
   user-select: none;
@@ -305,35 +326,35 @@ h2 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.2rem;
-  min-width: min(100%, 28rem);
-  padding: 2.4rem 2.8rem;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, #006a54 22%, #e5e7eb);
+  gap: 1.4rem;
+  min-width: min(100%, 30rem);
+  padding: 2.8rem 3rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--leon-green) 24%, #e5e7eb);
   background: #ffffff;
-  box-shadow: 0 12px 40px rgba(0, 106, 84, 0.12);
+  box-shadow: 0 12px 40px rgba(12, 134, 67, 0.14);
   text-align: center;
 }
 
 .app-nav-lock-spinner {
-  width: 3.6rem;
-  height: 3.6rem;
+  width: 4rem;
+  height: 4rem;
   border-radius: 50%;
-  border: 3px solid #e8f5f0;
-  border-top-color: #006a54;
+  border: 3px solid var(--green-soft);
+  border-top-color: var(--leon-green);
   animation: app-nav-lock-spin 0.75s linear infinite;
 }
 
 .app-nav-lock-title {
   margin: 0;
-  font-size: 1.7rem;
+  font-size: 1.9rem;
   font-weight: 700;
-  color: #206734;
+  color: var(--green-dark);
 }
 
 .app-nav-lock-sub {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.5rem;
   color: #6b7280;
   line-height: 1.45;
 }
@@ -356,11 +377,10 @@ h2 {
   --dashboard-bg: #f5f7fa;
 }
 
-/* Scroll hint for wide tables on mobile */
 .table-scroll-hint {
   display: block;
-  padding: 0.6rem 0.8rem 0;
-  font-size: 1.2rem;
+  padding: 0.7rem 0.9rem 0;
+  font-size: 1.35rem;
   color: var(--text-black-soft);
 }
 
@@ -370,9 +390,8 @@ h2 {
   }
 }
 
-/* Safe area for notched phones */
 @supports (padding: env(safe-area-inset-bottom)) {
   .dashboard-main-safe {
-    padding-bottom: max(1.6rem, env(safe-area-inset-bottom));
+    padding-bottom: max(1.8rem, env(safe-area-inset-bottom));
   }
 }

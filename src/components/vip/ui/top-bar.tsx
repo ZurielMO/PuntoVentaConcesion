@@ -33,18 +33,18 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-[#0A1C16] text-white border-b border-[#234D41]/80 shadow-[0_4px_20px_rgba(10,28,22,0.3)] transition-all">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-[4.5rem] flex items-center justify-between gap-4">
         {/* Left: Brand Identity or Back Button */}
         {variant === "home" ? (
           <Link
             href="/servicio-palcos/inicio"
             className="flex items-center gap-3 text-white hover:opacity-95 transition-opacity group select-none"
           >
-            <div className="relative w-11 h-11 rounded-xl bg-[#16382D] border border-[#00FF85]/30 shadow-sm overflow-hidden flex items-center justify-center group-hover:border-[#00FF85]/60 transition-colors shrink-0">
+            <div className="relative w-12 h-12 rounded-xl bg-[#16382D] border border-[#FADC06]/40 shadow-sm overflow-hidden flex items-center justify-center group-hover:border-[#FADC06]/70 transition-colors shrink-0">
               <VipMascot
                 name="icono"
                 size="logo"
-                className="w-[38px] h-[38px] translate-y-[1px]"
+                className="w-[40px] h-[40px] translate-y-[1px]"
                 priority
               />
             </div>
@@ -53,7 +53,7 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
                 <span className="font-headline-md text-lg sm:text-xl font-extrabold tracking-tight text-white leading-none">
                   Servicio Palcos
                 </span>
-                <span className="text-[10px] font-label-sm uppercase font-extrabold tracking-wider bg-[#9E7844]/25 text-[#C5A059] border border-[#9E7844]/40 px-1.5 py-0.2 rounded-md">
+                <span className="text-[11px] font-label-sm uppercase font-extrabold tracking-wider bg-[#FADC06] text-black border border-[#FADC06] px-2 py-0.5 rounded-md">
                   Palcos
                 </span>
               </div>
@@ -67,13 +67,13 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
             <button
               type="button"
               onClick={handleBack}
-              className="w-9 h-9 rounded-xl bg-[#16382D] hover:bg-[#1B4336] border border-[#234D41] flex items-center justify-center text-white transition-all cursor-pointer shrink-0 active:scale-95"
+              className="w-11 h-11 rounded-xl bg-[#16382D] hover:bg-[#1B4336] border border-[#234D41] flex items-center justify-center text-white transition-all cursor-pointer shrink-0 active:scale-95"
               aria-label={variant === "modal" ? "Cerrar" : "Regresar"}
             >
               {variant === "modal" ? (
-                <X className="w-4 h-4 text-white" />
+                <X className="w-5 h-5 text-white" />
               ) : (
-                <ArrowLeft className="w-4 h-4 text-white" />
+                <ArrowLeft className="w-5 h-5 text-white" />
               )}
             </button>
             <div className="flex flex-col min-w-0">
@@ -93,13 +93,13 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
           {/* Cart CTA Button */}
           <Link
             href="/servicio-palcos/carrito"
-            className="relative flex items-center gap-2 h-10 px-3.5 sm:px-4 rounded-xl bg-[#187B56] hover:bg-[#136244] text-white font-headline-md text-sm font-extrabold transition-all shadow-[0_4px_14px_rgba(24,123,86,0.3)] hover:shadow-[0_6px_18px_rgba(24,123,86,0.4)] cursor-pointer active:scale-95 border border-[#187B56]/30 select-none"
+            className="relative flex items-center gap-2 h-12 px-4 sm:px-5 rounded-xl bg-[#0C8643] hover:bg-[#0A6F38] text-white font-headline-md text-sm sm:text-base font-extrabold transition-all shadow-[0_4px_14px_rgba(12,134,67,0.3)] hover:shadow-[0_6px_18px_rgba(12,134,67,0.4)] cursor-pointer active:scale-95 border border-[#0C8643]/30 select-none"
             aria-label={`Ver carrito (${totalItems} artículos)`}
           >
-            <ShoppingBag className="w-4 h-4 stroke-[2.2]" />
+            <ShoppingBag className="w-5 h-5 stroke-[2.2]" />
             <span className="hidden sm:inline">Carrito</span>
             {totalItems > 0 && (
-              <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#9E7844] text-white font-extrabold text-xs flex items-center justify-center border border-white/20 shadow-xs">
+              <span className="min-w-[22px] h-6 px-1.5 rounded-full bg-[#FADC06] text-black font-extrabold text-xs flex items-center justify-center border border-black/10 shadow-xs">
                 {totalItems}
               </span>
             )}

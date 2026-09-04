@@ -862,7 +862,7 @@ export default function NuevaConcesionWizardPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="mt-3 rounded-full border-[#006A54] text-[#006A54]"
+                  className="mt-3 rounded-full border-[#0C8643] text-[#0C8643]"
                   disabled={cajasNombres.length >= MAX_CAJAS}
                   onClick={() => {
                     if (cajasNombres.length >= MAX_CAJAS) {
@@ -1062,7 +1062,7 @@ export default function NuevaConcesionWizardPage() {
                     return (
                       <div key={index} className="wizard-alta__vendor-card">
                         <div className="wizard-alta__vendor-head">
-                          <Store className="size-5 text-[#006A54]" />
+                          <Store className="size-5 text-[#0C8643]" />
                           {nombre}
                         </div>
                         <div className="space-y-3">

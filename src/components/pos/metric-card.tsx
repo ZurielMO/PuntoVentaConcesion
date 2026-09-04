@@ -13,20 +13,20 @@ type MetricCardProps = {
 
 export function MetricCard({ label, value, hint, icon: Icon, className }: MetricCardProps) {
   return (
-    <div className={cn("glass-card p-5", className)}>
+    <div className={cn("glass-card p-6", className)}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[1.3rem] font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-[1.4rem] font-medium uppercase tracking-wide text-muted-foreground">
             {label}
           </p>
-          <p className="mt-1 text-[2.4rem] font-semibold text-starbucks-green">{value}</p>
+          <p className="mt-1.5 text-[2.8rem] font-semibold text-starbucks-green">{value}</p>
           {hint && (
-            <p className="mt-1 text-[1.3rem] text-muted-foreground">{hint}</p>
+            <p className="mt-1.5 text-[1.45rem] text-muted-foreground">{hint}</p>
           )}
         </div>
         {Icon && (
-          <div className="flex size-12 items-center justify-center rounded-full bg-green-light/60 text-green-accent">
-            <Icon className="size-6" />
+          <div className="flex size-14 items-center justify-center rounded-full bg-green-light/60 text-green-accent">
+            <Icon className="size-7" />
           </div>
         )}
       </div>

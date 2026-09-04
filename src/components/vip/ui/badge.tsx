@@ -29,34 +29,34 @@ export const VipBadge: React.FC<VipBadgeProps> = ({
 }) => {
   const variantStyles: Record<BadgeVariant, { bg: string; text: string; border: string; dotColor: string }> = {
     available: {
-      bg: "bg-[#187B56]/10",
-      text: "text-[#187B56]",
-      border: "border-[#187B56]/20",
-      dotColor: "bg-[#187B56]",
+      bg: "bg-[#0C8643]/10",
+      text: "text-[#0C8643]",
+      border: "border-[#0C8643]/20",
+      dotColor: "bg-[#0C8643]",
     },
     occupied: {
-      bg: "bg-[#D99721]/10",
-      text: "text-[#D99721]",
-      border: "border-[#D99721]/20",
-      dotColor: "bg-[#D99721]",
+      bg: "bg-[#FADC06]/25",
+      text: "text-[#8A7600]",
+      border: "border-[#FADC06]/50",
+      dotColor: "bg-[#FADC06]",
     },
     fast: {
-      bg: "bg-[#187B56]/10",
-      text: "text-[#187B56]",
-      border: "border-[#187B56]/20",
-      dotColor: "bg-[#187B56]",
+      bg: "bg-[#0C8643]/10",
+      text: "text-[#0C8643]",
+      border: "border-[#0C8643]/20",
+      dotColor: "bg-[#0C8643]",
     },
     premium: {
-      bg: "bg-[#9E7844]/12",
-      text: "text-[#9E7844]",
-      border: "border-[#9E7844]/25",
-      dotColor: "bg-[#9E7844]",
+      bg: "bg-[#FADC06]/20",
+      text: "text-[#8A7600]",
+      border: "border-[#FADC06]/40",
+      dotColor: "bg-[#FADC06]",
     },
     success: {
-      bg: "bg-[#1F8A55]/10",
-      text: "text-[#1F8A55]",
-      border: "border-[#1F8A55]/20",
-      dotColor: "bg-[#1F8A55]",
+      bg: "bg-[#0C8643]/10",
+      text: "text-[#0C8643]",
+      border: "border-[#0C8643]/20",
+      dotColor: "bg-[#0C8643]",
     },
     closed: {
       bg: "bg-[#C43D3D]/10",
@@ -79,7 +79,7 @@ export const VipBadge: React.FC<VipBadgeProps> = ({
   };
 
   const current = variantStyles[variant] || variantStyles.available;
-  const sizeClass = size === "sm" ? "px-2 py-0.5 text-[10px] tracking-wide" : "px-2.5 py-1 text-xs tracking-wide";
+  const sizeClass = size === "sm" ? "px-2.5 py-1 text-[11px] tracking-wide" : "px-3 py-1.5 text-sm tracking-wide";
 
   return (
     <span

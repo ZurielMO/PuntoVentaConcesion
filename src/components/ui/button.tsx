@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-[1.4rem] font-semibold tracking-[-0.01em] transition-all duration-200 ease-out disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:translate-y-px",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-[1.55rem] font-semibold tracking-[-0.01em] transition-all duration-200 ease-out disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-5 shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98]",
   {
     variants: {
       variant: {
@@ -13,7 +13,7 @@ const buttonVariants = cva(
         outline:
           "bg-transparent text-green-accent border-[1.5px] border-green-accent hover:bg-green-soft/60",
         secondary:
-          "bg-white text-green-accent border border-white hover:bg-white/90",
+          "bg-[var(--brand-yellow)] text-[var(--leon-black)] border border-[var(--brand-yellow)] hover:brightness-95",
         dark: "bg-[var(--green-dark)] text-white border border-[var(--green-dark)] hover:opacity-90",
         "dark-outline":
           "bg-transparent text-[var(--text-black)] border border-[var(--text-black)] hover:bg-black/5",
@@ -25,11 +25,11 @@ const buttonVariants = cva(
         link: "text-green-accent underline-offset-4 hover:underline border-transparent",
       },
       size: {
-        default: "h-11 px-4 rounded-[8px]",
-        sm: "h-9 px-3 text-[1.3rem] rounded-[8px]",
-        lg: "h-12 px-8 text-[1.6rem] rounded-[8px]",
-        icon: "size-10 rounded-[8px]",
-        frap: "size-14 rounded-full shadow-[var(--frap-shadow)]",
+        default: "h-[5.2rem] min-h-[52px] px-5 rounded-[12px]",
+        sm: "h-[4.4rem] min-h-[44px] px-4 text-[1.4rem] rounded-[10px]",
+        lg: "h-[5.8rem] min-h-[56px] px-8 text-[1.7rem] rounded-[12px]",
+        icon: "size-[5.2rem] min-h-[52px] min-w-[52px] rounded-[12px]",
+        frap: "size-[6.4rem] rounded-full shadow-[var(--frap-shadow)]",
       },
     },
     defaultVariants: {

@@ -27,23 +27,23 @@ export const VipButton: React.FC<VipButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    "inline-flex items-center justify-center font-headline-md font-bold tracking-wide transition-all select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#187B56] focus-visible:ring-offset-2 disabled:opacity-45 disabled:pointer-events-none cursor-pointer rounded-xl active:scale-[0.98]";
+    "inline-flex items-center justify-center font-headline-md font-bold tracking-wide transition-all select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0C8643] focus-visible:ring-offset-2 disabled:opacity-45 disabled:pointer-events-none cursor-pointer rounded-xl active:scale-[0.98]";
 
   const sizeStyles: Record<ButtonSize, string> = {
-    sm: "min-h-[40px] px-4 text-xs gap-1.5",
-    md: "min-h-[48px] px-5 text-sm gap-2",
-    lg: "min-h-[54px] px-7 text-base gap-2.5",
+    sm: "min-h-[44px] px-4 text-sm gap-1.5",
+    md: "min-h-[52px] px-6 text-base gap-2",
+    lg: "min-h-[58px] px-8 text-lg gap-2.5",
   };
 
   const variantStyles: Record<ButtonVariant, string> = {
     primary:
-      "bg-[#187B56] text-white hover:bg-[#136244] active:bg-[#0E4A33] shadow-[0_4px_16px_rgba(24,123,86,0.22)] hover:shadow-[0_6px_20px_rgba(24,123,86,0.3)] border border-[#187B56]/20",
+      "bg-[#0C8643] text-white hover:bg-[#0A6F38] active:bg-[#065C2C] shadow-[0_4px_16px_rgba(12,134,67,0.22)] hover:shadow-[0_6px_20px_rgba(12,134,67,0.3)] border border-[#0C8643]/20",
     secondary:
       "bg-[#102D24] text-white hover:bg-[#183C32] active:bg-[#0A1C16] shadow-sm border border-[#234D41]",
     gold:
-      "bg-[#9E7844] text-white hover:bg-[#846335] active:bg-[#6e512b] shadow-[0_4px_16px_rgba(158,120,68,0.22)] border border-[#9E7844]/20",
+      "bg-[#FADC06] text-black hover:brightness-95 active:brightness-90 shadow-[0_4px_16px_rgba(250,220,6,0.35)] border border-[#FADC06]",
     outline:
-      "border border-[#DFE5E2] bg-white text-[#111614] hover:bg-[#F6F8F7] hover:border-[#187B56] hover:text-[#187B56] shadow-2xs",
+      "border border-[#DFE5E2] bg-white text-[#111614] hover:bg-[#F6F8F7] hover:border-[#0C8643] hover:text-[#0C8643] shadow-2xs",
     ghost:
       "bg-transparent text-[#4E5C56] hover:text-[#111614] hover:bg-[#ECEFEA]/60",
     danger:

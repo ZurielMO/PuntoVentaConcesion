@@ -28,16 +28,16 @@ export function AppSidebar() {
           onClick={(e) => {
             if (isLocked) e.preventDefault();
           }}
-          className="text-[1.8rem] font-bold tracking-tight text-green-dark"
+          className="text-[2rem] font-bold tracking-tight text-green-dark"
         >
           PuntoVenta
         </Link>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto py-2">
+      <div className="min-h-0 flex-1 overflow-y-auto py-3">
         <AppSidebarNav groups={groups} />
       </div>
       <div className="shrink-0 border-t border-border p-4">
-        <p className="text-[1.2rem] text-muted-foreground">Concesiones Estadio</p>
+        <p className="text-[1.35rem] text-muted-foreground">Concesiones Estadio</p>
       </div>
     </aside>
   );
