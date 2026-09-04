@@ -184,14 +184,26 @@ body {
   background: var(--dashboard-bg);
   color: var(--text-black);
   font-family: var(--font-outfit), "Outfit", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-size: 1.7rem;
-  line-height: 1.55;
-  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 
-h1 {
+/* Dashboard rem scale (68.75%). Keep unlayered so it wins over Tailwind,
+   but never leak into VIP / Central Palcos (html is restored to 16px). */
+html:not(.vip-root):not(:has([data-vip-root])) body {
+  font-size: 1.7rem;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+}
+
+html:has([data-vip-root]) body,
+html.vip-root body {
+  font-size: 1rem;
+  line-height: 1.5;
+  letter-spacing: normal;
+}
+
+html:not(.vip-root):not(:has([data-vip-root])) h1 {
   font-size: 2.6rem;
   font-weight: 700;
   line-height: 1.25;
@@ -199,7 +211,7 @@ h1 {
   color: var(--leon-black);
 }
 
-h2 {
+html:not(.vip-root):not(:has([data-vip-root])) h2 {
   font-size: 1.8rem;
   font-weight: 600;
   line-height: 1.35;

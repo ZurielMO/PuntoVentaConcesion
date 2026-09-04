@@ -249,6 +249,15 @@ export const orderIncludesConcession = (order: VipOrder, concessionId: string): 
   return uniqueOrderConcessionNames(order).some((name) => name.toLowerCase().includes(needle));
 };
 
+/** Folio corto para KDS/PDA: PALCO-20260904-XWV6VU → XWV6VU */
+export const shortVipOrderNumber = (numero: string): string => {
+  const trimmed = String(numero || "").replace(/^#/, "").trim();
+  if (!trimmed) return "";
+  const parts = trimmed.split("-").filter(Boolean);
+  if (parts.length >= 3) return parts.at(-1) ?? trimmed;
+  return trimmed;
+};
+
 export interface VipOrder {
   id: string;
   numeroPedido: string;

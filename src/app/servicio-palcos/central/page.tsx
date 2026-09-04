@@ -304,7 +304,7 @@ export default function VipCentralPage() {
       <main className="flex-1 min-h-0 w-full mx-auto px-3 pt-3 pb-[8.25rem] flex flex-col gap-3 overflow-hidden">
         {tab === "camino" && (
           <form
-            className="bg-white rounded-2xl border border-[#E2E8E5] px-3.5 py-3 flex items-center gap-2.5 shadow-sm shrink-0"
+            className="bg-white rounded-2xl border border-[#E2E8E5] px-3 py-2.5 flex items-center gap-2 shadow-sm shrink-0 min-w-0 w-full"
             onSubmit={(event) => {
               event.preventDefault();
               if (scanValue.trim()) handleScannedCode(scanValue);
@@ -315,7 +315,7 @@ export default function VipCentralPage() {
               data-vip-scanner="true"
               value={scanValue}
               onChange={(event) => setScanValue(event.target.value)}
-              className="flex-1 min-h-14 bg-transparent text-lg font-semibold text-[#171A19] placeholder:text-[#8A9992] outline-none"
+              className="flex-1 min-w-0 min-h-12 bg-transparent text-base font-semibold text-[#171A19] placeholder:text-[#8A9992] outline-none"
               placeholder="Escanea el QR del ticket"
               autoComplete="off"
               autoCorrect="off"
@@ -323,7 +323,7 @@ export default function VipCentralPage() {
             />
             <button
               type="submit"
-              className="min-h-14 px-4 rounded-xl bg-[#187B56] text-white text-base font-bold"
+              className="min-h-12 px-3 rounded-xl bg-[#187B56] text-white text-sm font-bold shrink-0"
             >
               Abrir
             </button>
@@ -331,7 +331,7 @@ export default function VipCentralPage() {
               <button
                 type="button"
                 onClick={() => window.Android?.scanQr?.()}
-                className="min-h-14 px-3.5 rounded-xl bg-[#0A1C16] text-white text-base font-bold flex items-center justify-center"
+                className="min-h-12 px-3 rounded-xl bg-[#0A1C16] text-white text-sm font-bold shrink-0 flex items-center justify-center"
                 aria-label="Cámara"
               >
                 <Camera className="w-6 h-6" />

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { MapPin, ArrowRight } from "lucide-react";
 import type { VipOrder } from "@/lib/vip/types";
 import { formatVipAmount } from "@/lib/vip/money";
-import { concessionLabelForItem, formatOrderConcessions, uniqueOrderConcessionNames } from "@/lib/vip/types";
+import { concessionLabelForItem, formatOrderConcessions, shortVipOrderNumber, uniqueOrderConcessionNames } from "@/lib/vip/types";
 
 interface IncomingOrderAlertProps {
   order: VipOrder;
@@ -55,10 +55,11 @@ export const IncomingOrderAlert: React.FC<IncomingOrderAlertProps> = ({
 
       <div className="flex-1 min-h-0 bg-white rounded-[1.75rem] px-4 py-3 sm:p-5 flex flex-col gap-2 shadow-2xl overflow-hidden">
         <p
-          className="font-black text-[#187B56] leading-[0.9] tracking-tight text-center"
+          className="font-black text-[#187B56] leading-[0.9] tracking-tight text-center break-all"
           style={{ fontSize: "clamp(2.6rem, 16vw, 7rem)" }}
+          title={order.numeroPedido}
         >
-          {order.numeroPedido}
+          {shortVipOrderNumber(order.numeroPedido)}
         </p>
 
         <div className="text-center leading-none">

@@ -10,6 +10,7 @@ import {
   groupOrderItemsByConcession,
   isVipDeliverableStatus,
   isVipNewStatus,
+  shortVipOrderNumber,
   uniqueOrderConcessionNames,
 } from "@/lib/vip/types";
 import { Printer, XCircle, MapPin, Phone, User, AlertTriangle, Check } from "lucide-react";
@@ -81,8 +82,8 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     <VipModal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Comanda ${order.numeroPedido}`}
-      titleClassName="text-xl sm:text-2xl"
+      title={`Comanda ${shortVipOrderNumber(order.numeroPedido)}`}
+      titleClassName="text-xl sm:text-2xl break-words"
       maxWidth="lg"
     >
       <div className="flex flex-col gap-4 text-lg font-body-md text-[#171A19]">

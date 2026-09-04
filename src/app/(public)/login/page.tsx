@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { useAuth } from "@/hooks/use-auth";
 import { getDefaultRouteForRole } from "@/lib/permissions";
+import { isVipStaffLoginNext, VipStaffLogin } from "@/components/vip/auth/vip-staff-login";
 
 const loginSchema = z.object({
   email: z.string().email("Correo inválido"),
@@ -26,7 +27,23 @@ const PANEL_FEATURES = [
 ];
 
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[100dvh] items-center justify-center bg-[var(--dashboard-bg)]">
+          <p className="text-[1.6rem] text-muted-foreground">Cargando…</p>
+        </div>
+      }
+    >
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const vipNext = isVipStaffLoginNext(searchParams.get("next"));
   const { loginWithPassword, user, posUser, loading: authLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -62,10 +79,32 @@ export default function LoginPage() {
   };
 
   if (authLoading || user) {
+    if (vipNext) {
+      return (
+        <div
+          data-vip-root="true"
+          className="flex min-h-[100dvh] items-center justify-center bg-[#F5F7F6] text-base text-[#66706B]"
+        >
+          Cargando…
+        </div>
+      );
+    }
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-[var(--dashboard-bg)]">
         <p className="text-[1.6rem] text-muted-foreground">Cargando…</p>
       </div>
+    );
+  }
+
+  if (vipNext) {
+    return (
+      <VipStaffLogin
+        register={register}
+        errors={errors}
+        error={error}
+        submitting={submitting}
+        onSubmit={handleSubmit(onSubmit)}
+      />
     );
   }
 

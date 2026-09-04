@@ -4,7 +4,7 @@ import React from "react";
 import { Clock, MapPin, ArrowRight, FileText, Phone } from "lucide-react";
 import type { VipOrder, VipOrderStatus } from "@/lib/vip/types";
 import { formatVipAmount } from "@/lib/vip/money";
-import { concessionLabelForItem, formatOrderConcessions, isVipHistoryStatus, isVipNewStatus, isVipOnTheWayStatus, uniqueOrderConcessionNames } from "@/lib/vip/types";
+import { concessionLabelForItem, formatOrderConcessions, isVipHistoryStatus, isVipNewStatus, isVipOnTheWayStatus, shortVipOrderNumber, uniqueOrderConcessionNames } from "@/lib/vip/types";
 
 interface KdsTicketCardProps {
   order: VipOrder;
@@ -48,10 +48,13 @@ export const KdsTicketCard: React.FC<KdsTicketCardProps> = ({
       `}
     >
       <div className="flex justify-between items-start border-b border-[#F0F2F1] pb-3.5 gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="font-headline-md text-3xl font-extrabold text-[#187B56] leading-none tracking-tight">
-              {order.numeroPedido}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1 min-w-0">
+            <span
+              className="font-headline-md text-3xl font-extrabold text-[#187B56] leading-none tracking-tight break-all"
+              title={order.numeroPedido}
+            >
+              {shortVipOrderNumber(order.numeroPedido)}
             </span>
             <button
               type="button"
@@ -59,7 +62,7 @@ export const KdsTicketCard: React.FC<KdsTicketCardProps> = ({
                 e.stopPropagation();
                 onSelectOrder(order);
               }}
-              className="text-[#ACB5C9] hover:text-[#187B56] p-1 rounded transition-colors min-h-11 min-w-11 flex items-center justify-center"
+              className="text-[#ACB5C9] hover:text-[#187B56] p-1 rounded transition-colors min-h-11 min-w-11 shrink-0 flex items-center justify-center"
               title="Ver comanda completa"
             >
               <FileText className="w-6 h-6" />
@@ -71,16 +74,16 @@ export const KdsTicketCard: React.FC<KdsTicketCardProps> = ({
           </p>
         </div>
 
-        <div className="text-right shrink-0 max-w-[48%]">
-          <span className="font-headline-md text-2xl font-extrabold text-[#171A19] flex items-center justify-end gap-1.5 leading-none">
-            <MapPin className="w-6 h-6 text-[#187B56] shrink-0" />
-            Palco {order.ubicacion.palco}
+        <div className="text-right shrink-0 max-w-[42%] min-w-0">
+          <span className="font-headline-md text-xl font-extrabold text-[#171A19] flex items-center justify-end gap-1.5 leading-tight">
+            <MapPin className="w-5 h-5 text-[#187B56] shrink-0" />
+            <span className="break-words">Palco {order.ubicacion.palco}</span>
           </span>
-          <span className="font-label-sm text-base text-[#66706B] block mt-1.5 leading-snug">
+          <span className="font-label-sm text-sm text-[#66706B] block mt-1.5 leading-snug break-words">
             {order.ubicacion.zona}
             {order.ubicacion.nivel ? ` · ${order.ubicacion.nivel}` : ""}
           </span>
-          <span className="font-label-sm text-base text-[#66706B] block mt-1 leading-snug">
+          <span className="font-label-sm text-sm text-[#66706B] block mt-1 leading-snug break-words">
             {formatOrderConcessions(order)}
           </span>
         </div>
@@ -90,7 +93,7 @@ export const KdsTicketCard: React.FC<KdsTicketCardProps> = ({
         {order.items.map((item, idx) => (
           <li key={item.id || idx} className="flex flex-col">
             <div className="flex justify-between items-start gap-3">
-              <span className="font-semibold">
+              <span className="font-semibold min-w-0 break-words">
                 <strong className="text-[#187B56] font-extrabold mr-2">{item.cantidad}x</strong>
                 {item.producto.nombre}
               </span>
@@ -118,9 +121,11 @@ export const KdsTicketCard: React.FC<KdsTicketCardProps> = ({
       </ul>
 
       {(order.nombreCliente || order.telefonoCliente) && (
-        <div className="flex items-center gap-2 text-base text-[#171A19] font-semibold">
-          <Phone className="w-5 h-5 text-[#187B56] shrink-0" />
-          {[order.nombreCliente, order.telefonoCliente].filter(Boolean).join(" · ")}
+        <div className="flex items-start gap-2 text-base text-[#171A19] font-semibold min-w-0">
+          <Phone className="w-5 h-5 text-[#187B56] shrink-0 mt-0.5" />
+          <span className="break-words min-w-0">
+            {[order.nombreCliente, order.telefonoCliente].filter(Boolean).join(" · ")}
+          </span>
         </div>
       )}
 

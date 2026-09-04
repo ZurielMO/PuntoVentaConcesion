@@ -82,7 +82,7 @@ export const VipModal: React.FC<VipModalProps> = ({
             {/* Header */}
             {title && (
               <div className="flex items-center justify-between pb-3.5 border-b border-[#E9EFEB] mb-4 shrink-0">
-                <h3 className={`font-headline-md text-base sm:text-lg font-extrabold text-[#111614] tracking-tight ${titleClassName ?? ""}`}>
+                <h3 className={`font-headline-md text-base sm:text-lg font-extrabold text-[#111614] tracking-tight min-w-0 pr-2 ${titleClassName ?? ""}`}>
                   {title}
                 </h3>
                 <button

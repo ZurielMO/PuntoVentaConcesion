@@ -44,9 +44,11 @@ export const CentralHeader: React.FC<CentralHeaderProps> = ({
           <div className="w-12 h-12 shrink-0 rounded-xl bg-[#187B56] border border-[#00FF85]/40 flex items-center justify-center text-2xl">
             🦁
           </div>
-          <div className="min-w-0">
-            <h1 className="font-extrabold text-lg leading-tight truncate">Central Palcos</h1>
-            <p className="text-base text-[#ACB5C9] font-semibold truncate">Palcos {zona}</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-extrabold text-lg leading-tight text-white">
+              Central Palcos
+            </h1>
+            <p className="text-sm text-[#ACB5C9] font-semibold truncate">Palcos {zona}</p>
           </div>
         </div>
 
