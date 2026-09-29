@@ -32,6 +32,31 @@ function money(value: number): string {
   return `$${Number(value || 0).toFixed(2)}`;
 }
 
+function wrapComment(note: string, width = COLS): string[] {
+  const blocks = note
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const lines: string[] = [];
+  for (const block of blocks) {
+    let rest = toPrinterText(block);
+    let first = lines.length === 0;
+    while (rest.length > 0) {
+      const prefix = first ? "* " : "  ";
+      const room = Math.max(8, width - prefix.length);
+      let cut = rest.length;
+      if (rest.length > room) {
+        const space = rest.lastIndexOf(" ", room);
+        cut = space > 8 ? space : room;
+      }
+      lines.push(`${prefix}${rest.slice(0, cut).trimEnd()}`);
+      rest = rest.slice(cut).trimStart();
+      first = false;
+    }
+  }
+  return lines;
+}
+
 function pairLine(left: string, right: string, width = COLS): string {
   const l = toPrinterText(left);
   const r = toPrinterText(right);
@@ -166,7 +191,12 @@ export function buildVipEscPosTicket(input: {
   for (const item of input.items) {
     lines.push(text(pairLine(`${item.quantity}x ${item.name}`, money(item.subtotal))));
     if (item.extras) lines.push(text(`  ${item.extras}\n`));
-    if (item.notes) lines.push(text(`  * ${item.notes}\n`));
+    const comment = item.notes?.trim();
+    if (comment) {
+      lines.push(cmd(ESC, 0x45, 0x01));
+      for (const line of wrapComment(comment)) lines.push(text(`${line}\n`));
+      lines.push(cmd(ESC, 0x45, 0x00));
+    }
   }
 
   if (includeTotals) {

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { CalendarClock, Check, Info, RotateCw } from "lucide-react";
+import { CalendarClock, Check, RotateCw } from "lucide-react";
 import type {
   StadiumZone,
   VipPreorderAvailability,
@@ -15,8 +15,6 @@ import {
   VIP_PURCHASE_UNAVAILABLE_HINT,
   VIP_PURCHASE_UNAVAILABLE_TITLE,
 } from "@/lib/vip/purchase-availability";
-
-const LOW_STOCK_THRESHOLD = 3;
 
 function MatchOption({
   match,
@@ -93,7 +91,7 @@ export function VipPreorderScheduler({
   availability,
   loading,
   error,
-  zona,
+  zona: _zona,
   value,
   onChange,
   onRetry,
@@ -102,7 +100,7 @@ export function VipPreorderScheduler({
   availability: VipPreorderAvailability | null;
   loading: boolean;
   error: string | null;
-  zona: StadiumZone | "";
+  zona?: StadiumZone | "";
   value: VipPreorderSelection | null;
   onChange: (next: VipPreorderSelection | null) => void;
   onRetry: () => void;
@@ -134,7 +132,7 @@ export function VipPreorderScheduler({
           </h3>
           {availability && (
             <p className="text-xs sm:text-sm text-[#6E7E77]">
-              De {availability.windowBeforeMinutes} min antes a {availability.windowAfterMinutes} min después del inicio · ventanas de {availability.slotMinutes} min
+              Elige el horario de entrega de tu preferencia para el partido.
             </p>
           )}
         </div>
@@ -187,17 +185,9 @@ export function VipPreorderScheduler({
               >
                 <p className="text-base font-bold text-[#3B4843]">¿A qué hora lo quieres en tu palco?</p>
 
-                {!zona && (
-                  <p className="flex items-start gap-2 rounded-xl bg-[#F6F8F7] border border-[#E4EAE6] px-3 py-2.5 text-xs sm:text-sm text-[#4E5C56]">
-                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#187B56]" />
-                    Elige tu zona en el paso anterior para ver el cupo disponible de cada horario.
-                  </p>
-                )}
-
                 <div role="radiogroup" aria-label="Ventana de entrega" className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {selectedMatch.windows.map((window) => {
                     const selected = value?.matchId === selectedMatch.matchId && value.windowStart === window.start;
-                    const low = window.available && window.remaining !== null && window.remaining <= LOW_STOCK_THRESHOLD;
                     const phase = preorderPhaseLabel(window.startAt, selectedMatch.kickoffAt);
                     return (
                       <button
@@ -228,18 +218,10 @@ export function VipPreorderScheduler({
                               ? "text-[#FADC06]"
                               : !window.available
                                 ? "text-[#A3B0AA]"
-                                : low
-                                  ? "text-[#B7791F]"
-                                  : "text-[#6E7E77]"
+                                : "text-[#6E7E77]"
                           }`}
                         >
-                          {!window.available
-                            ? "No disponible"
-                            : low
-                              ? window.remaining === 1
-                                ? "Último lugar"
-                                : `Quedan ${window.remaining}`
-                              : phase}
+                          {!window.available ? "No disponible" : phase}
                         </span>
                       </button>
                     );

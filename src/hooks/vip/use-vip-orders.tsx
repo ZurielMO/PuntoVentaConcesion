@@ -232,7 +232,7 @@ export function VipOrdersProvider({ children }: { children: React.ReactNode }) {
         extras: (i.extrasSeleccionados || [])
           .map((e) => e.id || i.producto.extrasDisponibles?.find((opt) => opt.name === e.opcionNombre)?.id)
           .filter((id): id is string => Boolean(id)),
-        notes: i.instrucciones || undefined,
+        notes: i.instrucciones?.trim() || undefined,
       })),
       tip: params.propina,
       ...(params.preorder

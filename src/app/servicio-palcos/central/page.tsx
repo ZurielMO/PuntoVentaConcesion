@@ -245,7 +245,6 @@ export default function VipCentralPage() {
   const advancePreorder = async (order: VipOrder, nextStatus: VipOrderStatus, quiet = false): Promise<boolean> => {
     if (preorderBusyIds.has(order.id)) return false;
     setPreorderBusy(order.id, true);
-    const printing = nextStatus === "PREPARING" ? printOrderTickets({ ...order, estado: "PREPARING" }) : null;
     try {
       await VipService.transitionAdminOrder(order.id, nextStatus, token);
       preorders.patchStatus(order.id, nextStatus);
@@ -255,9 +254,9 @@ export default function VipCentralPage() {
         return nextStatus === "DELIVERED" ? null : { ...current, estado: nextStatus };
       });
       if (!quiet) vipToast.success(PREORDER_STATUS_TOAST[nextStatus] || "Estado actualizado");
-      if (printing) {
+      if (nextStatus === "PREPARING") {
         try {
-          await printing;
+          await printOrderTickets({ ...order, estado: "PREPARING" });
         } catch {
           if (!quiet) vipToast.info("Usa Imprimir ticket si la PDA no lanzó la impresión.");
         }

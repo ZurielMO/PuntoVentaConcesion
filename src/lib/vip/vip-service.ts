@@ -48,6 +48,7 @@ interface VipBackendConcession {
     images?: string[];
     imagenes?: string[];
     price: number | string;
+    description?: string;
     currency?: string;
     available?: boolean;
     awaitingInventory?: boolean;
@@ -97,7 +98,11 @@ function mapVipConcession(c: VipBackendConcession): VipRestaurant {
       id: p.id,
       concesionId: c.id,
       nombre: prodName,
-      descripcion: ("descripcion" in p ? p.descripcion : undefined) || "",
+      descripcion: String(
+        ("description" in p ? p.description : undefined) ||
+        ("descripcion" in p ? p.descripcion : undefined) ||
+        "",
+      ).trim(),
       precio: price,
       imagen: firstImage(("images" in p ? p.images : undefined) || ("imagenes" in p ? p.imagenes : undefined)),
       categoria,
@@ -396,7 +401,7 @@ export class VipService {
     return (await this.getPublicServiceStatus()).acceptingOrders;
   }
 
-  /** Partidos y ventanas de entrega reservables; con zona incluye cupo restante por ventana. */
+  /** Partidos y ventanas de entrega reservables (sin límites de cupo por horario ni zona). */
   static async getPreorderAvailability(zona?: StadiumZone | null): Promise<VipPreorderAvailability> {
     const query = zona ? `?zona=${encodeURIComponent(zona)}` : "";
     const res = await api.get<ApiResponse<VipPreorderAvailability>>(`/vip/preorders/availability${query}`);

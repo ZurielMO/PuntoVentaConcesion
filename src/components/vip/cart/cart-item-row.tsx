@@ -10,12 +10,14 @@ import { motion } from "motion/react";
 interface CartItemRowProps {
   item: VipCartItem;
   onUpdateQuantity: (id: string, qty: number) => void;
+  onUpdateInstructions: (id: string, instrucciones: string) => void;
   onRemove: (id: string) => void;
 }
 
 export const VipCartItemRow: React.FC<CartItemRowProps> = ({
   item,
   onUpdateQuantity,
+  onUpdateInstructions,
   onRemove,
 }) => {
   return (
@@ -25,8 +27,9 @@ export const VipCartItemRow: React.FC<CartItemRowProps> = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.15 }}
-      className="bg-white p-4 sm:p-5 rounded-[20px] border border-[#DFE5E2] shadow-2xs flex items-center justify-between gap-3.5 sm:gap-4 transition-all"
+      className="bg-white p-4 sm:p-5 rounded-[20px] border border-[#DFE5E2] shadow-2xs flex flex-col gap-3 transition-all"
     >
+      <div className="flex items-center justify-between gap-3.5 sm:gap-4">
       {/* Photo */}
       <div className="w-20 h-20 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-[#ECEFEA] border border-[#DFE5E2] shrink-0">
         <VipMedia
@@ -47,12 +50,6 @@ export const VipCartItemRow: React.FC<CartItemRowProps> = ({
         {item.opcionesSeleccionadas && item.opcionesSeleccionadas.length > 0 && (
           <p className="font-body-md text-xs sm:text-sm text-[#4E5C56] truncate mt-0.5">
             {item.opcionesSeleccionadas.map((o) => o.opcionNombre).join(", ")}
-          </p>
-        )}
-
-        {item.instrucciones && (
-          <p className="font-body-md text-xs sm:text-sm text-[#9E7844] italic truncate mt-0.5">
-            &ldquo;{item.instrucciones}&rdquo;
           </p>
         )}
 
@@ -98,6 +95,25 @@ export const VipCartItemRow: React.FC<CartItemRowProps> = ({
           <Trash2 className="w-5 h-5" />
         </button>
       </div>
+      </div>
+
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-bold text-[#3B4843]">
+          Comentario para cocina o barra
+          <span className="ml-1 font-semibold text-[#7E8E87]">(opcional)</span>
+        </span>
+        <textarea
+          value={item.instrucciones || ""}
+          onChange={(event) => onUpdateInstructions(item.id, event.target.value)}
+          maxLength={500}
+          rows={2}
+          placeholder="Sin hielo, sin cebolla, término medio..."
+          className="w-full resize-none rounded-xl border border-[#DFE5E2] bg-[#F6F8F7] px-3 py-2.5 text-sm font-medium text-[#111614] placeholder:text-[#8A9992] focus:border-[#187B56] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#187B56]/25"
+        />
+        <span className="text-xs font-medium text-[#7E8E87]">
+          Este comentario se imprime en el ticket.
+        </span>
+      </label>
     </motion.div>
   );
 };

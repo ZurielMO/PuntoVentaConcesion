@@ -81,13 +81,9 @@ export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
             )}
           </div>
 
-          {product.descripcion ? (
-            <p className="font-body-md text-sm text-[#4E5C56] line-clamp-2 leading-relaxed">
+          {product.descripcion.trim() && (
+            <p className="font-body-md text-sm text-[#4E5C56] line-clamp-6 whitespace-pre-line leading-relaxed">
               {product.descripcion}
-            </p>
-          ) : (
-            <p className="font-body-md text-sm text-[#7E8E87] italic">
-              Preparado al momento en el estadio
             </p>
           )}
 
@@ -116,6 +112,11 @@ export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
           </h3>
           {product.esRecomendado && <Sparkles className="w-3.5 h-3.5 text-[#9E7844] shrink-0" />}
         </div>
+        {product.descripcion.trim() && (
+          <p className="font-body-md text-xs text-[#4E5C56] line-clamp-4 whitespace-pre-line leading-snug mt-0.5">
+            {product.descripcion}
+          </p>
+        )}
         <p className="font-headline-md text-lg font-extrabold text-[#187B56] leading-tight mt-0.5">
           ${formatVipAmount(product.precio)}
         </p>

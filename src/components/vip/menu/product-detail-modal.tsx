@@ -113,8 +113,8 @@ export const VipProductDetailModal: React.FC<ProductDetailModalProps> = ({
           />
         </div>
 
-        {product.descripcion && (
-          <p className="font-body-md text-xs sm:text-sm text-[#4E5C56] leading-relaxed">
+        {product.descripcion.trim() && (
+          <p className="font-body-md text-xs sm:text-sm text-[#4E5C56] whitespace-pre-line leading-relaxed">
             {product.descripcion}
           </p>
         )}
@@ -184,8 +184,11 @@ export const VipProductDetailModal: React.FC<ProductDetailModalProps> = ({
         {/* Notes to chef */}
         <div className="flex flex-col gap-1.5 pt-3 border-t border-[#E9EFEB]">
           <label className="font-headline-md text-xs font-bold text-[#111614]">
-            Instrucciones para la cocina / barra
+            Comentario para cocina o barra
           </label>
+          <p className="text-[11px] font-medium text-[#7E8E87]">
+            Opcional. También puedes escribirlo en el resumen de compra. Se imprime en el ticket.
+          </p>
           <textarea
             value={specialInstructions}
             onChange={(e) => setSpecialInstructions(e.target.value)}

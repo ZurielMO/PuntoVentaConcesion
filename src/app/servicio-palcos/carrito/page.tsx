@@ -76,6 +76,7 @@ export default function VipCarritoPage() {
   const {
     items,
     updateQuantity,
+    updateInstructions,
     removeItem,
     subtotal,
     cargoServicio,
@@ -346,12 +347,17 @@ export default function VipCarritoPage() {
                 </Link>
               </div>
 
+              <p className="text-sm font-medium leading-snug text-[#4E5C56]">
+                Puedes dejar un comentario en cada producto. Sale impreso en el ticket de cocina y en el de entrega.
+              </p>
+
               <div className="flex flex-col gap-3">
                 {items.map((item) => (
                   <VipCartItemRow
                     key={item.id}
                     item={item}
                     onUpdateQuantity={updateQuantity}
+                    onUpdateInstructions={updateInstructions}
                     onRemove={removeItem}
                   />
                 ))}

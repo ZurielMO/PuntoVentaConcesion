@@ -15,7 +15,7 @@ type State = {
 };
 
 /**
- * Partidos y ventanas reservables. Con zona trae el cupo restante por ventana;
+ * Partidos y ventanas reservables (sin límites de cupo por horario ni por zona);
  * se refresca en segundo plano porque las ventanas cierran con el tiempo de anticipación.
  */
 export function useVipPreorderAvailability(

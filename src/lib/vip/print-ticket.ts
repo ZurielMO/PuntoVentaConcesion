@@ -301,7 +301,9 @@ async function ticketHtml(order: VipOrder, job: TicketJob, qrPayload: string): P
         .map((option) => option.opcionNombre)
         .filter(Boolean)
         .join(", ");
-      const note = item.instrucciones ? `<div class="note">* ${escapeHtml(item.instrucciones)}</div>` : "";
+      const note = item.instrucciones?.trim()
+        ? `<div class="note">Comentario: ${escapeHtml(item.instrucciones.trim())}</div>`
+        : "";
       return `<div class="row">
         <div>
           <strong>${item.cantidad}x</strong> ${escapeHtml(item.producto.nombre)}
@@ -359,6 +361,7 @@ async function ticketHtml(order: VipOrder, job: TicketJob, qrPayload: string): P
   .preorder { text-align: center; font-size: 15px; font-weight: 800; margin: 2px 0; }
   .hr { border-top: 1px dashed #111; margin: 8px 0; }
   .row { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0; }
+  .note { margin: 2px 0 6px 8px; font-size: 12px; font-weight: 800; white-space: pre-wrap; }
   .qr { display: flex; justify-content: center; margin: 6px 0; }
   .qr img { width: 42mm; height: 42mm; display: block; }
   .sign { margin: 10px 0 4px; }

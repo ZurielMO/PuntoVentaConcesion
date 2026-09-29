@@ -58,7 +58,7 @@ export function VipHomePreorderCard({ menuAnchorId = "menu-palcos" }: { menuAnch
             {next
               ? `Partido ${next.jornadaNumero} · ${next.matchLabel}${kickoff ? ` · ${kickoff} h` : ""}. `
               : ""}
-            Elige una ventana de entrega de {data?.slotMinutes || 25} min y lo preparamos con anticipación.
+            Elige el horario de entrega de tu pedido y lo preparamos con anticipación.
           </p>
         </div>
       </div>
@@ -91,7 +91,7 @@ export function VipHomeGuideLookupCard() {
             Consulta tu pedido
           </h2>
           <p className="text-sm text-[#4E5C56] leading-relaxed">
-            Escribe la guía que llegó a tu correo para ver si ya está pagado, en preparación o entregado.
+            Escribe la guía que llegó a tu correo para ver el estado de tu pedido.
           </p>
         </div>
       </div>

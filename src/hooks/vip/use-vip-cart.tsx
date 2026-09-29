@@ -32,6 +32,7 @@ interface VipCartContextType {
   addItem: (producto: VipProduct, options?: AddItemOptions) => void;
   removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, newQuantity: number) => void;
+  updateInstructions: (itemId: string, instrucciones: string) => void;
   clearCart: () => void;
   totalItemsCount: number;
   totalItems: number;
@@ -108,10 +109,12 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
     const precioUnitario = producto.precio + extrasPrice;
 
     const optionsKey = JSON.stringify(options?.opcionesSeleccionadas || []);
+    const noteKey = (options?.instrucciones || "").trim();
     const existing = items.find(
       (it) =>
         it.producto.id === producto.id &&
-        JSON.stringify(it.opcionesSeleccionadas || []) === optionsKey,
+        JSON.stringify(it.opcionesSeleccionadas || []) === optionsKey &&
+        (it.instrucciones || "").trim() === noteKey,
     );
     const nextQty = (existing?.cantidad || 0) + qty;
 
@@ -119,7 +122,8 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
       const existingIdx = prevItems.findIndex(
         (it) =>
           it.producto.id === producto.id &&
-          JSON.stringify(it.opcionesSeleccionadas || []) === optionsKey,
+          JSON.stringify(it.opcionesSeleccionadas || []) === optionsKey &&
+          (it.instrucciones || "").trim() === noteKey,
       );
 
       if (existingIdx > -1) {
@@ -130,7 +134,7 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
           ...prevItem,
           cantidad: newQty,
           subtotal: newQty * precioUnitario,
-          instrucciones: options?.instrucciones || prevItem.instrucciones,
+          instrucciones: noteKey || prevItem.instrucciones,
         };
         return updated;
       }
@@ -142,7 +146,7 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
           producto,
           cantidad: qty,
           opcionesSeleccionadas: options?.opcionesSeleccionadas,
-          instrucciones: options?.instrucciones,
+          instrucciones: noteKey || undefined,
           precioUnitario,
           subtotal: qty * precioUnitario,
         },
@@ -190,6 +194,13 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const updateInstructions = (itemId: string, instrucciones: string) => {
+    const next = instrucciones.slice(0, 500);
+    setItems((prev) =>
+      prev.map((item) => (item.id === itemId ? { ...item, instrucciones: next } : item)),
+    );
+  };
+
   const clearCart = useCallback(() => {
     setItems([]);
   }, []);
@@ -217,6 +228,7 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
         addItem,
         removeItem,
         updateQuantity,
+        updateInstructions,
         clearCart,
         totalItemsCount,
         totalItems: totalItemsCount,
