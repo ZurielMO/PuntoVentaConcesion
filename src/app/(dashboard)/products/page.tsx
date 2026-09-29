@@ -30,6 +30,7 @@ import { useSucursales } from "@/hooks/use-sucursales";
 import {
   useProducts,
   MAX_IMAGE_BYTES,
+  PRODUCTO_UNIDAD,
   type Product,
   type ProductPayload,
 } from "@/hooks/use-products";
@@ -39,14 +40,14 @@ import "@/styles/wizard-alta.css";
 
 type ProductFormValues = {
   nombre: string;
-  unidad_medida: string;
+  descripcion: string;
   precio: string;
   activo: boolean;
 };
 
 const emptyForm = (): ProductFormValues => ({
   nombre: "",
-  unidad_medida: "",
+  descripcion: "",
   precio: "",
   activo: true,
 });
@@ -126,7 +127,7 @@ export default function ProductsPage() {
     setEditingProduct(product);
     setFormValues({
       nombre: product.nombre ?? "",
-      unidad_medida: product.unidad_medida ?? "",
+      descripcion: product.descripcion ?? "",
       precio: product.precio?.toString() ?? "",
       activo: product.activo !== false,
     });
@@ -173,7 +174,8 @@ export default function ProductsPage() {
     setSubmitting(true);
     const payload: ProductPayload = {
       nombre: formValues.nombre.trim(),
-      unidad_medida: formValues.unidad_medida.trim() || "Unidad",
+      descripcion: formValues.descripcion.trim(),
+      unidad_medida: PRODUCTO_UNIDAD,
       precio: Number(formValues.precio),
       activo: editingProduct ? formValues.activo : true,
       ...(isSuperAdmin && !editingProduct && concesionFilter
@@ -387,10 +389,11 @@ export default function ProductsPage() {
                             : ""
                         }`}
                       >
-                        <table className="wizard-alta__table wizard-alta__table--cards">
+                        <table className="wizard-alta__table wizard-alta__table--cards wizard-alta__table--products">
                           <thead>
                             <tr>
                               <th>Nombre</th>
+                              <th>Descripción</th>
                               <th>Precio</th>
                               <th>Unidad</th>
                               {isSuperAdmin && !concesionFilter && (
@@ -434,6 +437,13 @@ export default function ProductsPage() {
                                       </span>
                                     </div>
                                   </td>
+                                  <td
+                                    className="wizard-alta__table-muted wizard-alta__table-desc"
+                                    data-label="Descripción"
+                                    title={p.descripcion || undefined}
+                                  >
+                                    {p.descripcion?.trim() || "—"}
+                                  </td>
                                   <td data-label="Precio">
                                     <span className="wizard-alta__chip">
                                       {formatPrice(Number(p.precio))}
@@ -443,7 +453,7 @@ export default function ProductsPage() {
                                     className="wizard-alta__table-muted"
                                     data-label="Unidad"
                                   >
-                                    {p.unidad_medida ?? "Unidad"}
+                                    {p.unidad_medida ?? PRODUCTO_UNIDAD}
                                   </td>
                                   {isSuperAdmin && !concesionFilter && (
                                     <td
@@ -528,10 +538,10 @@ export default function ProductsPage() {
               </DialogTitle>
               <DialogDescription className="wizard-alta__dialog-sub">
                 {editingProduct
-                  ? "Actualiza nombre, precio o imagen del producto."
+                  ? "Actualiza nombre, descripción, precio o imagen del producto."
                   : isSuperAdmin && concesionFilter
-                    ? `Alta para ${concesionNombre(concesionFilter)}. Indica nombre, precio e imagen.`
-                    : "Indica nombre, precio e imagen. Así aparecerá en el menú del POS."}
+                    ? `Alta para ${concesionNombre(concesionFilter)}. Indica nombre, características, precio e imagen.`
+                    : "Indica nombre, características, precio e imagen. Así aparecerá en el menú del POS."}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -555,17 +565,37 @@ export default function ProductsPage() {
                   required
                 />
               </Field>
-              <Field label="Unidad" htmlFor="unidad_medida">
-                <Input
-                  id="unidad_medida"
-                  value={formValues.unidad_medida}
+              <Field
+                label="Descripción"
+                htmlFor="descripcion"
+                hint="Características del producto. Opcional."
+                className="wizard-alta__field-span"
+              >
+                <textarea
+                  id="descripcion"
+                  value={formValues.descripcion}
                   onChange={(e) =>
                     setFormValues((prev) => ({
                       ...prev,
-                      unidad_medida: e.target.value,
+                      descripcion: e.target.value,
                     }))
                   }
-                  placeholder="pieza, kg"
+                  placeholder="Ej. Pan brioche, carne de res, queso y aderezo de la casa"
+                  maxLength={1000}
+                  rows={3}
+                />
+              </Field>
+              <Field
+                label="Unidad"
+                htmlFor="unidad_medida"
+                hint="Siempre pieza (pz)."
+              >
+                <Input
+                  id="unidad_medida"
+                  value={PRODUCTO_UNIDAD}
+                  readOnly
+                  disabled
+                  aria-readonly="true"
                 />
               </Field>
               <Field label="Precio" htmlFor="precio">
@@ -622,7 +652,7 @@ export default function ProductsPage() {
               </Field>
               {editingProduct && (
                 <label
-                  className="wizard-alta__field-span flex items-center gap-3 text-[1.4rem]"
+                  className="wizard-alta__active-toggle wizard-alta__field-span"
                   htmlFor="activo"
                 >
                   <Checkbox
