@@ -19,9 +19,11 @@ const inputBaseClass =
 export function VipCheckoutDetailsCard({
   value,
   onChange,
+  totalSteps = 2,
 }: {
   value: VipCheckoutDetails;
   onChange: (next: VipCheckoutDetails) => void;
+  totalSteps?: number;
 }) {
   const set = (patch: Partial<VipCheckoutDetails>) => onChange({ ...value, ...patch });
 
@@ -35,7 +37,7 @@ export function VipCheckoutDetailsCard({
           </div>
           <div>
             <span className="font-label-sm text-xs sm:text-sm text-[#9E7844] uppercase tracking-wider font-black">
-              Paso 1 de 2
+              Paso 1 de {totalSteps}
             </span>
             <h3 className="font-headline-md text-lg sm:text-xl font-extrabold text-[#111614] tracking-tight">
               Datos de Contacto
@@ -108,7 +110,7 @@ export function VipCheckoutDetailsCard({
           </div>
           <div>
             <span className="font-label-sm text-xs sm:text-sm text-[#9E7844] uppercase tracking-wider font-black">
-              Paso 2 de 2
+              Paso 2 de {totalSteps}
             </span>
             <h3 className="font-headline-md text-lg sm:text-xl font-extrabold text-[#111614] tracking-tight">
               Ubicación en el Estadio León

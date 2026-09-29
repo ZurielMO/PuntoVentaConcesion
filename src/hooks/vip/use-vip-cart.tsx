@@ -4,6 +4,10 @@ import React, { createContext, useCallback, useContext, useState, useEffect, use
 import type { VipCartItem, VipProduct } from "@/lib/vip/types";
 import { vipServiceFeeFromSubtotal } from "@/lib/vip/money";
 import { vipToast } from "./use-vip-toast";
+import {
+  VIP_PURCHASE_UNAVAILABLE_HINT,
+  VIP_PURCHASE_UNAVAILABLE_TITLE,
+} from "@/lib/vip/purchase-availability";
 
 interface AddItemOptions {
   opcionesSeleccionadas?: {
@@ -14,9 +18,16 @@ interface AddItemOptions {
   }[];
   instrucciones?: string;
   cantidad?: number;
+  /** La preventa puede armar el pedido aunque el POS marque el producto agotado. */
+  permitirSinStock?: boolean;
 }
 
+/** NOW = entrega durante el partido en curso; PREORDER = pedido programado a un partido. */
+export type VipOrderMode = "NOW" | "PREORDER";
+
 interface VipCartContextType {
+  orderMode: VipOrderMode;
+  setOrderMode: (mode: VipOrderMode) => void;
   items: VipCartItem[];
   addItem: (producto: VipProduct, options?: AddItemOptions) => void;
   removeItem: (itemId: string) => void;
@@ -36,8 +47,27 @@ interface VipCartContextType {
 const VipCartContext = createContext<VipCartContextType | undefined>(undefined);
 
 const CART_STORAGE_KEY = "vip_arena_cart_v1";
+const ORDER_MODE_STORAGE_KEY = "vip_order_mode_v1";
 
 export function VipCartProvider({ children }: { children: React.ReactNode }) {
+  const [orderMode, setOrderModeState] = useState<VipOrderMode>(() => {
+    if (typeof window === "undefined") return "NOW";
+    try {
+      return sessionStorage.getItem(ORDER_MODE_STORAGE_KEY) === "PREORDER" ? "PREORDER" : "NOW";
+    } catch {
+      return "NOW";
+    }
+  });
+
+  const setOrderMode = useCallback((mode: VipOrderMode) => {
+    setOrderModeState(mode);
+    try {
+      sessionStorage.setItem(ORDER_MODE_STORAGE_KEY, mode);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const [items, setItems] = useState<VipCartItem[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -65,10 +95,10 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addItem = (producto: VipProduct, options?: AddItemOptions) => {
-    if (producto.disponible === false) {
-      vipToast.error("Producto agotado", {
+    if (producto.disponible === false && !options?.permitirSinStock) {
+      vipToast.error(VIP_PURCHASE_UNAVAILABLE_TITLE, {
         id: `vip-cart-stock-${producto.id}`,
-        description: "No hay inventario en el POS para venderlo.",
+        description: VIP_PURCHASE_UNAVAILABLE_HINT,
       });
       return;
     }
@@ -181,6 +211,8 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
   return (
     <VipCartContext.Provider
       value={{
+        orderMode,
+        setOrderMode,
         items,
         addItem,
         removeItem,

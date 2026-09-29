@@ -99,6 +99,8 @@ export function buildVipEscPosTicket(input: {
   includeSignature?: boolean;
   includeQr?: boolean;
   includeTotals?: boolean;
+  preorder?: { windowLabel: string; matchLine: string } | null;
+  guideCode?: string | null;
 }): Uint8Array {
   const variant = input.variant || "general";
   const includeQr = input.includeQr !== false;
@@ -123,9 +125,24 @@ export function buildVipEscPosTicket(input: {
     cmd(ESC, 0x45, 0x00),
     text("ID de orden\n"),
     text(`${input.orderId}\n`),
+  ];
+  if (input.guideCode) lines.push(text(`Guia: ${input.guideCode}\n`));
+  if (input.preorder) {
+    lines.push(
+      text("--------------------------------\n"),
+      cmd(ESC, 0x45, 0x01),
+      text("PREVENTA\n"),
+      cmd(GS, 0x21, 0x01),
+      text(`ENTREGA ${input.preorder.windowLabel.replace(/\s*[–-]\s*/, "-")}\n`),
+      cmd(GS, 0x21, 0x00),
+      cmd(ESC, 0x45, 0x00),
+      text(`${input.preorder.matchLine}\n`),
+    );
+  }
+  lines.push(
     text("--------------------------------\n"),
     cmd(ESC, 0x61, 0x00),
-  ];
+  );
 
   if (input.customerName) lines.push(text(`Cliente: ${input.customerName}\n`));
   lines.push(

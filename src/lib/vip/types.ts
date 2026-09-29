@@ -63,6 +63,8 @@ export interface VipProduct {
   imagen: string;
   categoria: string;
   disponible: boolean;
+  /** Jornada abierta, pero este producto todavía no tiene línea de inventario. */
+  esperaInventario?: boolean;
   esRecomendado?: boolean;
   tiempoEstimadoMin?: number;
   gruposOpciones?: VipProductOptionGroup[];
@@ -258,9 +260,163 @@ export const shortVipOrderNumber = (numero: string): string => {
   return trimmed;
 };
 
+export type VipOrderType = "IMMEDIATE" | "PREORDER";
+
+/** Datos de la preventa tal como los guarda el backend (horas en hora del estadio). */
+export interface VipPreorderInfo {
+  matchId: string;
+  jornadaNumero: number;
+  matchDate: string;
+  matchLabel: string;
+  homeTeam: string | null;
+  awayTeam: string | null;
+  stadium: string | null;
+  kickoffAt: string | null;
+  windowStart: string;
+  windowEnd: string;
+  windowLabel: string;
+  windowStartAt: string | null;
+  windowEndAt: string | null;
+}
+
+export interface VipPreorderWindow {
+  start: string;
+  end: string;
+  label: string;
+  startAt: string;
+  endAt: string;
+  available: boolean;
+  remaining: number | null;
+}
+
+export interface VipPreorderMatch {
+  matchId: string;
+  jornadaNumero: number;
+  matchDate: string;
+  matchLabel: string;
+  homeTeam: string | null;
+  awayTeam: string | null;
+  stadium: string | null;
+  kickoffAt: string | null;
+  windows: VipPreorderWindow[];
+}
+
+export interface VipPreorderAvailability {
+  enabled: boolean;
+  slotMinutes: number;
+  leadMinutes: number;
+  windowBeforeMinutes: number;
+  windowAfterMinutes: number;
+  matches: VipPreorderMatch[];
+}
+
+export interface VipPreorderSelection {
+  matchId: string;
+  windowStart: string;
+}
+
+export interface VipPreorderSettings {
+  enabled: boolean;
+  slotMinutes: number;
+  slotStepMinutes: number;
+  leadMinutes: number;
+  slotCapacity: number;
+  matches: Array<Omit<VipPreorderMatch, "windows"> & { openWindows: number }>;
+}
+
+export interface VipPublicServiceStatus {
+  /** Interruptor de Central. Sigue activo fuera del día de partido. */
+  acceptingOrders: boolean;
+  /** Hoy coincide con un partido varonil activo o con el inventario de esa fecha. */
+  matchDay: boolean;
+  /** Entrega inmediata: Central abierta y hoy es día de partido. */
+  liveOrdersOpen: boolean;
+  /** Interruptor de Central. No implica que ya haya un partido reservable. */
+  preordersEnabled: boolean;
+  preordersOpen: boolean;
+}
+
+export interface VipGuideLookupResponse {
+  orderNumber: string;
+  guideCode: string | null;
+  orderType: VipOrderType;
+  preorder: VipPreorderInfo | null;
+  status: VipOrderStatus;
+  paymentStatus: string;
+  customer: { name: string };
+  delivery: { zona: string; palco: string; nivel: string };
+  items: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    concessionId: string;
+    selectedOptions: Array<{ id: string; name: string }>;
+    extras: Array<{ id: string; name: string }>;
+    lineTotal: number;
+  }>;
+  fulfillments: VipOrderFulfillment[];
+  subtotal: number;
+  serviceFee: number;
+  total: number;
+  currency: string;
+  timestamps: Record<string, string | null>;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+const VIP_GUIDE_ALPHABET = /^[0-9ABCDEFGHJKMNPQRSTVWXYZ]{8}$/;
+
+/** Misma normalización que el backend: sin guiones/espacios, O→0 e I/L→1. */
+export const normalizeVipGuide = (raw: string): string | null => {
+  const compact = String(raw || "")
+    .toUpperCase()
+    .replace(/[\s-]+/g, "")
+    .replace(/O/g, "0")
+    .replace(/[IL]/g, "1");
+  return VIP_GUIDE_ALPHABET.test(compact) ? compact : null;
+};
+
+export const formatVipGuide = (raw: string | null | undefined): string => {
+  const code = normalizeVipGuide(String(raw || ""));
+  return code ? `${code.slice(0, 4)}-${code.slice(4)}` : "";
+};
+
+export const isVipPreorderOrder = (
+  order: Pick<VipOrder, "tipoPedido" | "preventa">,
+): order is VipOrder & { tipoPedido: "PREORDER"; preventa: VipPreorderInfo } =>
+  order.tipoPedido === "PREORDER" && Boolean(order.preventa);
+
+export const VIP_STADIUM_TIME_ZONE = "America/Mexico_City";
+
+export const formatVipMatchDate = (
+  matchDate: string,
+  options: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long" },
+): string => {
+  const parsed = Date.parse(`${matchDate}T12:00:00Z`);
+  if (!Number.isFinite(parsed)) return matchDate;
+  return new Intl.DateTimeFormat("es-MX", { ...options, timeZone: "UTC" }).format(new Date(parsed));
+};
+
+export const formatVipStadiumTime = (iso: string | null | undefined): string => {
+  const parsed = Date.parse(String(iso || ""));
+  if (!Number.isFinite(parsed)) return "";
+  return new Intl.DateTimeFormat("es-MX", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: VIP_STADIUM_TIME_ZONE,
+  }).format(new Date(parsed));
+};
+
 export interface VipOrder {
   id: string;
   numeroPedido: string;
+  tipoPedido?: VipOrderType;
+  preventa?: VipPreorderInfo | null;
+  guia?: string | null;
+  /** ISO del inicio de la ventana de entrega (solo preventas). */
+  programadoPara?: string | null;
+  fecha?: string;
   restauranteId: string;
   restauranteNombre: string;
   restauranteLogo: string;
@@ -318,6 +474,7 @@ export interface VipCheckoutInput {
     notes?: string;
   }>;
   tip?: number;
+  preorder?: VipPreorderSelection;
 }
 
 export interface VipCheckoutResponse {
@@ -336,6 +493,9 @@ export interface VipConfirmCheckoutResponse {
   status: VipOrderStatus;
   paymentStatus: string;
   paid: boolean;
+  orderType?: VipOrderType;
+  preorder?: VipPreorderInfo | null;
+  guideCode?: string | null;
 }
 
 export interface VipAbandonCheckoutResponse {
@@ -351,6 +511,9 @@ export interface VipTrackingResponse {
   id: string;
   orderNumber: string;
   jornadaId: string;
+  orderType?: VipOrderType;
+  preorder?: VipPreorderInfo | null;
+  guideCode?: string | null;
   customer: { name: string; email: string };
   delivery: {
     locationId: string;

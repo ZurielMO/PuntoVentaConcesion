@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, Minus, Check } from "lucide-react";
 import type { VipProduct } from "@/lib/vip/types";
 import { formatVipAmount, formatVipMxn } from "@/lib/vip/money";
+import { VIP_PURCHASE_UNAVAILABLE_TITLE } from "@/lib/vip/purchase-availability";
 import { VipModal } from "../ui/modal";
 import { VipButton } from "../ui/button";
 import { VipMedia } from "../ui/media";
@@ -18,6 +19,9 @@ interface ProductDetailModalProps {
     selectedOptions: { grupoTitulo: string; opcionNombre: string; precioExtra: number; id?: string }[],
     notes: string,
   ) => void;
+  salesOpen?: boolean;
+  /** Preventa abierta: se puede agregar aunque no haya stock en el POS. */
+  allowWithoutStock?: boolean;
 }
 
 export const VipProductDetailModal: React.FC<ProductDetailModalProps> = ({
@@ -25,6 +29,8 @@ export const VipProductDetailModal: React.FC<ProductDetailModalProps> = ({
   isOpen,
   onClose,
   onAddToCart,
+  salesOpen = true,
+  allowWithoutStock = false,
 }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<
@@ -76,8 +82,12 @@ export const VipProductDetailModal: React.FC<ProductDetailModalProps> = ({
   );
   const itemTotal = (product.precio + extraTotal) * quantity;
 
+  const outOfStock = product.disponible === false && !allowWithoutStock;
+  let addLabel = `Agregar por ${formatVipMxn(itemTotal)}`;
+  if (!salesOpen || outOfStock) addLabel = VIP_PURCHASE_UNAVAILABLE_TITLE;
+
   const handleConfirm = () => {
-    if (!product.disponible) return;
+    if (!salesOpen || outOfStock) return;
     const formattedOptions = Object.entries(selectedOptions).map(
       ([grupoTitulo, opt]) => ({
         grupoTitulo,
@@ -215,10 +225,10 @@ export const VipProductDetailModal: React.FC<ProductDetailModalProps> = ({
             variant="primary"
             size="md"
             fullWidth
-            disabled={product.disponible === false}
+            disabled={!salesOpen || outOfStock}
             className="text-xs sm:text-sm font-extrabold shadow-md"
           >
-            {product.disponible === false ? "Agotado" : `Agregar por ${formatVipMxn(itemTotal)}`}
+            {addLabel}
           </VipButton>
         </div>
       </div>

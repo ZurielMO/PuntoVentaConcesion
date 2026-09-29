@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { Clock, MapPin, ArrowRight, FileText, Phone } from "lucide-react";
+import { Clock, MapPin, ArrowRight, FileText, Phone, CalendarClock } from "lucide-react";
 import type { VipOrder, VipOrderStatus } from "@/lib/vip/types";
 import { formatVipAmount } from "@/lib/vip/money";
-import { concessionLabelForItem, formatOrderConcessions, isVipHistoryStatus, isVipNewStatus, isVipOnTheWayStatus, shortVipOrderNumber, uniqueOrderConcessionNames } from "@/lib/vip/types";
+import { concessionLabelForItem, formatOrderConcessions, isVipHistoryStatus, isVipNewStatus, isVipOnTheWayStatus, isVipPreorderOrder, shortVipOrderNumber, uniqueOrderConcessionNames } from "@/lib/vip/types";
 
 interface KdsTicketCardProps {
   order: VipOrder;
@@ -21,6 +21,7 @@ export const KdsTicketCard: React.FC<KdsTicketCardProps> = ({
   const isOnTheWay = isVipOnTheWayStatus(order.estado);
   const isHistory = isVipHistoryStatus(order.estado);
   const isCancelled = order.estado === "CANCELADO" || order.estado === "CANCELLED" || order.estado === "REFUNDED";
+  const preorder = isVipPreorderOrder(order) ? order.preventa : null;
 
   return (
     <div
@@ -68,10 +69,17 @@ export const KdsTicketCard: React.FC<KdsTicketCardProps> = ({
               <FileText className="w-6 h-6" />
             </button>
           </div>
-          <p className="font-label-sm text-base text-[#66706B] flex items-center gap-2 mt-1.5 font-semibold">
-            <Clock className="w-5 h-5 text-[#D99721] shrink-0" />
-            <span>{order.createdAt || "—"}</span>
-          </p>
+          {preorder ? (
+            <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-[#9E7844]/12 px-2.5 py-1 text-sm font-extrabold text-[#7A5A2E]">
+              <CalendarClock className="w-4 h-4 shrink-0" />
+              Preventa · {preorder.windowLabel}
+            </p>
+          ) : (
+            <p className="font-label-sm text-base text-[#66706B] flex items-center gap-2 mt-1.5 font-semibold">
+              <Clock className="w-5 h-5 text-[#D99721] shrink-0" />
+              <span>{order.createdAt || "—"}</span>
+            </p>
+          )}
         </div>
 
         <div className="text-right shrink-0 max-w-[42%] min-w-0">

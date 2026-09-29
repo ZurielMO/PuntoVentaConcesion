@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, ArrowLeft, Utensils } from "lucide-react";
+import { ShieldCheck, ArrowLeft, Utensils, CalendarClock } from "lucide-react";
 import { VipTopBar } from "@/components/vip/ui/top-bar";
 import { VipMascot } from "@/components/vip/ui/mascot";
 import { VipCheckoutDetailsCard, type VipCheckoutDetails } from "@/components/vip/cart/checkout-details-card";
@@ -13,13 +13,63 @@ import { VipOrderBreakdownCard } from "@/components/vip/cart/order-breakdown-car
 import { VipButton } from "@/components/vip/ui/button";
 import { useVipCart } from "@/hooks/vip/use-vip-cart";
 import { useVipOrders } from "@/hooks/vip/use-vip-orders";
-import { VIP_STRIPE_PAYMENT_METHOD, normalizeVipFloor } from "@/lib/vip/types";
+import {
+  VIP_STRIPE_PAYMENT_METHOD,
+  normalizeVipFloor,
+  type VipPreorderSelection,
+} from "@/lib/vip/types";
 import { isValidMxPhone } from "@/lib/vip/phone";
 import { vipToast } from "@/hooks/vip/use-vip-toast";
 import { ApiError } from "@/lib/api/client";
+import { VipSalesClosedNotice } from "@/components/vip/ui/sales-closed-notice";
+import { useVipPublicSalesOpen } from "@/hooks/vip/use-vip-public-sales";
+import { useVipPreorderAvailability } from "@/hooks/vip/use-vip-preorder-availability";
+import { VipOrderModeSwitch } from "@/components/vip/preorder/order-mode-switch";
+import { VipPreorderScheduler } from "@/components/vip/preorder/preorder-scheduler";
+import { VipPreorderTicket } from "@/components/vip/preorder/preorder-ticket";
 import { vipRestaurantPath } from "@/lib/vip/vip-routes";
 import { formatVipMxn } from "@/lib/vip/money";
+import {
+  VIP_PURCHASE_UNAVAILABLE_HINT,
+  VIP_PURCHASE_UNAVAILABLE_TITLE,
+} from "@/lib/vip/purchase-availability";
 import { motion } from "motion/react";
+
+const PURCHASE_UNAVAILABLE = {
+  title: VIP_PURCHASE_UNAVAILABLE_TITLE,
+  description: VIP_PURCHASE_UNAVAILABLE_HINT,
+};
+
+const PURCHASE_UNAVAILABLE_CODES = new Set([
+  "VIP_PREORDER_WINDOW_FULL",
+  "VIP_PREORDER_WINDOW_CLOSED",
+  "VIP_PREORDER_WINDOW_INVALID",
+  "VIP_PREORDER_MATCH_UNAVAILABLE",
+  "VIP_PREORDER_CLOSED",
+  "VIP_OUT_OF_STOCK",
+  "VIP_SERVICE_PAUSED",
+  "VIP_SERVICE_CLOSED",
+  "VIP_NOT_MATCH_DAY",
+  "VIP_CAPACITY_REACHED",
+  "VIP_NOT_CONFIGURED",
+  "VIP_PRODUCT_DISABLED",
+]);
+
+const PREORDER_SLOT_RESET_CODES = new Set([
+  "VIP_PREORDER_WINDOW_FULL",
+  "VIP_PREORDER_WINDOW_CLOSED",
+  "VIP_PREORDER_WINDOW_INVALID",
+  "VIP_PREORDER_MATCH_UNAVAILABLE",
+]);
+
+function checkoutFailure(error: unknown): { title: string; description?: string } {
+  if (error instanceof ApiError && error.code && PURCHASE_UNAVAILABLE_CODES.has(error.code)) {
+    return PURCHASE_UNAVAILABLE;
+  }
+  return {
+    title: error instanceof Error ? error.message : "No se pudo iniciar el pago con tarjeta.",
+  };
+}
 
 export default function VipCarritoPage() {
   const router = useRouter();
@@ -33,6 +83,8 @@ export default function VipCarritoPage() {
     total,
     restaurantId,
     restaurantNombre,
+    orderMode,
+    setOrderMode,
   } = useVipCart();
 
   const menuRestaurantId = restaurantId || items[0]?.producto.concesionId || "";
@@ -41,6 +93,8 @@ export default function VipCarritoPage() {
     : "/servicio-palcos/inicio";
 
   const { createOrder } = useVipOrders();
+  const { preordersEnabled, liveOrdersOpen, matchDay, acceptingOrders, ready } = useVipPublicSalesOpen();
+  const entregaAhoraAbierta = liveOrdersOpen && matchDay && acceptingOrders;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutDetails, setCheckoutDetails] = useState<VipCheckoutDetails>({
@@ -52,10 +106,53 @@ export default function VipCarritoPage() {
     nivel: "",
   });
 
+  const isPreorder = orderMode === "PREORDER";
+
+  useEffect(() => {
+    if (!ready || entregaAhoraAbierta || !preordersEnabled || orderMode !== "NOW") return;
+    setOrderMode("PREORDER");
+  }, [ready, entregaAhoraAbierta, preordersEnabled, orderMode, setOrderMode]);
+
+  const preorderAvailability = useVipPreorderAvailability(checkoutDetails.zona, { enabled: isPreorder });
+  const [preorderSelection, setPreorderSelection] = useState<VipPreorderSelection | null>(null);
+  const schedulerRef = useRef<HTMLDivElement>(null);
+
+  const selectedMatch =
+    preorderAvailability.data?.matches.find((match) => match.matchId === preorderSelection?.matchId) ||
+    (preorderAvailability.data?.matches.length === 1 ? preorderAvailability.data.matches[0] : null);
+  const selectedWindow =
+    selectedMatch?.windows.find(
+      (window) => preorderSelection?.matchId === selectedMatch.matchId && window.start === preorderSelection.windowStart,
+    ) || null;
+
+  const staleWindow =
+    Boolean(preorderSelection?.windowStart) &&
+    Boolean(preorderAvailability.data) &&
+    (!selectedWindow || !selectedWindow.available);
+
+  useEffect(() => {
+    if (!staleWindow || !preorderSelection) return;
+    setPreorderSelection({ matchId: preorderSelection.matchId, windowStart: "" });
+    vipToast.info(VIP_PURCHASE_UNAVAILABLE_TITLE, {
+      id: "vip-preorder-window-stale",
+      description: VIP_PURCHASE_UNAVAILABLE_HINT,
+    });
+  }, [staleWindow, preorderSelection]);
+
   const finalTotal = total;
+  const canSubmit = isPreorder ? preordersEnabled : entregaAhoraAbierta;
+  const payLabel = isPreorder ? `Pagar preventa ${formatVipMxn(finalTotal)}` : `Pagar con tarjeta ${formatVipMxn(finalTotal)}`;
+
+  const focusScheduler = () => {
+    schedulerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   const handleCheckout = async () => {
     if (items.length === 0) return;
+    if ((isPreorder && !preordersEnabled) || (!isPreorder && !entregaAhoraAbierta)) {
+      vipToast.error(VIP_PURCHASE_UNAVAILABLE_TITLE, { description: VIP_PURCHASE_UNAVAILABLE_HINT });
+      return;
+    }
     const name = checkoutDetails.name.trim();
     const email = checkoutDetails.email.trim();
     const phone = checkoutDetails.phone.trim();
@@ -90,8 +187,30 @@ export default function VipCarritoPage() {
       );
       return;
     }
+    if (isPreorder && preorderAvailability.data && preorderAvailability.data.matches.length === 0) {
+      vipToast.error(VIP_PURCHASE_UNAVAILABLE_TITLE, { description: VIP_PURCHASE_UNAVAILABLE_HINT });
+      focusScheduler();
+      return;
+    }
+    if (isPreorder && !selectedMatch) {
+      vipToast.error("Elige el partido de tu preventa.");
+      focusScheduler();
+      return;
+    }
+    if (isPreorder && (!selectedWindow || !selectedWindow.available)) {
+      vipToast.error("Elige el horario en que quieres recibir tu pedido.");
+      focusScheduler();
+      return;
+    }
+    if (!isPreorder && items.some((item) => item.producto.disponible === false)) {
+      vipToast.error(VIP_PURCHASE_UNAVAILABLE_TITLE, {
+        description: VIP_PURCHASE_UNAVAILABLE_HINT,
+      });
+      return;
+    }
 
     setIsSubmitting(true);
+
     try {
       const newOrder = await createOrder({
         restauranteId: restaurantId || items[0]?.producto.concesionId || "",
@@ -110,27 +229,23 @@ export default function VipCarritoPage() {
         propina: 0,
         total: finalTotal,
         metodoPago: VIP_STRIPE_PAYMENT_METHOD,
+        preorder: isPreorder && selectedMatch && selectedWindow
+          ? { match: selectedMatch, window: selectedWindow }
+          : null,
       });
 
       if (!newOrder.checkoutUrl) {
         throw new Error("No se pudo obtener la URL de pago.");
       }
 
-      vipToast.info("Conectando con el cobro…", {
-        description: "Completa tu pago seguro para confirmar la orden.",
-      });
       window.location.assign(newOrder.checkoutUrl);
     } catch (error) {
-      if (error instanceof ApiError && error.code === "VIP_OUT_OF_STOCK") {
-        vipToast.error("Sin inventario", {
-          description: error.message || "Uno o más productos ya no tienen stock en el POS.",
-        });
-      } else {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "No se pudo iniciar el pago con tarjeta.";
-        vipToast.error(message);
+      const failure = checkoutFailure(error);
+      vipToast.error(failure.title, failure.description ? { description: failure.description } : undefined);
+      if (error instanceof ApiError && error.code && PREORDER_SLOT_RESET_CODES.has(error.code)) {
+        setPreorderSelection((prev) => (prev ? { matchId: prev.matchId, windowStart: "" } : prev));
+        void preorderAvailability.reload(true);
+        focusScheduler();
       }
       setIsSubmitting(false);
     }
@@ -168,12 +283,12 @@ export default function VipCarritoPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen pb-44 lg:pb-16 bg-[#F6F8F7] text-[#111614]">
+    <div className={`flex flex-col min-h-screen ${isPreorder ? "pb-56" : "pb-44"} lg:pb-16 bg-[#F6F8F7] text-[#111614]`}>
       {/* Top Header */}
       <VipTopBar
         variant="linear"
-        title="Confirmar Pedido"
-        subtitle="Entrega Exclusiva en Palco"
+        title={isPreorder ? "Confirmar Preventa" : "Confirmar Pedido"}
+        subtitle={isPreorder ? "Entrega programada en tu palco" : "Entrega Exclusiva en Palco"}
         onBack={() => router.push(menuHref)}
       />
 
@@ -187,8 +302,34 @@ export default function VipCarritoPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-6 items-start">
           {/* Left Column: Form Details & Items */}
           <div className="flex flex-col gap-6">
-            {/* Step 1 & 2 Form */}
-            <VipCheckoutDetailsCard value={checkoutDetails} onChange={setCheckoutDetails} />
+            <VipOrderModeSwitch
+              value={orderMode}
+              onChange={setOrderMode}
+              nowAvailable={entregaAhoraAbierta}
+              nowClosedLabel={VIP_PURCHASE_UNAVAILABLE_TITLE}
+              preorderAvailable={preordersEnabled}
+            />
+
+            <VipCheckoutDetailsCard
+              value={checkoutDetails}
+              onChange={setCheckoutDetails}
+              totalSteps={isPreorder ? 3 : 2}
+            />
+
+            {isPreorder && preordersEnabled && (
+              <div ref={schedulerRef} className="scroll-mt-28">
+                <VipPreorderScheduler
+                  availability={preorderAvailability.data}
+                  loading={preorderAvailability.loading}
+                  error={preorderAvailability.error}
+                  zona={checkoutDetails.zona}
+                  value={preorderSelection}
+                  onChange={setPreorderSelection}
+                  onRetry={() => void preorderAvailability.reload()}
+                  stepLabel="Paso 3 de 3"
+                />
+              </div>
+            )}
 
             {/* Cart Items Section */}
             <section className="flex flex-col gap-3.5">
@@ -220,6 +361,21 @@ export default function VipCarritoPage() {
 
           {/* Right Column: Payment Method, Breakdown & Sticky Checkout Action */}
           <div className="flex flex-col gap-5 lg:sticky lg:top-24">
+            {isPreorder && selectedMatch && selectedWindow && (
+              <VipPreorderTicket
+                info={{
+                  jornadaNumero: selectedMatch.jornadaNumero,
+                  matchLabel: selectedMatch.matchLabel,
+                  matchDate: selectedMatch.matchDate,
+                  kickoffAt: selectedMatch.kickoffAt,
+                  stadium: selectedMatch.stadium,
+                  windowLabel: selectedWindow.label,
+                  windowStartAt: selectedWindow.startAt,
+                }}
+                palco={checkoutDetails.palco.trim() || null}
+              />
+            )}
+
             {/* Payment Method Card */}
             <VipPaymentSelectorCard />
 
@@ -229,18 +385,26 @@ export default function VipCarritoPage() {
               total={total}
             />
 
+            {!canSubmit && <VipSalesClosedNotice />}
+
             {/* Desktop Pay CTA */}
             <div className="hidden lg:flex flex-col gap-2.5">
               <VipButton
                 onClick={handleCheckout}
                 loading={isSubmitting}
+                disabled={!canSubmit}
                 variant="primary"
                 size="lg"
                 fullWidth
                 className="font-headline-md font-extrabold text-lg min-h-[54px] tracking-wide shadow-md cursor-pointer"
               >
-                Pagar con tarjeta {formatVipMxn(finalTotal)}
+                {payLabel}
               </VipButton>
+              {isPreorder && (
+                <p className="text-center text-sm text-[#6E7E77]">
+                  Recibirás por correo tu guía de pedido para consultar el estatus.
+                </p>
+              )}
               <VipButton
                 type="button"
                 variant="outline"
@@ -264,15 +428,35 @@ export default function VipCarritoPage() {
       {/* Fixed Bottom Checkout Action for Mobile */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#DFE5E2] px-4 pt-3.5 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_rgba(10,28,22,0.14)]">
         <div className="max-w-2xl mx-auto flex flex-col gap-2">
+          {isPreorder && (
+            <button
+              type="button"
+              onClick={focusScheduler}
+              className="flex items-center gap-2 rounded-xl bg-[#102D24] px-3.5 py-2 text-left text-white cursor-pointer"
+            >
+              <CalendarClock className="h-4 w-4 shrink-0 text-[#FADC06]" />
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                {selectedMatch && selectedWindow
+                  ? `Partido ${selectedMatch.jornadaNumero} · ${selectedMatch.matchLabel}`
+                  : "Elige partido y horario de entrega"}
+              </span>
+              {selectedWindow && (
+                <span className="shrink-0 font-headline-md text-sm font-black tabular-nums text-[#FADC06]">
+                  {selectedWindow.label}
+                </span>
+              )}
+            </button>
+          )}
           <VipButton
             onClick={handleCheckout}
             loading={isSubmitting}
+            disabled={!canSubmit}
             variant="primary"
             size="lg"
             fullWidth
             className="font-headline-md font-black text-lg min-h-[56px] shadow-lg cursor-pointer tracking-tight"
           >
-            Pagar con tarjeta {formatVipMxn(finalTotal)}
+            {payLabel}
           </VipButton>
           <div className="flex items-center justify-between px-1">
             <Link

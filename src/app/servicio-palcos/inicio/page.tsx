@@ -12,11 +12,22 @@ import {
 import { VipService } from "@/lib/vip/vip-service";
 import type { VipRestaurant } from "@/lib/vip/types";
 import { VipMascot } from "@/components/vip/ui/mascot";
+import { VipSalesClosedNotice } from "@/components/vip/ui/sales-closed-notice";
+import { useVipPublicSalesOpen } from "@/hooks/vip/use-vip-public-sales";
+import {
+  VIP_PURCHASE_UNAVAILABLE_HINT,
+  VIP_PURCHASE_UNAVAILABLE_TITLE,
+} from "@/lib/vip/purchase-availability";
+import {
+  VipHomeGuideLookupCard,
+  VipHomePreorderCard,
+} from "@/components/vip/preorder/home-preorder-cards";
 import { motion } from "motion/react";
 
 export default function VipInicioPage() {
   const [restaurants, setRestaurants] = useState<VipRestaurant[]>([]);
   const [loading, setLoading] = useState(true);
+  const { canOrder, preordersEnabled, ready } = useVipPublicSalesOpen();
 
   useEffect(() => {
     let mounted = true;
@@ -60,6 +71,13 @@ export default function VipInicioPage() {
           <>
             <VipHeroBanner />
 
+            {ready && !canOrder && <VipSalesClosedNotice />}
+
+            <div className={`grid grid-cols-1 gap-3 sm:gap-4 ${preordersEnabled ? "md:grid-cols-[1.2fr_1fr]" : ""}`}>
+              {preordersEnabled && <VipHomePreorderCard />}
+              <VipHomeGuideLookupCard />
+            </div>
+
             {restaurants.length === 0 ? (
               <div
                 id="menu-palcos"
@@ -67,10 +85,10 @@ export default function VipInicioPage() {
               >
                 <VipMascot name="cta" size="empty" className="-mb-2" />
                 <h3 className="font-headline-md text-lg sm:text-xl font-extrabold text-[#111614]">
-                  No hay concesiones activas por ahora
+                  {VIP_PURCHASE_UNAVAILABLE_TITLE}
                 </h3>
                 <p className="font-body-md text-sm sm:text-base text-[#4E5C56] max-w-sm">
-                  El menú de palcos estará disponible durante los horarios de partido.
+                  {VIP_PURCHASE_UNAVAILABLE_HINT}
                 </p>
               </div>
             ) : (

@@ -1,15 +1,18 @@
 "use client";
 
 import React from "react";
-import { Sparkles, Bike, History } from "lucide-react";
+import { Sparkles, Bike, History, CalendarClock } from "lucide-react";
 
-export type CentralTab = "nuevas" | "camino" | "historial";
+export type CentralTab = "nuevas" | "camino" | "preventas" | "historial";
 
 interface CentralTabsProps {
   tab: CentralTab;
   onChange: (tab: CentralTab) => void;
   newCount: number;
   onTheWayCount: number;
+  preorderCount: number;
+  /** Preventas que llegaron mientras la pestaña no estaba abierta. */
+  preorderUnseen?: number;
   historyCount: number;
 }
 
@@ -35,6 +38,13 @@ const ITEMS: Array<{
     badgeClass: "bg-[#3978A8] text-white",
   },
   {
+    id: "preventas",
+    label: "Preventas",
+    icon: CalendarClock,
+    activeClass: "text-[#9E7844]",
+    badgeClass: "bg-[#9E7844] text-white",
+  },
+  {
     id: "historial",
     label: "Historial",
     icon: History,
@@ -48,11 +58,14 @@ export const CentralTabs: React.FC<CentralTabsProps> = ({
   onChange,
   newCount,
   onTheWayCount,
+  preorderCount,
+  preorderUnseen = 0,
   historyCount,
 }) => {
   const badges: Record<CentralTab, number> = {
     nuevas: newCount,
     camino: onTheWayCount,
+    preventas: preorderCount,
     historial: historyCount,
   };
 
@@ -66,13 +79,16 @@ export const CentralTabs: React.FC<CentralTabsProps> = ({
           const Icon = item.icon;
           const active = tab === item.id;
           const count = badges[item.id];
+          const highlight = item.id === "preventas" && preorderUnseen > 0 && !active;
           return (
             <button
               key={item.id}
               type="button"
               onClick={() => onChange(item.id)}
+              aria-current={active ? "page" : undefined}
+              aria-label={highlight ? `${item.label}, ${preorderUnseen} nuevas` : undefined}
               className={`
-                relative flex-1 min-h-[4.75rem] flex flex-col items-center justify-center gap-1 rounded-2xl
+                relative flex-1 min-w-0 min-h-[4.75rem] flex flex-col items-center justify-center gap-1 rounded-2xl
                 transition-colors select-none
                 ${active ? item.activeClass : "text-[#7E8E87]"}
               `}
@@ -84,13 +100,20 @@ export const CentralTabs: React.FC<CentralTabsProps> = ({
                 <Icon className={`w-8 h-8 ${active ? "stroke-[2.4]" : "stroke-[1.8]"}`} />
                 {count > 0 && (
                   <span
-                    className={`absolute -top-1.5 -right-4 min-w-[22px] h-[22px] px-1 rounded-full text-sm font-extrabold flex items-center justify-center ${item.badgeClass}`}
+                    className={`absolute -top-1.5 -right-2 min-w-[22px] h-[22px] px-1 rounded-full text-sm font-extrabold flex items-center justify-center ${item.badgeClass} ${
+                      highlight ? "ring-2 ring-[#FADC06] ring-offset-1 ring-offset-white" : ""
+                    }`}
                   >
                     {count > 99 ? "99+" : count}
                   </span>
                 )}
+                {highlight && (
+                  <span className="absolute -top-2 -left-2 h-3 w-3 rounded-full bg-[#FADC06] animate-ping" aria-hidden />
+                )}
               </span>
-              <span className="text-base font-extrabold tracking-tight">{item.label}</span>
+              <span className="max-w-full px-0.5 text-center text-[12px] font-extrabold leading-tight tracking-tight sm:text-[15px]">
+                {item.label}
+              </span>
             </button>
           );
         })}

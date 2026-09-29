@@ -4,6 +4,7 @@ import React from "react";
 import { Plus, Sparkles, SlidersHorizontal } from "lucide-react";
 import type { VipProduct } from "@/lib/vip/types";
 import { formatVipAmount, formatVipMxn } from "@/lib/vip/money";
+import { VIP_PURCHASE_UNAVAILABLE_TITLE } from "@/lib/vip/purchase-availability";
 import { VipMedia } from "../ui/media";
 import { motion } from "motion/react";
 
@@ -11,24 +12,33 @@ interface MenuItemCardProps {
   product: VipProduct;
   onOpenDetail: (product: VipProduct) => void;
   onQuickAdd: (product: VipProduct) => void;
+  salesOpen?: boolean;
+  /** Preventa abierta: el producto se puede pedir aunque el POS no tenga stock. */
+  allowWithoutStock?: boolean;
 }
 
 export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
   product,
   onOpenDetail,
   onQuickAdd,
+  salesOpen = true,
+  allowWithoutStock = false,
 }) => {
   const hasOptions =
     (product.gruposOpciones && product.gruposOpciones.length > 0) ||
     (product.opcionesDisponibles && product.opcionesDisponibles.length > 0);
+  const outOfStock = product.disponible === false && !allowWithoutStock;
 
   let actionLabel = "Agregar";
-  if (product.disponible === false) actionLabel = "Agotado";
+  if (!salesOpen || outOfStock) actionLabel = "No disponible";
   else if (hasOptions) actionLabel = "Elegir";
+  const actionDisabled = !salesOpen || outOfStock;
+  let actionAriaLabel = `Añadir ${product.nombre} al pedido`;
+  if (actionDisabled) actionAriaLabel = VIP_PURCHASE_UNAVAILABLE_TITLE;
 
   const handleActionClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!product.disponible) return;
+    if (actionDisabled) return;
     if (hasOptions) {
       onOpenDetail(product);
     } else {
@@ -64,9 +74,9 @@ export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
                 <span>Recomendado</span>
               </span>
             )}
-            {product.disponible === false && (
+            {outOfStock && (
               <span className="inline-flex items-center text-[10px] font-extrabold text-[#C43D3D] bg-[#C43D3D]/10 px-2 py-0.5 rounded-full border border-[#C43D3D]/25">
-                Agotado
+                No disponible
               </span>
             )}
           </div>
@@ -109,8 +119,8 @@ export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
         <p className="font-headline-md text-lg font-extrabold text-[#187B56] leading-tight mt-0.5">
           ${formatVipAmount(product.precio)}
         </p>
-        {product.disponible === false && (
-          <p className="text-xs font-bold text-[#C43D3D]">Agotado</p>
+        {outOfStock && (
+          <p className="text-xs font-bold text-[#C43D3D]">No disponible</p>
         )}
       </div>
 
@@ -127,13 +137,9 @@ export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
         <button
           type="button"
           onClick={handleActionClick}
-          disabled={product.disponible === false}
+          disabled={actionDisabled}
           className="min-h-[42px] px-4 rounded-xl bg-[#187B56] hover:bg-[#136244] text-white flex items-center justify-center gap-1.5 shadow-[0_3px_10px_rgba(24,123,86,0.25)] active:scale-95 transition-all cursor-pointer font-headline-md text-sm font-bold border border-[#00FF85]/20 disabled:opacity-45 disabled:pointer-events-none"
-          aria-label={
-            product.disponible === false
-              ? `${product.nombre} agotado`
-              : `Añadir ${product.nombre} al pedido`
-          }
+          aria-label={actionAriaLabel}
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
           <span>{actionLabel}</span>
@@ -143,13 +149,9 @@ export const VipMenuItemCard: React.FC<MenuItemCardProps> = ({
       <button
         type="button"
         onClick={handleActionClick}
-        disabled={product.disponible === false}
+        disabled={actionDisabled}
         className="sm:hidden min-h-11 min-w-11 px-3 rounded-xl bg-[#187B56] text-white flex items-center justify-center gap-1 shadow-[0_3px_10px_rgba(24,123,86,0.25)] active:scale-95 font-headline-md text-sm font-bold disabled:opacity-45 disabled:pointer-events-none shrink-0"
-        aria-label={
-          product.disponible === false
-            ? `${product.nombre} agotado`
-            : `Añadir ${product.nombre} al pedido`
-        }
+        aria-label={actionAriaLabel}
       >
         <Plus className="w-4 h-4 stroke-[2.5]" />
         <span>{actionLabel}</span>

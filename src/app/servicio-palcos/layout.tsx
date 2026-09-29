@@ -13,7 +13,6 @@ const montserrat = Montserrat({
 const inter = Inter({
   variable: "--font-inter-vip",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -33,6 +32,7 @@ export const metadata: Metadata = {
   },
 };
 
+/** Aísla Servicio Palcos del rem del dashboard. El estilo vive en `html:has([data-vip-root])`. */
 export default function VipRootLayout({
   children,
 }: Readonly<{
@@ -50,11 +50,6 @@ export default function VipRootLayout({
         fontFamily: "var(--font-inter-vip), Inter, sans-serif",
       }}
     >
-      <script
-        dangerouslySetInnerHTML={{
-          __html: "document.documentElement.classList.add('vip-root');",
-        }}
-      />
       <VipProviders>
         <div className="w-full min-h-screen flex flex-col bg-[#F3F6F4] relative">
           {children}

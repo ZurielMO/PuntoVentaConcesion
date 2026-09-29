@@ -13,6 +13,8 @@ import type { VipProduct, VipRestaurant } from "@/lib/vip/types";
 import { useVipCart } from "@/hooks/vip/use-vip-cart";
 import { VipButton } from "@/components/vip/ui/button";
 import { VipMascot } from "@/components/vip/ui/mascot";
+import { VipSalesClosedNotice } from "@/components/vip/ui/sales-closed-notice";
+import { useVipPublicSalesOpen } from "@/hooks/vip/use-vip-public-sales";
 
 function PalcosRestaurantePageInner() {
   const params = useParams<{ id: string }>();
@@ -23,6 +25,7 @@ function PalcosRestaurantePageInner() {
       : String(searchParams.get("id") || "");
   const router = useRouter();
   const { addItem, setRestaurantInfo } = useVipCart();
+  const { preordersEnabled, canOrder, ready } = useVipPublicSalesOpen();
   const [restaurant, setRestaurant] = useState<VipRestaurant | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<VipProduct | null>(null);
@@ -48,8 +51,8 @@ function PalcosRestaurantePageInner() {
   const products = restaurant?.productos || [];
 
   const handleQuickAdd = (product: VipProduct) => {
-    if (!product.disponible) return;
-    addItem(product, { cantidad: 1 });
+    if (!canOrder || (product.disponible === false && !preordersEnabled)) return;
+    addItem(product, { cantidad: 1, permitirSinStock: preordersEnabled });
   };
 
   if (!loading && !restaurant) {
@@ -82,6 +85,7 @@ function PalcosRestaurantePageInner() {
       {restaurant && <VipRestaurantHeader restaurant={restaurant} />}
 
       <main className="max-w-6xl mx-auto w-full px-3 sm:px-6 py-3 sm:py-5 flex flex-col gap-3 sm:gap-5">
+        {ready && !canOrder && <VipSalesClosedNotice />}
         {loading ? (
           <div className="flex flex-col gap-4">
             <VipMenuItemSkeleton />
@@ -95,6 +99,8 @@ function PalcosRestaurantePageInner() {
                 <VipMenuItemCard
                   key={product.id}
                   product={product}
+                  salesOpen={canOrder}
+                  allowWithoutStock={preordersEnabled}
                   onOpenDetail={setSelectedProduct}
                   onQuickAdd={handleQuickAdd}
                 />
@@ -116,12 +122,15 @@ function PalcosRestaurantePageInner() {
         product={selectedProduct}
         isOpen={Boolean(selectedProduct)}
         onClose={() => setSelectedProduct(null)}
+        salesOpen={canOrder}
+        allowWithoutStock={preordersEnabled}
         onAddToCart={(product, quantity, selectedOptions, notes) => {
-          if (!product.disponible) return;
+          if (!canOrder || (product.disponible === false && !preordersEnabled)) return;
           addItem(product, {
             cantidad: quantity,
             opcionesSeleccionadas: selectedOptions,
             instrucciones: notes,
+            permitirSinStock: preordersEnabled,
           });
           setSelectedProduct(null);
         }}

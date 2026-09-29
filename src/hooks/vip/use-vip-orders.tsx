@@ -8,6 +8,8 @@ import type {
   VipPaymentMethod,
   VipOrderStatus,
   VipCheckoutInput,
+  VipPreorderMatch,
+  VipPreorderWindow,
   StadiumZone,
 } from "@/lib/vip/types";
 import { VipService, savePendingCheckout, saveGuestTrackingToken } from "@/lib/vip/vip-service";
@@ -28,6 +30,7 @@ interface CreateOrderParams {
   propina: number;
   total: number;
   metodoPago: VipPaymentMethod;
+  preorder?: { match: VipPreorderMatch; window: VipPreorderWindow } | null;
 }
 
 interface VipOrdersContextType {
@@ -232,6 +235,9 @@ export function VipOrdersProvider({ children }: { children: React.ReactNode }) {
         notes: i.instrucciones || undefined,
       })),
       tip: params.propina,
+      ...(params.preorder
+        ? { preorder: { matchId: params.preorder.match.matchId, windowStart: params.preorder.window.start } }
+        : {}),
     };
 
     const backendResult = await VipService.createCheckout(checkoutInput);
@@ -240,14 +246,46 @@ export function VipOrdersProvider({ children }: { children: React.ReactNode }) {
       orderNumber: backendResult.orderNumber,
       trackingToken: backendResult.trackingToken,
       checkoutSessionId: backendResult.checkoutSessionId,
+      customerName: params.customer.name.trim(),
+      zona: params.delivery.zona,
+      palco,
+      nivel: params.delivery.nivel?.trim(),
+      restaurantNombre: params.restauranteNombre,
+      items: params.items.map((i) => ({
+        nombre: i.producto.nombre,
+        cantidad: i.cantidad,
+        precio: i.producto.precio,
+      })),
+      total: backendResult.total,
+      isPreorder: Boolean(params.preorder),
     });
     saveGuestTrackingToken(backendResult.orderId, backendResult.trackingToken);
 
     const now = new Date();
     const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const scheduled = params.preorder;
     const newOrder: VipOrder = {
       id: backendResult.orderId,
       numeroPedido: backendResult.orderNumber,
+      tipoPedido: scheduled ? "PREORDER" : "IMMEDIATE",
+      preventa: scheduled
+        ? {
+            matchId: scheduled.match.matchId,
+            jornadaNumero: scheduled.match.jornadaNumero,
+            matchDate: scheduled.match.matchDate,
+            matchLabel: scheduled.match.matchLabel,
+            homeTeam: scheduled.match.homeTeam,
+            awayTeam: scheduled.match.awayTeam,
+            stadium: scheduled.match.stadium,
+            kickoffAt: scheduled.match.kickoffAt,
+            windowStart: scheduled.window.start,
+            windowEnd: scheduled.window.end,
+            windowLabel: scheduled.window.label,
+            windowStartAt: scheduled.window.startAt,
+            windowEndAt: scheduled.window.endAt,
+          }
+        : null,
+      programadoPara: scheduled?.window.startAt || null,
       restauranteId: params.restauranteId,
       restauranteNombre: params.restauranteNombre,
       restauranteLogo: params.restauranteLogo,

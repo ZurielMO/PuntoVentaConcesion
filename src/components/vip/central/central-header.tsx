@@ -16,6 +16,11 @@ interface CentralHeaderProps {
   concessions: Array<{ id: string; name: string }>;
   zona: string;
   onChangeZona: () => void;
+  acceptingOrders: boolean;
+  onRequestPublicSales: (acceptingOrders: boolean) => void;
+  /** `null` mientras no se conoce el estado de la preventa. */
+  preordersEnabled?: boolean | null;
+  onRequestPreorders?: (enabled: boolean) => void;
   usbPrinterAvailable?: boolean;
   onConnectPrinter?: () => void;
 }
@@ -32,6 +37,10 @@ export const CentralHeader: React.FC<CentralHeaderProps> = ({
   concessions,
   zona,
   onChangeZona,
+  acceptingOrders,
+  onRequestPublicSales,
+  preordersEnabled = null,
+  onRequestPreorders,
   usbPrinterAvailable,
   onConnectPrinter,
 }) => {
@@ -114,6 +123,36 @@ export const CentralHeader: React.FC<CentralHeaderProps> = ({
             <Radio className={`w-5 h-5 ${autoRefresh ? "text-[#00FF85]" : ""}`} />
             Auto cada 10s {autoRefresh ? "ON" : "OFF"}
           </button>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={acceptingOrders}
+            onClick={() => onRequestPublicSales(!acceptingOrders)}
+            className={`min-h-14 px-3 rounded-xl text-lg font-bold flex items-center justify-between gap-3 border ${
+              acceptingOrders
+                ? "bg-[#187B56] text-white border-[#00FF85]/40"
+                : "bg-[#183C32] text-[#ACB5C9] border-[#234D41]"
+            }`}
+          >
+            <span>Venta al público</span>
+            <span>{acceptingOrders ? "ON" : "OFF"}</span>
+          </button>
+          {onRequestPreorders && preordersEnabled !== null && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={preordersEnabled}
+              onClick={() => onRequestPreorders(!preordersEnabled)}
+              className={`min-h-14 px-3 rounded-xl text-lg font-bold flex items-center justify-between gap-3 border ${
+                preordersEnabled
+                  ? "bg-[#9E7844] text-white border-[#C5A059]/60"
+                  : "bg-[#183C32] text-[#ACB5C9] border-[#234D41]"
+              }`}
+            >
+              <span>Preventa</span>
+              <span>{preordersEnabled ? "ON" : "OFF"}</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {

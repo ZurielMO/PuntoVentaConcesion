@@ -2,20 +2,26 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, Radar } from "lucide-react";
 import { VipTopBar } from "@/components/vip/ui/top-bar";
 import { VipMascot } from "@/components/vip/ui/mascot";
 import { VipButton } from "@/components/vip/ui/button";
+import { VipPreorderTicket } from "@/components/vip/preorder/preorder-ticket";
+import { VipGuideCodeCard } from "@/components/vip/preorder/guide-code-card";
+import { VipOrderProcessingOverlay } from "@/components/vip/orders/order-processing-animation";
 import { useVipCart } from "@/hooks/vip/use-vip-cart";
 import { useVipOrders } from "@/hooks/vip/use-vip-orders";
 import { ApiError } from "@/lib/api/client";
 import {
   clearPendingCheckout,
+  mapVipPreorderInfo,
   readPendingCheckout,
   saveGuestTrackingToken,
   VipService,
   type VipPendingCheckout,
 } from "@/lib/vip/vip-service";
+import { isVipCancelledStatus } from "@/lib/vip/preorder";
+import { normalizeVipGuide, type VipOrderStatus, type VipPreorderInfo } from "@/lib/vip/types";
 import { motion } from "motion/react";
 
 const CONFIRM_ATTEMPTS = 4;
@@ -26,16 +32,22 @@ const isRetryableConfirmError = (error: unknown): boolean => {
 };
 
 export default function VipPagoExitoPage() {
-  const { clearCart } = useVipCart();
+  const { clearCart, setOrderMode } = useVipCart();
   const { refreshOrders, patchOrderStatus } = useVipOrders();
   const [pending, setPending] = useState<VipPendingCheckout | null>(null);
   const [paid, setPaid] = useState(false);
+  const [refunded, setRefunded] = useState(false);
   const [confirming, setConfirming] = useState(true);
+  const [showProcessingOverlay, setShowProcessingOverlay] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [guideCode, setGuideCode] = useState<string | null>(null);
+  const [preorder, setPreorder] = useState<VipPreorderInfo | null>(null);
   const clearCartRef = useRef(clearCart);
+  const setOrderModeRef = useRef(setOrderMode);
   const patchOrderStatusRef = useRef(patchOrderStatus);
   const refreshOrdersRef = useRef(refreshOrders);
   clearCartRef.current = clearCart;
+  setOrderModeRef.current = setOrderMode;
   patchOrderStatusRef.current = patchOrderStatus;
   refreshOrdersRef.current = refreshOrders;
 
@@ -55,6 +67,7 @@ export default function VipPagoExitoPage() {
 
     if (!sessionId) {
       setConfirming(false);
+      setShowProcessingOverlay(false);
       setError("No encontramos la sesión de pago para confirmar el pedido.");
       return;
     }
@@ -67,14 +80,30 @@ export default function VipPagoExitoPage() {
         try {
           const result = await VipService.confirmCheckout(sessionId);
           if (cancelled) return;
-          setPaid(result.paid);
-          setError(null);
+          const orderCancelled = isVipCancelledStatus(result.status as VipOrderStatus);
+          if (!result.paid && !orderCancelled && attempt < CONFIRM_ATTEMPTS - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 400 * 2 ** attempt));
+            continue;
+          }
+          const kitchenReady = result.paid && !orderCancelled;
+          setPaid(kitchenReady);
+          setRefunded(orderCancelled);
+          setError(
+            orderCancelled
+              ? "El cobro se reembolsó y el pedido no quedó programado en Central. Puedes volver a intentar la preventa."
+              : null,
+          );
+          setGuideCode(kitchenReady ? normalizeVipGuide(result.guideCode || "") : null);
+          setPreorder(kitchenReady && result.orderType === "PREORDER" ? mapVipPreorderInfo(result.preorder) : null);
+          if (kitchenReady && result.orderType === "PREORDER") setOrderModeRef.current("NOW");
           patchOrderStatusRef.current(result.orderId, result.status);
           setPending({
+            ...(stored || {}),
             orderId: result.orderId,
             orderNumber: result.orderNumber || stored?.orderNumber || "",
             trackingToken: stored?.trackingToken || "",
             checkoutSessionId: sessionId,
+            isPreorder: result.orderType === "PREORDER" || stored?.isPreorder,
           });
           if (stored?.trackingToken) {
             saveGuestTrackingToken(result.orderId, stored.trackingToken);
@@ -136,20 +165,46 @@ export default function VipPagoExitoPage() {
 
           <div>
             <h1 className="font-headline-md text-2xl sm:text-3xl font-extrabold text-[#111614] tracking-tight">
-              {confirming ? "Confirmando pago…" : paid ? "¡Pago Confirmado!" : "Pago recibido"}
+              {confirming
+                ? "Confirmando pago…"
+                : refunded
+                  ? "Pedido no programado"
+                  : paid
+                  ? preorder
+                    ? "¡Preventa confirmada!"
+                    : "¡Pago Confirmado!"
+                  : "Pago recibido"}
             </h1>
             <p className="font-body-md text-base sm:text-lg text-[#4E5C56] mt-2 leading-relaxed">
               {confirming
                 ? "Estamos notificando a la cocina de la concesión."
                 : paid
-                ? `Tu pedido ya está en cocina.${pending?.orderNumber ? ` Orden #${pending.orderNumber}.` : ""} Te lo llevan a tu palco.`
+                ? preorder
+                  ? `Tu pedido quedó programado.${pending?.orderNumber ? ` Orden #${pending.orderNumber}.` : ""} Lo preparamos con anticipación para tu horario.`
+                  : `Tu pedido ya está en cocina.${pending?.orderNumber ? ` Orden #${pending.orderNumber}.` : ""} Te lo llevan a tu palco.`
                 : error || "Tu pedido pasará a cocina en cuanto se valide el cobro."}
             </p>
           </div>
 
-          <div className="w-full pt-2">
+          {paid && preorder && <VipPreorderTicket info={preorder} surface="#FFFFFF" className="w-full text-left" />}
+          {paid && guideCode && <VipGuideCodeCard guide={guideCode} />}
+
+          <div className="w-full pt-2 flex flex-col gap-2.5">
+            {paid && guideCode && (
+              <Link href={`/servicio-palcos/guia/?codigo=${guideCode}`} className="w-full block">
+                <VipButton variant="secondary" fullWidth size="lg" className="flex items-center justify-center gap-2">
+                  <Radar className="w-4 h-4" />
+                  <span>Ver estatus del pedido</span>
+                </VipButton>
+              </Link>
+            )}
             <Link href="/servicio-palcos/inicio" className="w-full block">
-              <VipButton variant="primary" fullWidth size="lg" className="flex items-center justify-center gap-2">
+              <VipButton
+                variant={paid && guideCode ? "outline" : "primary"}
+                fullWidth
+                size="lg"
+                className="flex items-center justify-center gap-2"
+              >
                 <span>Volver al menú</span>
                 <ArrowRight className="w-4 h-4" />
               </VipButton>
@@ -157,6 +212,34 @@ export default function VipPagoExitoPage() {
           </div>
         </motion.div>
       </main>
+
+      <VipOrderProcessingOverlay
+        isOpen={showProcessingOverlay}
+        onClose={() => setShowProcessingOverlay(false)}
+        estadio="Estadio León"
+        zona={pending?.zona || "Oriente"}
+        palco={pending?.palco || "1"}
+        nivel={pending?.nivel || "Piso 1"}
+        customerName={pending?.customerName || "Aficionado"}
+        items={pending?.items || []}
+        restauranteNombre={pending?.restaurantNombre || "Servicio Palcos"}
+        metodoPagoTitulo="Tarjeta digital · Stripe"
+        total={pending?.total}
+        isPreorder={Boolean(preorder || pending?.isPreorder)}
+        preorderWindowLabel={preorder?.windowLabel}
+        mode="confirmation"
+        isDone={paid && !confirming}
+        confirmSettled={!confirming}
+        error={error}
+        onRetry={() => {
+          setError(null);
+          setConfirming(true);
+          window.location.reload();
+        }}
+        onAnimationFinished={() => {
+          setShowProcessingOverlay(false);
+        }}
+      />
     </div>
   );
 }

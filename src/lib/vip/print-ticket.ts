@@ -2,6 +2,16 @@ import QRCode from "qrcode";
 import { buildVipEscPosTicket, escPosToBase64 } from "./escpos";
 import { buildVipOrderQrPayload } from "./scan";
 import type { VipOrder } from "./types";
+import { formatVipMatchDate, isVipPreorderOrder } from "./types";
+
+function preorderTicketInfo(order: VipOrder): { windowLabel: string; matchLine: string } | null {
+  if (!isVipPreorderOrder(order)) return null;
+  const date = formatVipMatchDate(order.preventa.matchDate, { weekday: "short", day: "numeric", month: "short" });
+  return {
+    windowLabel: order.preventa.windowLabel,
+    matchLine: [`Partido ${order.preventa.jornadaNumero}`, order.preventa.matchLabel, date].filter(Boolean).join(" · "),
+  };
+}
 
 type PdaBridge = {
   isPdaApp?: () => boolean;
@@ -161,6 +171,8 @@ function ticketPayload(order: VipOrder, job: TicketJob) {
     includeSignature: job.includeSignature,
     includeTotals: job.includeTotals,
     includeQr: job.includeQr,
+    preorder: preorderTicketInfo(order),
+    guideCode: order.guia || null,
   });
   return { qrPayload, bytes };
 }
@@ -301,6 +313,7 @@ async function ticketHtml(order: VipOrder, job: TicketJob, qrPayload: string): P
     })
     .join("");
 
+  const preorder = preorderTicketInfo(order);
   const subtitle =
     job.variant === "kitchen"
       ? `Preparación · ${escapeHtml(job.concessionLabel || "Cocina")}`
@@ -343,6 +356,7 @@ async function ticketHtml(order: VipOrder, job: TicketJob, qrPayload: string): P
     margin: 6px 0 2px;
     line-height: 1.1;
   }
+  .preorder { text-align: center; font-size: 15px; font-weight: 800; margin: 2px 0; }
   .hr { border-top: 1px dashed #111; margin: 8px 0; }
   .row { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0; }
   .qr { display: flex; justify-content: center; margin: 6px 0; }
@@ -357,6 +371,11 @@ async function ticketHtml(order: VipOrder, job: TicketJob, qrPayload: string): P
     <div class="center"><strong>${escapeHtml(order.numeroPedido)}</strong></div>
     <div class="center muted">ID de orden</div>
     <div class="center id">${escapeHtml(order.id)}</div>
+    ${order.guia ? `<div class="center muted">Guía ${escapeHtml(order.guia)}</div>` : ""}
+    ${preorder ? `<div class="hr"></div>
+    <div class="center"><strong>PREVENTA</strong></div>
+    <div class="preorder">ENTREGA ${escapeHtml(preorder.windowLabel)}</div>
+    <div class="center muted">${escapeHtml(preorder.matchLine)}</div>` : ""}
     <div class="hr"></div>
     ${order.nombreCliente ? `<div><strong>Cliente:</strong> ${escapeHtml(order.nombreCliente)}</div>` : ""}
     <div class="palco">PALCO ${escapeHtml(order.ubicacion.palco)}</div>
@@ -429,6 +448,9 @@ async function printOrderTicketsNow(order: VipOrder): Promise<void> {
 }
 
 export async function printOrderTickets(order: VipOrder): Promise<void> {
+  if (order.estado === "DELIVERED" || order.estado === "ENTREGADO") {
+    throw new Error("No se puede reimprimir el ticket de un pedido ya entregado.");
+  }
   const run = printChain.then(
     () => printOrderTicketsNow(order),
     () => printOrderTicketsNow(order),

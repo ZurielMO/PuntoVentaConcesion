@@ -7,15 +7,35 @@ import type { VipOrder, VipOrderStatus } from "@/lib/vip/types";
 import { formatVipAmount, formatVipMxn } from "@/lib/vip/money";
 import {
   formatOrderConcessions,
+  formatVipMatchDate,
   groupOrderItemsByConcession,
   isVipDeliverableStatus,
   isVipNewStatus,
+  isVipPreorderOrder,
   shortVipOrderNumber,
   uniqueOrderConcessionNames,
 } from "@/lib/vip/types";
-import { Printer, XCircle, MapPin, Phone, User, AlertTriangle, Check } from "lucide-react";
+import { Printer, XCircle, MapPin, Phone, User, AlertTriangle, Check, CalendarClock, ChefHat } from "lucide-react";
 import { vipToast } from "@/hooks/vip/use-vip-toast";
 import { printOrderTickets } from "@/lib/vip/print-ticket";
+
+const PREORDER_PREPARE = { status: "PREPARING" as const, label: "Preparar", Icon: ChefHat, className: "bg-[#102D24]" };
+const PREORDER_DELIVER = { status: "DELIVERED" as const, label: "Marcar como entregado", Icon: Check, className: "bg-[#187B56]" };
+
+const preorderNextStep = (status: VipOrderStatus) => {
+  if (status === "ACCEPTED" || status === "PAID" || status === "RECEIVED" || status === "RECIBIDO") return PREORDER_PREPARE;
+  if (
+    status === "PREPARING" ||
+    status === "PREPARANDO" ||
+    status === "READY_FOR_PICKUP" ||
+    status === "PICKED_UP" ||
+    status === "ON_THE_WAY" ||
+    status === "EN_CAMINO"
+  ) {
+    return PREORDER_DELIVER;
+  }
+  return undefined;
+};
 
 interface OrderDetailsModalProps {
   order: VipOrder | null;
@@ -38,8 +58,10 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
   if (!order) return null;
 
-  const canDeliver = isVipDeliverableStatus(order.estado);
-  const canAccept = isVipNewStatus(order.estado);
+  const preorder = isVipPreorderOrder(order) ? order.preventa : null;
+  const preorderStep = preorder ? preorderNextStep(order.estado) : undefined;
+  const canDeliver = !preorder && isVipDeliverableStatus(order.estado);
+  const canAccept = !preorder && isVipNewStatus(order.estado);
   const canPrint = order.estado !== "ENTREGADO" && order.estado !== "DELIVERED";
   const canCancel =
     order.estado !== "CANCELADO" &&
@@ -57,16 +79,14 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     try {
       await printOrderTickets(order);
       vipToast.info("Ticket enviado a imprimir");
-    } catch {
-      vipToast.error("No se pudo imprimir el ticket desde el navegador.");
+    } catch (error) {
+      vipToast.error(error instanceof Error ? error.message : "No se pudo imprimir el ticket desde el navegador.");
     } finally {
       setPrinting(false);
     }
   };
 
-  let printLabel = "Imprimir Ticket";
-  if (printing) printLabel = "Imprimiendo…";
-  else if (!canPrint) printLabel = "Ya entregado";
+  const printLabel = printing ? "Imprimiendo…" : "Imprimir Ticket";
 
   const handleConfirmCancel = () => {
     if (!cancelReason.trim()) {
@@ -101,6 +121,36 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             {order.estado}
           </span>
         </div>
+
+        {preorder && (
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0A1C16] to-[#14382C] p-4 text-white">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.16em] text-[#C5A059]">
+                  <CalendarClock className="h-4 w-4" />
+                  Preventa · Partido {preorder.jornadaNumero}
+                </span>
+                <p className="mt-1 font-headline-md text-3xl font-black tabular-nums leading-none text-[#FADC06]">
+                  {preorder.windowLabel}
+                </p>
+                <p className="mt-1.5 truncate text-base font-semibold text-[#DCE6E1]">
+                  {[
+                    preorder.matchLabel,
+                    formatVipMatchDate(preorder.matchDate, { weekday: "short", day: "numeric", month: "short" }),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+              {order.guia && (
+                <div className="shrink-0 text-right">
+                  <span className="block text-xs font-bold uppercase tracking-wide text-[#ACB5C9]">Guía</span>
+                  <span className="font-mono text-lg font-bold tracking-[0.12em]">{order.guia}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="p-4 bg-white rounded-xl border border-[#E2E8E5] flex items-start gap-3">
@@ -220,15 +270,17 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         ) : null}
 
         <div className="flex flex-wrap gap-2 pt-2 border-t border-[#E2E8E5]">
-          <button
-            type="button"
-            onClick={handlePrint}
-            disabled={printing || !canPrint}
-            className="flex-1 min-w-[140px] min-h-14 py-3 px-3 bg-[#F5F7F6] hover:bg-[#EEF2F0] border border-[#E2E8E5] rounded-xl font-headline-md font-bold text-base flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <Printer className="w-6 h-6 text-[#187B56]" />
-            <span>{printLabel}</span>
-          </button>
+          {canPrint && (
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={printing}
+              className="flex-1 min-w-[140px] min-h-14 py-3 px-3 bg-[#F5F7F6] hover:bg-[#EEF2F0] border border-[#E2E8E5] rounded-xl font-headline-md font-bold text-base flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Printer className="w-6 h-6 text-[#187B56]" />
+              <span>{printLabel}</span>
+            </button>
+          )}
 
           {canAccept && onAdvance && (
             <button
@@ -237,6 +289,17 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               className="flex-1 min-w-[140px] min-h-14 py-3 px-3 bg-[#187B56] text-white rounded-xl font-headline-md font-bold text-base"
             >
               Aceptar pedido
+            </button>
+          )}
+
+          {preorderStep && onAdvance && (
+            <button
+              type="button"
+              onClick={() => onAdvance(order.id, preorderStep.status)}
+              className={`flex-1 min-w-[160px] min-h-14 py-3 px-3 text-white rounded-xl font-headline-md font-bold text-base flex items-center justify-center gap-2 ${preorderStep.className}`}
+            >
+              <preorderStep.Icon className="w-6 h-6" />
+              {preorderStep.label}
             </button>
           )}
 

@@ -9,8 +9,11 @@ import { KdsTicketCard } from "@/components/vip/central/kds-ticket-card";
 import { IncomingOrderAlert } from "@/components/vip/central/incoming-order-alert";
 import { OrderDetailsModal } from "@/components/vip/central/order-details-modal";
 import { VipCentralZoneUnlock } from "@/components/vip/central/zone-unlock-modal";
+import { VipPublicSalesModal } from "@/components/vip/central/public-sales-modal";
+import { PreorderBoard } from "@/components/vip/central/preorder-board";
 import { useVipOrders } from "@/hooks/vip/use-vip-orders";
 import { useVipCentralZone } from "@/hooks/vip/use-vip-central-zone";
+import { useVipCentralPreorders } from "@/hooks/vip/use-vip-central-preorders";
 import { usePdaScanner } from "@/hooks/vip/use-pda-scanner";
 import { useIncomingOrderAlert } from "@/hooks/vip/use-incoming-order-alert";
 import { VipService } from "@/lib/vip/vip-service";
@@ -20,8 +23,10 @@ import {
   isVipHistoryStatus,
   isVipNewStatus,
   isVipOnTheWayStatus,
+  isVipPreorderOrder,
   orderIncludesConcession,
 } from "@/lib/vip/types";
+import { isVipTerminalStatus } from "@/lib/vip/preorder";
 import { parseVipScanPayload } from "@/lib/vip/scan";
 import { canConnectUsbPrinter, connectUsbPrinter, printOrderTickets } from "@/lib/vip/print-ticket";
 import { vipToast } from "@/hooks/vip/use-vip-toast";
@@ -38,12 +43,22 @@ function findScannedOrder(orders: VipOrder[], raw: string): VipOrder | undefined
   );
 }
 
+const PREORDER_STATUS_TOAST: Partial<Record<VipOrderStatus, string>> = {
+  PREPARING: "Preventa en preparación",
+  DELIVERED: "Preventa entregada",
+};
+
 export default function VipCentralPage() {
   const { loading: authLoading, token } = useAuth();
   const { canAccessVipCentral } = usePermissions();
-  const { orders, advanceOrderStatus, cancelOrder, refreshOrders, getOrderById } = useVipOrders();
+  const { orders, advanceOrderStatus, cancelOrder, refreshOrders, getOrderById, patchOrderStatus } = useVipOrders();
   const { zona, ready: zonaReady, setZona } = useVipCentralZone();
   const [changingZona, setChangingZona] = useState(false);
+  const [acceptingOrders, setAcceptingOrders] = useState(true);
+  const [pendingSales, setPendingSales] = useState<boolean | null>(null);
+  const [preordersEnabled, setPreordersEnabled] = useState<boolean | null>(null);
+  const [pendingPreorders, setPendingPreorders] = useState<boolean | null>(null);
+  const [preorderBusyIds, setPreorderBusyIds] = useState<ReadonlySet<string>>(() => new Set());
 
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -81,23 +96,59 @@ export default function VipCentralPage() {
     setUsbPrinterAvailable(canConnectUsbPrinter());
   }, []);
 
+  const loadPublicSales = useCallback(async () => {
+    if (!token) return;
+    try {
+      const open = await VipService.getAdminPublicSales(token);
+      setAcceptingOrders(open);
+    } catch {
+      // Se conserva el último estado conocido.
+    }
+  }, [token]);
+
+  const loadPreorderSettings = useCallback(async () => {
+    if (!token) return;
+    try {
+      const settings = await VipService.getAdminPreorderSettings(token);
+      setPreordersEnabled(settings.enabled);
+    } catch {
+      // Se conserva el último estado conocido.
+    }
+  }, [token]);
+
+  const preorders = useVipCentralPreorders({
+    token,
+    zona,
+    enabled: canAccessVipCentral && !authLoading,
+    autoRefresh,
+    viewing: tab === "preventas",
+  });
+  const refreshPreorders = preorders.refresh;
+
   useEffect(() => {
     if (!zona) return;
     refreshOrders(fecha, zona).catch(() => {});
-  }, [fecha, refreshOrders, zona]);
+    loadPublicSales().catch(() => {});
+  }, [fecha, refreshOrders, zona, loadPublicSales]);
+
+  useEffect(() => {
+    if (!zona || !canAccessVipCentral) return;
+    void loadPreorderSettings();
+  }, [zona, canAccessVipCentral, loadPreorderSettings]);
 
   useEffect(() => {
     if (!autoRefresh || !zona) return;
     const interval = setInterval(() => {
       refreshOrders(fecha, zona).catch(() => {});
+      loadPublicSales().catch(() => {});
     }, 10000);
     return () => clearInterval(interval);
-  }, [autoRefresh, refreshOrders, fecha, zona]);
+  }, [autoRefresh, refreshOrders, fecha, zona, loadPublicSales]);
 
   const handleManualRefresh = async () => {
     if (!zona) return;
     setIsRefreshing(true);
-    await refreshOrders(fecha, zona);
+    await Promise.all([refreshOrders(fecha, zona), loadPublicSales(), refreshPreorders(), loadPreorderSettings()]);
     setTimeout(() => {
       setIsRefreshing(false);
       vipToast.info("Órdenes actualizadas", { description: "KDS sincronizado en tiempo real." });
@@ -109,17 +160,28 @@ export default function VipCentralPage() {
     return orders.filter((o) => orderIncludesConcession(o, selectedConcession));
   }, [orders, selectedConcession]);
 
+  // Las preventas viven en su propia pestaña: nunca entran a la cola de aceptación ni disparan la alerta.
+  const liveOrders = useMemo(() => filteredOrders.filter((o) => !isVipPreorderOrder(o)), [filteredOrders]);
   const newOrders = useMemo(
-    () => filteredOrders.filter((o) => isVipNewStatus(o.estado)).slice().reverse(),
-    [filteredOrders],
+    () => liveOrders.filter((o) => isVipNewStatus(o.estado)).slice().reverse(),
+    [liveOrders],
   );
   const onTheWayOrders = useMemo(
-    () => filteredOrders.filter((o) => isVipOnTheWayStatus(o.estado)),
-    [filteredOrders],
+    () => liveOrders.filter((o) => isVipOnTheWayStatus(o.estado)),
+    [liveOrders],
   );
   const historyOrders = useMemo(
     () => filteredOrders.filter((o) => isVipHistoryStatus(o.estado)),
     [filteredOrders],
+  );
+
+  const boardPreorders = useMemo(() => {
+    if (selectedConcession === "ALL") return preorders.orders;
+    return preorders.orders.filter((o) => orderIncludesConcession(o, selectedConcession));
+  }, [preorders.orders, selectedConcession]);
+  const activePreorderCount = useMemo(
+    () => boardPreorders.filter((o) => !isVipTerminalStatus(o.estado)).length,
+    [boardPreorders],
   );
 
   const newCount = newOrders.length;
@@ -170,18 +232,89 @@ export default function VipCentralPage() {
     }
   };
 
+  const setPreorderBusy = (orderId: string, busy: boolean) => {
+    setPreorderBusyIds((prev) => {
+      const next = new Set(prev);
+      if (busy) next.add(orderId);
+      else next.delete(orderId);
+      return next;
+    });
+  };
+
+  /** Las preventas no pasan por `advanceOrderStatus`: ese flujo convierte ACCEPTED en ON_THE_WAY y oculta errores. */
+  const advancePreorder = async (order: VipOrder, nextStatus: VipOrderStatus, quiet = false): Promise<boolean> => {
+    if (preorderBusyIds.has(order.id)) return false;
+    setPreorderBusy(order.id, true);
+    const printing = nextStatus === "PREPARING" ? printOrderTickets({ ...order, estado: "PREPARING" }) : null;
+    try {
+      await VipService.transitionAdminOrder(order.id, nextStatus, token);
+      preorders.patchStatus(order.id, nextStatus);
+      patchOrderStatus(order.id, nextStatus);
+      setDetailsModalOrder((current) => {
+        if (current?.id !== order.id) return current;
+        return nextStatus === "DELIVERED" ? null : { ...current, estado: nextStatus };
+      });
+      if (!quiet) vipToast.success(PREORDER_STATUS_TOAST[nextStatus] || "Estado actualizado");
+      if (printing) {
+        try {
+          await printing;
+        } catch {
+          if (!quiet) vipToast.info("Usa Imprimir ticket si la PDA no lanzó la impresión.");
+        }
+      }
+      return true;
+    } catch (error) {
+      if (!quiet) {
+        vipToast.error(error instanceof Error ? error.message : "No se pudo actualizar la preventa.");
+      }
+      return false;
+    } finally {
+      setPreorderBusy(order.id, false);
+      void refreshPreorders();
+    }
+  };
+
+  const handlePreorderAdvanceMany = async (batch: VipOrder[], nextStatus: VipOrderStatus) => {
+    let done = 0;
+    for (const order of batch) {
+      if (await advancePreorder(order, nextStatus, true)) done += 1;
+    }
+    if (done === batch.length) {
+      vipToast.success(`${done} preventas en preparación`, { description: "Los tickets se envían a la impresora." });
+    } else {
+      vipToast.error(`Se actualizaron ${done} de ${batch.length} preventas.`, {
+        description: "Revisa las que siguen como programadas.",
+      });
+    }
+  };
+
+  const handleModalAdvance = (orderId: string, nextStatus: VipOrderStatus) => {
+    const target = detailsModalOrder;
+    if (target?.id === orderId && isVipPreorderOrder(target)) {
+      void advancePreorder(target, nextStatus);
+      return;
+    }
+    void handleAdvanceStatus(orderId, nextStatus);
+  };
+
   const handleOpenDetails = (order: VipOrder) => {
     setDetailsModalOrder(order);
   };
 
   const handleCancelOrder = async (orderId: string, reason: string) => {
-    await cancelOrder(orderId, reason);
+    try {
+      await cancelOrder(orderId, reason);
+    } catch (error) {
+      vipToast.error(error instanceof Error ? error.message : "No se pudo cancelar el pedido.");
+    } finally {
+      if (preorders.orders.some((order) => order.id === orderId)) void refreshPreorders();
+    }
   };
 
   const handleScannedCode = useCallback(
     async (raw: string) => {
       const parsed = parseVipScanPayload(raw);
-      let order = findScannedOrder(orders, raw);
+      let order = findScannedOrder(orders, raw) || findScannedOrder(preorders.orders, raw);
       if (!order && parsed) {
         order = (await VipService.getAdminOrderById(parsed, token)) || undefined;
       }
@@ -193,17 +326,19 @@ export default function VipCentralPage() {
         vipToast.error("No encontramos esa orden en Central Palcos.");
         return;
       }
-      if (isVipNewStatus(order.estado)) {
-        vipToast.info("Esta orden aún no está aceptada.");
-      } else if (!isVipDeliverableStatus(order.estado) && isVipHistoryStatus(order.estado)) {
+      if (!isVipDeliverableStatus(order.estado) && isVipHistoryStatus(order.estado)) {
         vipToast.info("Esta orden ya está cerrada.");
+      } else if (isVipPreorderOrder(order)) {
+        setTab("preventas");
+      } else if (isVipNewStatus(order.estado)) {
+        vipToast.info("Esta orden aún no está aceptada.");
       } else if (isVipOnTheWayStatus(order.estado)) {
         setTab("camino");
       }
       setDetailsModalOrder(order);
       setScanValue("");
     },
-    [orders, token, zona],
+    [orders, preorders.orders, token, zona],
   );
 
   usePdaScanner(handleScannedCode, canAccessVipCentral && !authLoading && Boolean(zona));
@@ -223,11 +358,13 @@ export default function VipCentralPage() {
 
   useEffect(() => {
     if (!detailsModalOrder) return;
-    const latest = orders.find((order) => order.id === detailsModalOrder.id);
+    const latest =
+      preorders.orders.find((order) => order.id === detailsModalOrder.id) ||
+      orders.find((order) => order.id === detailsModalOrder.id);
     if (latest && latest.estado !== detailsModalOrder.estado) {
       setDetailsModalOrder(latest);
     }
-  }, [orders, detailsModalOrder]);
+  }, [orders, preorders.orders, detailsModalOrder]);
 
   if (authLoading || !zonaReady) {
     return (
@@ -276,6 +413,22 @@ export default function VipCentralPage() {
     );
   }
 
+  const liveQueue =
+    tabOrders.length === 0 ? (
+      <div className="flex-1 min-h-[180px] flex items-center justify-center p-6 text-center border-2 border-dashed border-[#CCD5D1] rounded-2xl bg-white/60">
+        <p className="font-body-md text-lg text-[#66706B]">{emptyLabel}</p>
+      </div>
+    ) : (
+      tabOrders.map((order) => (
+        <KdsTicketCard
+          key={order.id}
+          order={order}
+          onAdvance={handleAdvanceStatus}
+          onSelectOrder={handleOpenDetails}
+        />
+      ))
+    );
+
   return (
     <div className="flex flex-col h-[100dvh] overflow-hidden bg-[#F5F7F6] text-[#171A19] touch-manipulation">
       <CentralHeader
@@ -290,6 +443,10 @@ export default function VipCentralPage() {
         concessions={concessions}
         zona={zona}
         onChangeZona={() => setChangingZona(true)}
+        acceptingOrders={acceptingOrders}
+        onRequestPublicSales={setPendingSales}
+        preordersEnabled={preordersEnabled}
+        onRequestPreorders={setPendingPreorders}
         usbPrinterAvailable={usbPrinterAvailable}
         onConnectPrinter={async () => {
           try {
@@ -341,19 +498,21 @@ export default function VipCentralPage() {
         )}
 
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3.5 pr-0.5">
-          {tabOrders.length === 0 ? (
-            <div className="flex-1 min-h-[180px] flex items-center justify-center p-6 text-center border-2 border-dashed border-[#CCD5D1] rounded-2xl bg-white/60">
-              <p className="font-body-md text-lg text-[#66706B]">{emptyLabel}</p>
-            </div>
+          {tab === "preventas" ? (
+            <PreorderBoard
+              orders={boardPreorders}
+              loading={preorders.loading}
+              error={preorders.error}
+              onRetry={() => void refreshPreorders()}
+              preordersEnabled={preordersEnabled}
+              onTogglePreorders={setPendingPreorders}
+              onAdvance={(order, status) => void advancePreorder(order, status)}
+              onAdvanceMany={(batch, status) => void handlePreorderAdvanceMany(batch, status)}
+              onOpenDetails={handleOpenDetails}
+              busyIds={preorderBusyIds}
+            />
           ) : (
-            tabOrders.map((order) => (
-              <KdsTicketCard
-                key={order.id}
-                order={order}
-                onAdvance={handleAdvanceStatus}
-                onSelectOrder={handleOpenDetails}
-              />
-            ))
+            liveQueue
           )}
         </div>
       </main>
@@ -363,6 +522,8 @@ export default function VipCentralPage() {
         onChange={setTab}
         newCount={newCount}
         onTheWayCount={onTheWayCount}
+        preorderCount={activePreorderCount}
+        preorderUnseen={preorders.unseenCount}
         historyCount={historyCount}
       />
 
@@ -382,9 +543,49 @@ export default function VipCentralPage() {
         order={detailsModalOrder}
         isOpen={!!detailsModalOrder}
         onClose={() => setDetailsModalOrder(null)}
-        onAdvance={handleAdvanceStatus}
+        onAdvance={handleModalAdvance}
         onCancel={handleCancelOrder}
       />
+
+      {pendingPreorders !== null && (
+        <VipPublicSalesModal
+          acceptingOrders={pendingPreorders}
+          title={pendingPreorders ? "Abrir preventa" : "Cerrar preventa"}
+          description={
+            pendingPreorders
+              ? "Con la contraseña de zona, los palcos podrán programar pedidos para los próximos partidos."
+              : "Los palcos dejan de poder programar pedidos nuevos. Las preventas ya pagadas se conservan y se entregan normal."
+          }
+          onCancel={() => setPendingPreorders(null)}
+          onConfirm={async (password) => {
+            try {
+              const settings = await VipService.setAdminPreorderSettings(password, pendingPreorders, token);
+              setPreordersEnabled(settings.enabled);
+              setPendingPreorders(null);
+              vipToast.success(settings.enabled ? "Preventa abierta" : "Preventa cerrada");
+            } catch (error) {
+              vipToast.error(error instanceof Error ? error.message : "Contraseña incorrecta.");
+            }
+          }}
+        />
+      )}
+
+      {pendingSales !== null && (
+        <VipPublicSalesModal
+          acceptingOrders={pendingSales}
+          onCancel={() => setPendingSales(null)}
+          onConfirm={async (password) => {
+            try {
+              const next = await VipService.setAdminPublicSales(password, pendingSales, token);
+              setAcceptingOrders(next);
+              setPendingSales(null);
+              vipToast.success(next ? "Venta al público activada" : "Venta al público desactivada");
+            } catch (error) {
+              vipToast.error(error instanceof Error ? error.message : "Contraseña incorrecta.");
+            }
+          }}
+        />
+      )}
 
       {changingZona && (
         <div className="fixed inset-0 z-[90] bg-[#102D24]/70 flex items-center justify-center p-4">

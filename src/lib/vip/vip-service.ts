@@ -14,8 +14,13 @@ import type {
   VipAdminOrderFilter,
   VipCartItem,
   VipTrackingStep,
+  VipPreorderAvailability,
+  VipPreorderInfo,
+  VipPreorderSettings,
+  VipPublicServiceStatus,
+  VipGuideLookupResponse,
 } from "./types";
-import { VIP_STRIPE_PAYMENT_METHOD, isVipStadiumZone } from "./types";
+import { VIP_STRIPE_PAYMENT_METHOD, formatVipGuide, isVipStadiumZone, normalizeVipGuide } from "./types";
 
 function firstImage(value: unknown): string {
   if (Array.isArray(value)) {
@@ -45,6 +50,7 @@ interface VipBackendConcession {
     price: number | string;
     currency?: string;
     available?: boolean;
+    awaitingInventory?: boolean;
     activo?: boolean;
     options?: Array<{ id: string; name: string; price: number }>;
     extras?: Array<{ id: string; name: string; price: number }>;
@@ -96,6 +102,7 @@ function mapVipConcession(c: VipBackendConcession): VipRestaurant {
       imagen: firstImage(("images" in p ? p.images : undefined) || ("imagenes" in p ? p.imagenes : undefined)),
       categoria,
       disponible: "available" in p ? p.available !== false : "activo" in p ? p.activo !== false : true,
+      esperaInventario: "awaitingInventory" in p && p.awaitingInventory === true,
       opcionesDisponibles: pOptions,
       extrasDisponibles: pExtras,
       gruposOpciones:
@@ -359,6 +366,138 @@ export class VipService {
     return unlocked;
   }
 
+  static async getPublicServiceStatus(): Promise<VipPublicServiceStatus> {
+    const res = await api.get<ApiResponse<{
+      acceptingOrders?: boolean;
+      matchDay?: boolean;
+      liveOrdersOpen?: boolean;
+      preordersEnabled?: boolean;
+      preordersOpen?: boolean;
+    }>>(
+      "/vip/service-status",
+    );
+    if (typeof res.data?.acceptingOrders !== "boolean") {
+      throw new ApiError(502, "No se pudo leer el estado de la venta al público.", "VIP_SERVICE_STATUS");
+    }
+    const matchDay = res.data.matchDay === true;
+    const liveOrdersOpen = typeof res.data.liveOrdersOpen === "boolean"
+      ? res.data.liveOrdersOpen
+      : matchDay && res.data.acceptingOrders;
+    return {
+      acceptingOrders: res.data.acceptingOrders,
+      matchDay,
+      liveOrdersOpen,
+      preordersEnabled: res.data.preordersEnabled === true,
+      preordersOpen: res.data.preordersOpen === true,
+    };
+  }
+
+  static async getPublicSalesStatus(): Promise<boolean> {
+    return (await this.getPublicServiceStatus()).acceptingOrders;
+  }
+
+  /** Partidos y ventanas de entrega reservables; con zona incluye cupo restante por ventana. */
+  static async getPreorderAvailability(zona?: StadiumZone | null): Promise<VipPreorderAvailability> {
+    const query = zona ? `?zona=${encodeURIComponent(zona)}` : "";
+    const res = await api.get<ApiResponse<VipPreorderAvailability>>(`/vip/preorders/availability${query}`);
+    const data = res.data;
+    if (!data || !Array.isArray(data.matches)) {
+      throw new ApiError(502, "No se pudo leer la disponibilidad de preventa.", "VIP_PREORDER_STATUS");
+    }
+    return {
+      enabled: data.enabled === true,
+      slotMinutes: Number(data.slotMinutes || 25),
+      leadMinutes: Number(data.leadMinutes || 45),
+      windowBeforeMinutes: Number(data.windowBeforeMinutes || 50),
+      windowAfterMinutes: Number(data.windowAfterMinutes || 50),
+      matches: data.matches,
+    };
+  }
+
+  static async lookupOrderByGuide(rawGuide: string): Promise<VipGuideLookupResponse> {
+    const guide = normalizeVipGuide(rawGuide);
+    if (!guide) {
+      throw new ApiError(400, "La guía tiene 8 caracteres, por ejemplo 7KQ4-M2XD.", "VIP_INVALID_GUIDE");
+    }
+    const res = await api.get<ApiResponse<VipGuideLookupResponse>>(
+      `/vip/orders/lookup?guide=${encodeURIComponent(guide)}`,
+    );
+    if (!res.data?.orderNumber) {
+      throw new ApiError(404, "No encontramos un pedido con esa guía.", "VIP_ORDER_NOT_FOUND");
+    }
+    return {
+      ...res.data,
+      guideCode: formatVipGuide(res.data.guideCode) || formatVipGuide(guide),
+      preorder: mapVipPreorderInfo(res.data.preorder),
+    };
+  }
+
+  /** Preventas pagadas de la zona desde hoy (o `from`), ordenadas por ventana de entrega. */
+  static async getAdminPreorders(
+    zona: StadiumZone,
+    token?: string | null,
+    from?: string,
+  ): Promise<VipOrder[]> {
+    const params = new URLSearchParams({ zona });
+    if (from) params.set("from", from);
+    const res = await api.get<ApiResponse<Record<string, unknown>[]>>(
+      `/vip/admin/preorders?${params.toString()}`,
+      token,
+    );
+    if (!Array.isArray(res.data)) {
+      throw new ApiError(502, "No se pudieron cargar las preventas.", "VIP_PREORDER_STATUS");
+    }
+    return res.data.map((row) => mapBackendVipOrder(row));
+  }
+
+  static async getAdminPreorderSettings(token?: string | null): Promise<VipPreorderSettings> {
+    const res = await api.get<ApiResponse<VipPreorderSettings>>("/vip/admin/preorder-settings", token);
+    if (typeof res.data?.enabled !== "boolean") {
+      throw new ApiError(502, "No se pudo leer el estado de la preventa.", "VIP_PREORDER_STATUS");
+    }
+    return res.data;
+  }
+
+  static async setAdminPreorderSettings(
+    password: string,
+    enabled: boolean,
+    token?: string | null,
+  ): Promise<VipPreorderSettings> {
+    const res = await api.post<ApiResponse<VipPreorderSettings>>(
+      "/vip/admin/preorder-settings",
+      { password, enabled },
+      token,
+    );
+    if (typeof res.data?.enabled !== "boolean") {
+      throw new ApiError(502, "No se pudo actualizar la preventa.", "VIP_PREORDER_STATUS");
+    }
+    return res.data;
+  }
+
+  static async getAdminPublicSales(token?: string | null): Promise<boolean> {
+    const res = await api.get<ApiResponse<{ acceptingOrders?: boolean }>>("/vip/admin/public-sales", token);
+    if (typeof res.data?.acceptingOrders !== "boolean") {
+      throw new ApiError(502, "No se pudo leer el estado de la venta al público.", "VIP_SERVICE_STATUS");
+    }
+    return res.data.acceptingOrders;
+  }
+
+  static async setAdminPublicSales(
+    password: string,
+    acceptingOrders: boolean,
+    token?: string | null,
+  ): Promise<boolean> {
+    const res = await api.post<ApiResponse<{ acceptingOrders?: boolean }>>(
+      "/vip/admin/public-sales",
+      { password, acceptingOrders },
+      token,
+    );
+    if (typeof res.data?.acceptingOrders !== "boolean") {
+      throw new ApiError(502, "No se pudo actualizar la venta al público.", "VIP_SERVICE_STATUS");
+    }
+    return res.data.acceptingOrders;
+  }
+
   /**
    * Obtiene el detalle de una orden en Central VIP.
    */
@@ -391,6 +530,23 @@ export class VipService {
     } catch {
       return false;
     }
+  }
+
+  /** Igual que `updateAdminOrderStatus`, pero propaga el error del backend (transición inválida, permisos). */
+  static async transitionAdminOrder(
+    orderId: string,
+    status: VipOrderStatus,
+    token?: string | null,
+    metadata?: Record<string, string | number | boolean | null>,
+  ): Promise<VipOrderStatus> {
+    const res = await api.patch<ApiResponse<{ status?: VipOrderStatus } | VipOrderStatus>>(
+      `/vip/admin/orders/${encodeURIComponent(orderId)}/status`,
+      metadata ? { status, metadata } : { status },
+      token,
+    );
+    const data = res.data;
+    if (typeof data === "string") return data;
+    return data?.status || status;
   }
 
   /**
@@ -514,6 +670,14 @@ export type VipPendingCheckout = {
   orderNumber: string;
   trackingToken: string;
   checkoutSessionId?: string | null;
+  customerName?: string;
+  zona?: string;
+  palco?: string;
+  nivel?: string;
+  restaurantNombre?: string;
+  items?: Array<{ nombre: string; cantidad: number; precio?: number }>;
+  total?: number;
+  isPreorder?: boolean;
 };
 
 export function savePendingCheckout(payload: VipPendingCheckout): void {
@@ -537,6 +701,61 @@ export function readPendingCheckout(): VipPendingCheckout | null {
 export function clearPendingCheckout(): void {
   if (typeof window === "undefined") return;
   sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
+}
+
+function timestampToMillis(value: unknown): number | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (typeof value === "object") {
+    const rec = value as { toMillis?: () => number; _seconds?: number; seconds?: number };
+    const millis = typeof rec.toMillis === "function"
+      ? rec.toMillis()
+      : typeof rec._seconds === "number"
+        ? rec._seconds * 1000
+        : typeof rec.seconds === "number"
+          ? rec.seconds * 1000
+          : NaN;
+    return Number.isFinite(millis) ? millis : null;
+  }
+  return null;
+}
+
+function timestampToIso(value: unknown): string | null {
+  const millis = timestampToMillis(value);
+  return millis === null ? null : new Date(millis).toISOString();
+}
+
+const optionalText = (value: unknown): string | null => {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || null;
+};
+
+/** Acepta la forma pública (ISO) y la del panel admin (Timestamp serializado). */
+export function mapVipPreorderInfo(raw: unknown): VipPreorderInfo | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  const matchId = optionalText(row.matchId);
+  const windowStart = optionalText(row.windowStart);
+  if (!matchId || !windowStart) return null;
+  const windowEnd = optionalText(row.windowEnd) || "";
+  return {
+    matchId,
+    jornadaNumero: Number(row.jornadaNumero || 0),
+    matchDate: String(row.matchDate || ""),
+    matchLabel: optionalText(row.matchLabel) || "Partido en casa",
+    homeTeam: optionalText(row.homeTeam),
+    awayTeam: optionalText(row.awayTeam),
+    stadium: optionalText(row.stadium),
+    kickoffAt: timestampToIso(row.kickoffAt),
+    windowStart,
+    windowEnd,
+    windowLabel: optionalText(row.windowLabel) || `${windowStart} – ${windowEnd}`,
+    windowStartAt: timestampToIso(row.windowStartAt),
+    windowEndAt: timestampToIso(row.windowEndAt),
+  };
 }
 
 function timestampToTime(value: unknown): string {
@@ -610,6 +829,27 @@ const GUEST_TIMELINE_STEPS: Array<{ estado: VipOrderStatus; titulo: string; desc
   },
 ];
 
+const GUEST_PREORDER_TIMELINE_STEPS: typeof GUEST_TIMELINE_STEPS = [
+  {
+    estado: "RECEIVED",
+    titulo: "Pago confirmado",
+    descripcion: "Tu preventa quedó registrada",
+    timeKeys: ["paidAt", "receivedAt"],
+  },
+  {
+    estado: "ACCEPTED",
+    titulo: "Programado",
+    descripcion: "Cocina lo prepara para tu ventana de entrega",
+    timeKeys: ["scheduledAt", "acceptedAt"],
+  },
+  {
+    estado: "PREPARING",
+    titulo: "En preparación",
+    descripcion: "Tu pedido se está preparando y saldrá a tu palco",
+    timeKeys: ["preparingAt", "onTheWayAt"],
+  },
+];
+
 const STATUS_LEVEL: Record<string, number> = {
   PENDING_PAYMENT: 0,
   PAID: 1,
@@ -665,9 +905,11 @@ export function buildVipGuestTimeline(
   status: VipOrderStatus,
   timestamps: Record<string, string | null | unknown> = {},
   previous: VipTrackingStep[] = [],
+  preorder = false,
 ): VipTrackingStep[] {
   const currentLevel = STATUS_LEVEL[status] ?? 1;
-  return GUEST_TIMELINE_STEPS.map((step) => {
+  const steps = preorder ? GUEST_PREORDER_TIMELINE_STEPS : GUEST_TIMELINE_STEPS;
+  return steps.map((step) => {
     const level = STATUS_LEVEL[step.estado] ?? 1;
     const previousStep = previous.find((row) => row.estado === step.estado);
     const hora =
@@ -695,15 +937,25 @@ export function applyVipTracking(
     ...tracking,
     trackingToken,
   } as unknown as Record<string, unknown>);
+  const preorder = mapped.tipoPedido === "PREORDER";
   return {
     ...(order || mapped),
     id: tracking.id || order?.id || mapped.id,
     numeroPedido: tracking.orderNumber || order?.numeroPedido || mapped.numeroPedido,
+    tipoPedido: mapped.tipoPedido,
+    preventa: mapped.preventa,
+    guia: mapped.guia || order?.guia || null,
+    programadoPara: mapped.programadoPara,
     estado: tracking.status,
     trackingToken: trackingToken || order?.trackingToken,
     tiempoEstimadoMin: etaMinutesForVipStatus(tracking.status),
     updatedAt: tracking.updatedAt || order?.updatedAt,
-    timeline: buildVipGuestTimeline(tracking.status, tracking.timestamps, order?.timeline),
+    timeline: buildVipGuestTimeline(
+      tracking.status,
+      tracking.timestamps,
+      preorder ? [] : order?.timeline,
+      preorder,
+    ),
     repartidor: mapped.repartidor || order?.repartidor,
     items: order?.items?.length ? order.items : mapped.items,
     ubicacion: order?.ubicacion?.palco ? order.ubicacion : mapped.ubicacion,
@@ -784,9 +1036,20 @@ export function mapBackendVipOrder(raw: Record<string, unknown>): VipOrder {
     ),
   ];
 
+  const preventa = mapVipPreorderInfo(raw.preorder ?? raw.preventa);
+  const tipoPedido = (raw.orderType ?? raw.tipoPedido) === "PREORDER" && preventa ? "PREORDER" : "IMMEDIATE";
+
   return {
     id: String(raw.id || ""),
     numeroPedido: String(raw.orderNumber || raw.numeroPedido || ""),
+    tipoPedido,
+    preventa: tipoPedido === "PREORDER" ? preventa : null,
+    guia: formatVipGuide(String(raw.guideCode || raw.guia || "")) || null,
+    programadoPara:
+      tipoPedido === "PREORDER"
+        ? timestampToIso(raw.scheduledFor ?? raw.programadoPara) || preventa?.windowStartAt || null
+        : null,
+    fecha: raw.fecha ? String(raw.fecha) : undefined,
     restauranteId: String(raw.restauranteId || concessionIds[0] || firstFulfillment.concessionId || ""),
     restauranteNombre:
       concessionNames.join(" · ") || String(raw.restauranteNombre || firstFulfillment.concessionName || "Servicio Palcos"),
