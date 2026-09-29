@@ -25,7 +25,7 @@ import { Field } from "@/components/ui/field";
 import { useConcessions } from "@/hooks/use-concessions";
 import { useZonas } from "@/hooks/use-zonas";
 import { useUsers } from "@/hooks/use-users";
-import { useProducts, MAX_IMAGE_BYTES } from "@/hooks/use-products";
+import { useProducts, MAX_IMAGE_BYTES, PRODUCTO_UNIDAD } from "@/hooks/use-products";
 import { useSucursales } from "@/hooks/use-sucursales";
 import { useActiveConcesion } from "@/hooks/use-active-concesion";
 import { useNavigationLock } from "@/hooks/use-navigation-lock";
@@ -47,6 +47,7 @@ type WizardStepId =
 type DraftProduct = {
   id: string;
   nombre: string;
+  descripcion: string;
   precio: number;
   unidad_medida: string;
   imageFile?: File | null;
@@ -132,11 +133,11 @@ export default function NuevaConcesionWizardPage() {
   const [cajasNombres, setCajasNombres] = useState<string[]>(["Caja 1"]);
   const [productosDraft, setProductosDraft] = useState<DraftProduct[]>([]);
   const [productoNombre, setProductoNombre] = useState("");
+  const [productoDescripcion, setProductoDescripcion] = useState("");
   const [productoPrecio, setProductoPrecio] = useState("");
   const [productoPrecioError, setProductoPrecioError] = useState<string | null>(
     null,
   );
-  const [productoUnidad, setProductoUnidad] = useState("pza");
   const [productoImage, setProductoImage] = useState<File | null>(null);
   const [vendedoresDraft, setVendedoresDraft] = useState<DraftVendedor[]>([]);
   const productosDraftRef = useRef(productosDraft);
@@ -361,13 +362,15 @@ export default function NuevaConcesionWizardPage() {
       {
         id: createId(),
         nombre: productoNombre.trim(),
+        descripcion: productoDescripcion.trim(),
         precio: precioParsed.value,
-        unidad_medida: productoUnidad.trim() || "pza",
+        unidad_medida: PRODUCTO_UNIDAD,
         imageFile: productoImage,
         imagePreview: imagePreviewUrl,
       },
     ]);
     setProductoNombre("");
+    setProductoDescripcion("");
     setProductoPrecio("");
     setProductoPrecioError(null);
     setProductoImage(null);
@@ -378,6 +381,7 @@ export default function NuevaConcesionWizardPage() {
     e.preventDefault();
     const formStarted =
       Boolean(productoNombre.trim()) ||
+      Boolean(productoDescripcion.trim()) ||
       Boolean(productoPrecio.trim()) ||
       Boolean(productoImage);
     if (formStarted) {
@@ -518,6 +522,7 @@ export default function NuevaConcesionWizardPage() {
       for (const producto of productosDraft) {
         const payload = {
           nombre: producto.nombre,
+          descripcion: producto.descripcion,
           precio: producto.precio,
           unidad_medida: producto.unidad_medida,
           activo: true,
@@ -915,6 +920,14 @@ export default function NuevaConcesionWizardPage() {
                         )}
                         <div className="wizard-alta__product-card-body">
                           <p className="wizard-alta__product-card-name">{p.nombre}</p>
+                          {p.descripcion ? (
+                            <p
+                              className="wizard-alta__product-card-desc"
+                              title={p.descripcion}
+                            >
+                              {p.descripcion}
+                            </p>
+                          ) : null}
                           <p className="wizard-alta__product-card-price">
                             {formatPrice(p.precio)}
                             <span className="text-[1.1rem] font-normal text-[#6b7280]">
@@ -938,6 +951,20 @@ export default function NuevaConcesionWizardPage() {
                           value={productoNombre}
                           onChange={(e) => setProductoNombre(e.target.value)}
                           placeholder="Ej. Hot dog clásico"
+                        />
+                      </Field>
+                      <Field
+                        label="Descripción"
+                        htmlFor="productoDescripcion"
+                        hint="Características del producto. Opcional."
+                      >
+                        <textarea
+                          id="productoDescripcion"
+                          value={productoDescripcion}
+                          onChange={(e) => setProductoDescripcion(e.target.value)}
+                          placeholder="Ej. Pan, salchicha de pavo y aderezo de la casa"
+                          maxLength={1000}
+                          rows={3}
                         />
                       </Field>
                       <div className="grid gap-3 sm:grid-cols-2">
@@ -985,11 +1012,17 @@ export default function NuevaConcesionWizardPage() {
                             aria-invalid={Boolean(productoPrecioError)}
                           />
                         </Field>
-                        <Field label="Unidad" htmlFor="productoUnidad">
+                        <Field
+                          label="Unidad"
+                          htmlFor="productoUnidad"
+                          hint="Siempre pieza (pz)."
+                        >
                           <Input
                             id="productoUnidad"
-                            value={productoUnidad}
-                            onChange={(e) => setProductoUnidad(e.target.value)}
+                            value={PRODUCTO_UNIDAD}
+                            readOnly
+                            disabled
+                            aria-readonly="true"
                           />
                         </Field>
                       </div>
@@ -1034,6 +1067,7 @@ export default function NuevaConcesionWizardPage() {
                     }
                     const formStarted =
                       Boolean(productoNombre.trim()) ||
+                      Boolean(productoDescripcion.trim()) ||
                       Boolean(productoPrecio.trim()) ||
                       Boolean(productoImage);
                     if (formStarted) {
@@ -1289,6 +1323,7 @@ function WizardResumen({
                   ) : null}
                   <span>
                     {p.nombre} · {formatPrice(p.precio)}
+                    {p.descripcion ? ` · ${p.descripcion}` : ""}
                   </span>
                 </span>
               ))}

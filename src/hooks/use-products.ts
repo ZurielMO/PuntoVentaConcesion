@@ -21,6 +21,8 @@ export type Product = {
 
 export type ProductPayload = {
   nombre: string;
+  /** Características del producto. Opcional. */
+  descripcion?: string;
   unidad_medida: string;
   precio: number;
   imagenes?: string[];
@@ -29,6 +31,9 @@ export type ProductPayload = {
   concesionId?: string;
 };
 
+/** Todos los productos se venden por pieza. */
+export const PRODUCTO_UNIDAD = "pz";
+
 export const MAX_IMAGES_PER_PRODUCT = 5;
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -36,6 +41,7 @@ export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 function buildProductFormData(payload: ProductPayload, files?: File[]): FormData {
   const form = new FormData();
   form.append("nombre", payload.nombre);
+  form.append("descripcion", payload.descripcion?.trim() ?? "");
   form.append("unidad_medida", payload.unidad_medida);
   form.append("precio", String(payload.precio));
   form.append("activo", String(payload.activo !== false));

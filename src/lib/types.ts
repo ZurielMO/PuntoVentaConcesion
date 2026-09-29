@@ -91,6 +91,7 @@ export interface Product {
   id: string;
   concesion_id: string;
   nombre: string;
+  descripcion?: string;
   unidad_medida: string;
   precio: number;
   imagenes?: string[];
