@@ -441,6 +441,7 @@ export default function SuperAdminDashboardPage() {
             label="Concesión líder"
             value={loadingVentas ? "—" : (concesionLider?.nombre ?? "Sin ventas")}
             icon={Trophy}
+            fitValue
             hint={
               concesionLider
                 ? `${formatPrice(concesionLider.total)} · ${concesionLider.participacion.toFixed(1)}% del total`
@@ -451,6 +452,7 @@ export default function SuperAdminDashboardPage() {
             label="Zona líder"
             value={loadingVentas ? "—" : (zonaLider?.nombre ?? "Sin ventas")}
             icon={MapPin}
+            fitValue
             hint={
               zonaLider
                 ? `${formatPrice(zonaLider.total)} · ${zonaLider.participacion.toFixed(1)}% del total`
