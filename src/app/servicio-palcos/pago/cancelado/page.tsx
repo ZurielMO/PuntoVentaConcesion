@@ -8,6 +8,7 @@ import { VipMascot } from "@/components/vip/ui/mascot";
 import { VipButton } from "@/components/vip/ui/button";
 import { clearPendingCheckout, readPendingCheckout, VipService } from "@/lib/vip/vip-service";
 import { motion } from "motion/react";
+import { VipLegalLinks } from "@/components/vip/legal/legal-links";
 
 export default function VipPagoCanceladoPage() {
   const [releasing, setReleasing] = useState(true);
@@ -42,14 +43,14 @@ export default function VipPagoCanceladoPage() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen pb-24 md:pb-0 bg-[#F6F8F7] text-[#111614]">
-      <VipTopBar variant="linear" title="Pago no completado" subtitle="Servicio Palcos · Estadio León" />
+    <div className="flex flex-col min-h-screen pb-24 md:pb-0 bg-[#F8FAF9] text-[#111827]">
+      <VipTopBar variant="linear" title="Pago no completado" subtitle="Servicio Palcos VIP · Club León" />
       <main className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto w-full">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
-          className="bg-white p-8 rounded-3xl border border-[#DFE5E2] shadow-xs flex flex-col items-center gap-4 w-full"
+          className="bg-white p-8 rounded-3xl border border-[#E5EBE8] shadow-[0_4px_20px_rgba(6,46,32,0.04)] flex flex-col items-center gap-4 w-full"
         >
           <VipMascot name="pagos" size="empty" className="-my-2" />
           <div>
@@ -72,6 +73,7 @@ export default function VipPagoCanceladoPage() {
           </div>
         </motion.div>
       </main>
+      <VipLegalLinks className="px-4 pb-6" />
     </div>
   );
 }

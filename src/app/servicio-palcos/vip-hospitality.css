@@ -1,0 +1,120 @@
+/* Servicio Palcos VIP - Club León Hospitality Styling
+   Scoped strictly to [data-vip-root] to guarantee zero regressions in other modules */
+
+[data-vip-root] {
+  --vip-canvas: #F8FAF9;
+  --vip-surface: #FFFFFF;
+  --vip-surface-raised: #FFFFFF;
+  --vip-surface-muted: #F1F4F2;
+
+  /* Primary Brand Colors: Deep Racing Green / Emerald */
+  --vip-emerald-950: #041A12;
+  --vip-emerald-900: #062319;
+  --vip-emerald-800: #0A3224;
+  --vip-emerald-700: #0D4A34;
+  --vip-emerald-600: #145C42;
+  --vip-emerald-500: #187B56;
+
+  /* Luxury Accents: Brushed Gold / Champagne */
+  --vip-gold-600: #A67C2E;
+  --vip-gold-500: #C5A059;
+  --vip-gold-400: #D4AF37;
+  --vip-gold-300: #E6C687;
+  --vip-gold-100: #FBF6EC;
+
+  /* Neutral Typography */
+  --vip-text-dark: #111827;
+  --vip-text-body: #374151;
+  --vip-text-muted: #6B7280;
+  --vip-text-light: #9CA3AF;
+
+  /* Borders & Shadows */
+  --vip-border-subtle: rgba(229, 235, 232, 0.85);
+  --vip-border-gold: rgba(197, 160, 89, 0.35);
+  --vip-shadow-soft: 0 4px 20px -2px rgba(6, 46, 32, 0.05);
+  --vip-shadow-hover: 0 12px 36px -4px rgba(6, 46, 32, 0.09);
+  --vip-shadow-gold: 0 4px 24px -2px rgba(197, 160, 89, 0.22);
+}
+
+/* Glassmorphism VIP helpers */
+[data-vip-root] .vip-glass-dark {
+  background: rgba(6, 35, 25, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(197, 160, 89, 0.22);
+}
+
+[data-vip-root] .vip-glass-light {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(229, 235, 232, 0.9);
+}
+
+[data-vip-root] .vip-glass-gold {
+  background: rgba(197, 160, 89, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(197, 160, 89, 0.3);
+}
+
+/* Luxury card shadow & elevation */
+[data-vip-root] .vip-card {
+  background: #FFFFFF;
+  border: 1px solid var(--vip-border-subtle);
+  border-radius: 1.25rem;
+  box-shadow: var(--vip-shadow-soft);
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-vip-root] .vip-card:hover {
+  box-shadow: var(--vip-shadow-hover);
+  border-color: rgba(197, 160, 89, 0.3);
+}
+
+/* Gold shimmer border effect */
+[data-vip-root] .vip-gold-trim {
+  position: relative;
+}
+
+[data-vip-root] .vip-gold-trim::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, #C5A059 50%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Subtle luxury mesh background pattern for hero */
+[data-vip-root] .vip-hero-mesh {
+  background-color: #062319;
+  background-image: 
+    radial-gradient(ellipse at 85% 15%, rgba(197, 160, 89, 0.14) 0%, transparent 55%),
+    radial-gradient(ellipse at 15% 85%, rgba(20, 92, 66, 0.25) 0%, transparent 55%),
+    linear-gradient(135deg, #041A12 0%, #062319 45%, #0A3224 100%);
+}
+
+/* Hide scrollbar for category chips while keeping touch scroll */
+[data-vip-root] .vip-scroll-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+[data-vip-root] .vip-scroll-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Luxury typography helpers */
+[data-vip-root] .vip-heading {
+  font-family: var(--font-montserrat), Montserrat, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+[data-vip-root] .vip-eyebrow {
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+}

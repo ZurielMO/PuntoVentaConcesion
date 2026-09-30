@@ -23,7 +23,7 @@ export const VipBottomNav: React.FC = () => {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-[#DFE5E2] px-3 py-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(10,28,22,0.06)]"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-[#E5EBE8] px-3 py-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] shadow-[0_-8px_28px_rgba(6,46,32,0.08)]"
       aria-label="Navegación principal del servicio a palcos"
     >
       <div className="flex justify-around items-center max-w-md mx-auto">
@@ -40,28 +40,28 @@ export const VipBottomNav: React.FC = () => {
               href={item.href}
               className={`
                 relative min-h-[52px] flex-1 flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all select-none
-                ${isActive ? "text-[#0C8643] font-bold" : "text-[#7E8E87] hover:text-[#111614] font-medium"}
+                ${isActive ? "text-[#062E20] font-bold" : "text-[#6B7280] hover:text-[#111827] font-medium"}
               `}
             >
               {isActive && (
                 <motion.div
                   layoutId="vipBottomNavActivePill"
-                  className="absolute inset-0 bg-[#0C8643]/10 rounded-2xl -z-10"
+                  className="absolute inset-0 bg-[#0D4A34]/10 rounded-2xl -z-10"
                   transition={{ type: "spring", stiffness: 450, damping: 32 }}
                 />
               )}
 
               <div className="relative">
-                <Icon className={`w-6 h-6 ${isActive ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
+                <Icon className={`w-6 h-6 ${isActive ? "stroke-[2.4] text-[#062E20]" : "stroke-[1.8]"}`} />
 
                 {item.badge !== undefined && (
-                  <span className="absolute -top-1.5 -right-2.5 min-w-[20px] h-5 px-1 rounded-full bg-[#FADC06] text-black text-[10px] font-extrabold flex items-center justify-center border border-black/10 shadow-2xs">
+                  <span className="absolute -top-1.5 -right-2.5 min-w-[20px] h-5 px-1 rounded-full bg-[#D4AF37] text-[#062319] text-[10px] font-black flex items-center justify-center border border-white/40 shadow-xs">
                     {item.badge}
                   </span>
                 )}
               </div>
 
-              <span className="text-sm font-label-sm font-semibold mt-0.5 tracking-tight">
+              <span className="text-xs font-[family-name:var(--font-montserrat)] font-bold mt-1 tracking-tight">
                 {item.label}
               </span>
             </Link>

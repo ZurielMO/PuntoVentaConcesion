@@ -12,7 +12,8 @@ import { VipService } from "@/lib/vip/vip-service";
 import type { VipProduct, VipRestaurant } from "@/lib/vip/types";
 import { useVipCart } from "@/hooks/vip/use-vip-cart";
 import { VipButton } from "@/components/vip/ui/button";
-import { VipMascot } from "@/components/vip/ui/mascot";
+import { VipHospitalityCrest } from "@/components/vip/ui/hospitality-crest";
+import { UtensilsCrossed } from "lucide-react";
 import { VipSalesClosedNotice } from "@/components/vip/ui/sales-closed-notice";
 import { useVipPublicSalesOpen } from "@/hooks/vip/use-vip-public-sales";
 
@@ -57,16 +58,18 @@ function PalcosRestaurantePageInner() {
 
   if (!loading && !restaurant) {
     return (
-      <div className="flex flex-col min-h-screen pb-28 bg-[#F6F8F7] text-[#111614]">
+      <div className="flex flex-col min-h-screen pb-44 bg-[#F8FAF9] text-[#111827]">
         <VipTopBar
           variant="linear"
           title="Concesión"
           subtitle="Carta · Entrega en palco"
           onBack={() => router.push("/servicio-palcos/inicio")}
         />
-        <div className="flex flex-col items-center justify-center flex-1 gap-3 px-6 text-center">
-          <VipMascot name="cta" size="empty" />
-          <p className="font-headline-md text-lg font-extrabold">No encontramos esta concesión</p>
+        <div className="flex flex-col items-center justify-center flex-1 gap-4 px-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-[#0D4A34]/8 border border-[#0D4A34]/15 flex items-center justify-center text-[#0D4A34]">
+            <VipHospitalityCrest variant="mini" />
+          </div>
+          <p className="font-[family-name:var(--font-montserrat)] text-lg font-extrabold text-[#111827]">No encontramos esta concesión</p>
           <VipButton onClick={() => router.push("/servicio-palcos/inicio")}>Volver al menú</VipButton>
         </div>
       </div>
@@ -74,7 +77,7 @@ function PalcosRestaurantePageInner() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen pb-28 bg-[#F6F8F7] text-[#111614]">
+    <div className="flex flex-col min-h-screen pb-44 bg-[#F8FAF9] text-[#111827]">
       <VipTopBar
         variant="linear"
         title={restaurant?.nombre || "Carta"}
@@ -84,7 +87,7 @@ function PalcosRestaurantePageInner() {
 
       {restaurant && <VipRestaurantHeader restaurant={restaurant} />}
 
-      <main className="max-w-6xl mx-auto w-full px-3 sm:px-6 py-3 sm:py-5 flex flex-col gap-3 sm:gap-5">
+      <main className="max-w-6xl mx-auto w-full px-3.5 sm:px-6 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6">
         {ready && !canOrder && <VipSalesClosedNotice />}
         {loading ? (
           <div className="flex flex-col gap-4">
@@ -94,7 +97,7 @@ function PalcosRestaurantePageInner() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
               {products.map((product) => (
                 <VipMenuItemCard
                   key={product.id}
@@ -107,10 +110,10 @@ function PalcosRestaurantePageInner() {
               ))}
             </div>
             {products.length === 0 && (
-              <div className="flex flex-col items-center gap-3 py-8 text-center">
-                <VipMascot name="postres" size="empty" decorative />
-                <p className="text-base text-[#4E5C56]">
-                  No hay productos disponibles en esta concesión.
+              <div className="flex flex-col items-center gap-3 py-12 text-center bg-white rounded-2xl border border-[#E5EBE8] my-4">
+                <UtensilsCrossed className="w-10 h-10 text-[#C5A059]" />
+                <p className="font-sans text-base text-[#4B5563]">
+                  No hay productos disponibles actualmente en esta concesión.
                 </p>
               </div>
             )}

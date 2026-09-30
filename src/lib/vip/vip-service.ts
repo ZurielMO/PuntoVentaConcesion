@@ -134,7 +134,7 @@ function mapVipConcession(c: VipBackendConcession): VipRestaurant {
   return {
     id: c.id,
     nombre: concessionName,
-    subtitulo: "Concesión oficial · Estadio León",
+    subtitulo: "Establecimiento oficial · Estadio León",
     descripcion: `Menú de ${concessionName} con entrega en palco.`,
     imagen: concessionImage,
     portada: concessionImage,

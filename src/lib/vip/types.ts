@@ -475,6 +475,10 @@ export interface VipCheckoutInput {
   }>;
   tip?: number;
   preorder?: VipPreorderSelection;
+  legalAcceptance: {
+    accepted: true;
+    version: string;
+  };
 }
 
 export interface VipCheckoutResponse {

@@ -19,6 +19,7 @@ import {
   vipPaymentStatusLabel,
 } from "@/lib/vip/preorder";
 import { formatVipMxn } from "@/lib/vip/money";
+import { VipLegalLinks } from "@/components/vip/legal/legal-links";
 
 const POLL_MS = 20_000;
 
@@ -247,7 +248,7 @@ function GuidePageInner() {
   const goTo = (next: string) => router.replace(guideLookupPath(next));
 
   return (
-    <div className="flex flex-col min-h-screen pb-28 md:pb-16 bg-[#F6F8F7] text-[#111614]">
+    <div className="flex flex-col min-h-screen pb-44 md:pb-28 bg-[#F8FAF9] text-[#111827]">
       <VipTopBar
         variant="linear"
         title="Estatus del pedido"
@@ -261,17 +262,17 @@ function GuidePageInner() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#0A1C16] via-[#102D24] to-[#14382C] p-6 sm:p-8 text-white border border-[#234D41]/80 shadow-[0_14px_36px_rgba(10,28,22,0.22)]"
+            className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#041A12] via-[#062319] to-[#0A3224] p-6 sm:p-8 text-white border border-[#C5A059]/35 shadow-[0_16px_40px_rgba(4,26,18,0.3)]"
           >
-            <div className="pointer-events-none absolute -top-20 -right-16 h-56 w-56 rounded-full bg-[#187B56]/25 blur-3xl" />
+            <div className="pointer-events-none absolute -top-20 -right-16 h-56 w-56 rounded-full bg-[#C5A059]/15 blur-3xl" />
             <div className="relative">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-[#FADC06]">
-                <PackageSearch className="h-6 w-6" />
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#C5A059]/15 text-[#D4AF37] border border-[#C5A059]/30 mb-2">
+                <PackageSearch className="h-6 w-6 text-[#D4AF37]" />
               </span>
-              <h2 className="mt-4 font-headline-md text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: "#FFFFFF" }}>
+              <h2 className="mt-3 font-[family-name:var(--font-montserrat)] text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
                 Consulta tu pedido
               </h2>
-              <p className="mt-1.5 mb-5 text-sm sm:text-base text-[#C9D5CF]" style={{ color: "#C9D5CF" }}>
+              <p className="mt-1.5 mb-5 text-sm sm:text-base text-[#D3E0D9]">
                 Escribe la guía de 8 caracteres que llegó a tu correo de confirmación.
               </p>
               <VipGuideLookupForm tone="dark" autoFocus onSubmitCode={goTo} />
@@ -298,6 +299,7 @@ function GuidePageInner() {
           </>
         ) : null}
       </main>
+      <VipLegalLinks className="px-4 pb-4" />
     </div>
   );
 }

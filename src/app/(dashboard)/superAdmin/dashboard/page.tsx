@@ -573,7 +573,7 @@ export default function SuperAdminDashboardPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               compact
-              label="Concesiones activas"
+              label="Restaurantes activos"
               value={loadingCon ? "—" : activeConcessions.length}
               icon={Building2}
             />

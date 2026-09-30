@@ -3,9 +3,9 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, X, ShoppingBag } from "lucide-react";
+import { ArrowLeft, X, ShoppingBag, Sparkles } from "lucide-react";
 import { useVipCart } from "@/hooks/vip/use-vip-cart";
-import { VipMascot } from "@/components/vip/ui/mascot";
+import { VipHospitalityCrest } from "@/components/vip/ui/hospitality-crest";
 
 export interface VipTopBarProps {
   title?: string;
@@ -32,42 +32,38 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-[#0A1C16] text-white border-b border-[#234D41]/80 shadow-[0_4px_20px_rgba(10,28,22,0.3)] transition-all">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-[4.5rem] flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 bg-[#062319]/95 backdrop-blur-md text-white border-b border-[#C5A059]/20 shadow-[0_4px_24px_rgba(6,35,25,0.4)] transition-all">
+      <div className="max-w-6xl mx-auto px-3.5 sm:px-6 h-[4.25rem] sm:h-[4.5rem] flex items-center justify-between gap-4">
         {/* Left: Brand Identity or Back Button */}
         {variant === "home" ? (
           <Link
             href="/servicio-palcos/inicio"
             className="flex items-center gap-3 text-white hover:opacity-95 transition-opacity group select-none"
+            aria-label="Inicio Servicio Palcos VIP Club León"
           >
-            <div className="relative w-12 h-12 rounded-xl bg-[#16382D] border border-[#FADC06]/40 shadow-sm overflow-hidden flex items-center justify-center group-hover:border-[#FADC06]/70 transition-colors shrink-0">
-              <VipMascot
-                name="icono"
-                size="logo"
-                className="w-[40px] h-[40px] translate-y-[1px]"
-                priority
-              />
-            </div>
+            <VipHospitalityCrest variant="topbar" />
+
             <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="font-headline-md text-lg sm:text-xl font-extrabold tracking-tight text-white leading-none">
-                  Servicio Palcos
-                </span>
-                <span className="text-[11px] font-label-sm uppercase font-extrabold tracking-wider bg-[#FADC06] text-black border border-[#FADC06] px-2 py-0.5 rounded-md">
-                  Palcos
-                </span>
-              </div>
-              <span className="text-xs font-label-sm text-[#7E8E87] tracking-wider uppercase font-semibold mt-0.5">
+              <span className="text-[10px] sm:text-[11px] font-bold tracking-[0.2em] text-[#C5A059] uppercase leading-none">
                 Club León
               </span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="font-[family-name:var(--font-montserrat)] text-base sm:text-xl font-extrabold tracking-tight text-white leading-none">
+                  Servicio Palcos
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-[#C5A059]/25 to-[#D4AF37]/20 text-[#E6C687] border border-[#C5A059]/40 px-2 py-0.5 rounded-md shadow-2xs">
+                  <Sparkles className="w-2.5 h-2.5 text-[#D4AF37]" />
+                  <span>VIP</span>
+                </span>
+              </div>
             </div>
           </Link>
         ) : (
-          <div className="flex items-center gap-3.5 min-w-0">
+          <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
             <button
               type="button"
               onClick={handleBack}
-              className="w-10 h-10 rounded-xl bg-[#16382D] hover:bg-[#1B4336] border border-[#234D41] flex items-center justify-center text-white transition-all cursor-pointer shrink-0 active:scale-95"
+              className="w-10 h-10 rounded-xl bg-[#0A3224] hover:bg-[#0D4A34] border border-[#C5A059]/30 flex items-center justify-center text-white transition-all cursor-pointer shrink-0 active:scale-95 shadow-xs"
               aria-label={variant === "modal" ? "Cerrar" : "Regresar"}
             >
               {variant === "modal" ? (
@@ -77,11 +73,11 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
               )}
             </button>
             <div className="flex flex-col min-w-0">
-              <h1 className="font-headline-md text-lg sm:text-xl font-extrabold text-white truncate max-w-[220px] sm:max-w-sm tracking-tight leading-tight">
-                {title || (variant === "modal" ? "Detalle" : "Servicio Palcos")}
+              <h1 className="font-[family-name:var(--font-montserrat)] text-base sm:text-xl font-extrabold text-white truncate max-w-[200px] sm:max-w-sm tracking-tight leading-tight">
+                {title || (variant === "modal" ? "Detalle" : "Servicio Palcos VIP")}
               </h1>
               {subtitle && (
-                <span className="text-xs sm:text-sm font-body-md text-[#D3DCD7] truncate">
+                <span className="text-xs sm:text-sm text-[#C9D5CF] truncate">
                   {subtitle}
                 </span>
               )}
@@ -89,17 +85,17 @@ export const VipTopBar: React.FC<VipTopBarProps> = ({
           </div>
         )}
 
+        {/* Right: Cart CTA Button */}
         <div className="flex items-center gap-2.5 shrink-0">
-          {/* Cart CTA Button */}
           <Link
             href="/servicio-palcos/carrito"
-            className="relative flex items-center gap-2 h-11 px-4 sm:px-4.5 rounded-xl bg-[#187B56] hover:bg-[#136244] text-white font-headline-md text-base font-extrabold transition-all shadow-[0_4px_14px_rgba(24,123,86,0.3)] hover:shadow-[0_6px_18px_rgba(24,123,86,0.4)] cursor-pointer active:scale-95 border border-[#187B56]/30 select-none"
+            className="relative flex items-center gap-2 h-10 sm:h-11 px-3.5 sm:px-4.5 rounded-xl bg-gradient-to-r from-[#0D4A34] to-[#145C42] hover:from-[#10563D] hover:to-[#176B4D] text-white font-[family-name:var(--font-montserrat)] text-sm sm:text-base font-bold transition-all shadow-[0_4px_16px_rgba(6,46,32,0.35)] hover:shadow-[0_6px_22px_rgba(197,160,89,0.25)] cursor-pointer active:scale-95 border border-[#C5A059]/30 select-none"
             aria-label={`Ver carrito (${totalItems} artículos)`}
           >
-            <ShoppingBag className="w-4.5 h-4.5 stroke-[2.2]" />
+            <ShoppingBag className="w-4 h-4 stroke-[2.2] text-[#E6C687]" />
             <span className="hidden sm:inline">Carrito</span>
             {totalItems > 0 && (
-              <span className="min-w-[22px] h-5.5 px-1.5 rounded-full bg-[#9E7844] text-white font-extrabold text-xs flex items-center justify-center border border-white/20 shadow-xs">
+              <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#D4AF37] text-[#062319] font-black text-xs flex items-center justify-center border border-white/40 shadow-xs">
                 {totalItems}
               </span>
             )}
