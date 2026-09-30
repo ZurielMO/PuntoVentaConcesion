@@ -3,9 +3,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, ArrowLeft, Utensils, CalendarClock } from "lucide-react";
+import { ShieldCheck, ArrowLeft, Utensils, CalendarClock, ShoppingBag } from "lucide-react";
 import { VipTopBar } from "@/components/vip/ui/top-bar";
-import { VipMascot } from "@/components/vip/ui/mascot";
 import { VipCheckoutDetailsCard, type VipCheckoutDetails } from "@/components/vip/cart/checkout-details-card";
 import { VipCartItemRow } from "@/components/vip/cart/cart-item-row";
 import { VipPaymentSelectorCard } from "@/components/vip/cart/payment-selector-card";
@@ -34,6 +33,8 @@ import {
   VIP_PURCHASE_UNAVAILABLE_TITLE,
 } from "@/lib/vip/purchase-availability";
 import { motion } from "motion/react";
+import { VipLegalConsent } from "@/components/vip/legal/legal-consent";
+import { VIP_LEGAL_DOCUMENT_VERSION } from "@/lib/vip/legal-config";
 
 const PURCHASE_UNAVAILABLE = {
   title: VIP_PURCHASE_UNAVAILABLE_TITLE,
@@ -98,6 +99,7 @@ export default function VipCarritoPage() {
   const entregaAhoraAbierta = liveOrdersOpen && matchDay && acceptingOrders;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const [checkoutDetails, setCheckoutDetails] = useState<VipCheckoutDetails>({
     name: "",
     email: "",
@@ -203,6 +205,10 @@ export default function VipCarritoPage() {
       focusScheduler();
       return;
     }
+    if (!legalAccepted) {
+      vipToast.error("Acepta los términos, el aviso de privacidad y la política de cookies para continuar.");
+      return;
+    }
     if (!isPreorder && items.some((item) => item.producto.disponible === false)) {
       vipToast.error(VIP_PURCHASE_UNAVAILABLE_TITLE, {
         description: VIP_PURCHASE_UNAVAILABLE_HINT,
@@ -230,6 +236,7 @@ export default function VipCarritoPage() {
         propina: 0,
         total: finalTotal,
         metodoPago: VIP_STRIPE_PAYMENT_METHOD,
+        legalAcceptance: { accepted: true, version: VIP_LEGAL_DOCUMENT_VERSION },
         preorder: isPreorder && selectedMatch && selectedWindow
           ? { match: selectedMatch, window: selectedWindow }
           : null,
@@ -254,29 +261,31 @@ export default function VipCarritoPage() {
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col min-h-screen pb-28 bg-[#F6F8F7] text-[#111614]">
+      <div className="flex flex-col min-h-screen pb-28 bg-[#F8FAF9] text-[#111827]">
         <VipTopBar
           variant="linear"
           title="Mi Carrito"
-          subtitle="Servicio Palcos · Estadio León"
+          subtitle="Servicio Palcos VIP · Club León"
           onBack={() => router.push("/servicio-palcos/inicio")}
         />
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4 max-w-md mx-auto">
-          <VipMascot name="carrito" size="empty" className="-mt-2" />
+          <div className="w-20 h-20 rounded-3xl bg-[#0D4A34]/8 border border-[#0D4A34]/15 flex items-center justify-center text-[#0D4A34] shadow-sm -mt-2">
+            <ShoppingBag className="w-10 h-10 text-[#C5A059]" />
+          </div>
           <div>
-            <h2 className="font-headline-md text-2xl font-extrabold text-[#111614] tracking-tight">
+            <h2 className="font-[family-name:var(--font-montserrat)] text-2xl font-extrabold text-[#111827] tracking-tight">
               Tu carrito está vacío
             </h2>
-            <p className="font-body-md text-sm sm:text-base text-[#4E5C56] mt-1 max-w-xs leading-relaxed">
-              Explora las concesiones oficiales del Estadio León para ordenar directo a tu palco.
+            <p className="font-sans text-sm sm:text-base text-[#4B5563] mt-1 max-w-xs leading-relaxed">
+              Explora los diferentes restaurantes del Estadio León para ordenar directo a tu palco.
             </p>
           </div>
           <Link
             href="/servicio-palcos/inicio"
-            className="mt-2 h-12 px-6 bg-[#187B56] hover:bg-[#136244] text-white font-headline-md font-bold text-sm sm:text-base rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 cursor-pointer"
+            className="mt-2 h-12 px-6 bg-gradient-to-r from-[#062E20] to-[#0D4A34] hover:from-[#093E2B] hover:to-[#115C41] text-white font-[family-name:var(--font-montserrat)] font-bold text-sm sm:text-base rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_4px_16px_rgba(6,46,32,0.22)] active:scale-95 cursor-pointer border border-[#C5A059]/30"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Explorar Menú</span>
+            <ArrowLeft className="w-4 h-4 text-[#E6C687]" />
+            <span>Explorar Concesiones</span>
           </Link>
         </div>
       </div>
@@ -284,7 +293,7 @@ export default function VipCarritoPage() {
   }
 
   return (
-    <div className={`flex flex-col min-h-screen ${isPreorder ? "pb-56" : "pb-44"} lg:pb-16 bg-[#F6F8F7] text-[#111614]`}>
+    <div className={`flex flex-col min-h-screen ${isPreorder ? "pb-80" : "pb-72"} lg:pb-16 bg-[#F8FAF9] text-[#111827]`}>
       {/* Top Header */}
       <VipTopBar
         variant="linear"
@@ -348,7 +357,7 @@ export default function VipCarritoPage() {
               </div>
 
               <p className="text-sm font-medium leading-snug text-[#4E5C56]">
-                Puedes dejar un comentario en cada producto. Sale impreso en el ticket de cocina y en el de entrega.
+                No olvides dejar un comentario si es que el producto requiere algo especial.
               </p>
 
               <div className="flex flex-col gap-3">
@@ -393,12 +402,16 @@ export default function VipCarritoPage() {
 
             {!canSubmit && <VipSalesClosedNotice />}
 
+            <div className="hidden lg:block">
+              <VipLegalConsent accepted={legalAccepted} onChange={setLegalAccepted} />
+            </div>
+
             {/* Desktop Pay CTA */}
             <div className="hidden lg:flex flex-col gap-2.5">
               <VipButton
                 onClick={handleCheckout}
                 loading={isSubmitting}
-                disabled={!canSubmit}
+                disabled={!canSubmit || !legalAccepted}
                 variant="primary"
                 size="lg"
                 fullWidth
@@ -408,7 +421,7 @@ export default function VipCarritoPage() {
               </VipButton>
               {isPreorder && (
                 <p className="text-center text-sm text-[#6E7E77]">
-                  Recibirás por correo tu guía de pedido para consultar el estatus.
+                  Recibirás por correo tu guía de pedido para seguir el proceso de entrega.
                 </p>
               )}
               <VipButton
@@ -424,7 +437,7 @@ export default function VipCarritoPage() {
               </VipButton>
               <div className="flex items-center justify-center gap-1.5 text-sm text-[#7E8E87] font-medium text-center">
                 <ShieldCheck className="w-4 h-4 text-[#187B56]" />
-                <span>Transacción segura encriptada</span>
+                <span>Transacción segura</span>
               </div>
             </div>
           </div>
@@ -434,6 +447,7 @@ export default function VipCarritoPage() {
       {/* Fixed Bottom Checkout Action for Mobile */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#DFE5E2] px-4 pt-3.5 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_rgba(10,28,22,0.14)]">
         <div className="max-w-2xl mx-auto flex flex-col gap-2">
+          <VipLegalConsent accepted={legalAccepted} onChange={setLegalAccepted} compact />
           {isPreorder && (
             <button
               type="button"
@@ -456,7 +470,7 @@ export default function VipCarritoPage() {
           <VipButton
             onClick={handleCheckout}
             loading={isSubmitting}
-            disabled={!canSubmit}
+            disabled={!canSubmit || !legalAccepted}
             variant="primary"
             size="lg"
             fullWidth

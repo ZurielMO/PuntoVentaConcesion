@@ -30,6 +30,7 @@ interface CreateOrderParams {
   propina: number;
   total: number;
   metodoPago: VipPaymentMethod;
+  legalAcceptance: { accepted: true; version: string };
   preorder?: { match: VipPreorderMatch; window: VipPreorderWindow } | null;
 }
 
@@ -210,6 +211,13 @@ export function VipOrdersProvider({ children }: { children: React.ReactNode }) {
         "VIP_INVALID_LOCATION",
       );
     }
+    if (!params.legalAcceptance?.accepted || !params.legalAcceptance.version) {
+      throw new ApiError(
+        400,
+        "Acepta los términos, el aviso de privacidad y la política de cookies para continuar.",
+        "VIP_LEGAL_ACCEPTANCE_REQUIRED",
+      );
+    }
 
     const checkoutInput: VipCheckoutInput = {
       customer: {
@@ -235,6 +243,7 @@ export function VipOrdersProvider({ children }: { children: React.ReactNode }) {
         notes: i.instrucciones?.trim() || undefined,
       })),
       tip: params.propina,
+      legalAcceptance: params.legalAcceptance,
       ...(params.preorder
         ? { preorder: { matchId: params.preorder.match.matchId, windowStart: params.preorder.window.start } }
         : {}),

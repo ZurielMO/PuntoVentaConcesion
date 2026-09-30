@@ -23,6 +23,7 @@ import {
 import { isVipCancelledStatus } from "@/lib/vip/preorder";
 import { normalizeVipGuide, type VipOrderStatus, type VipPreorderInfo } from "@/lib/vip/types";
 import { motion } from "motion/react";
+import { VipLegalLinks } from "@/components/vip/legal/legal-links";
 
 const CONFIRM_ATTEMPTS = 4;
 
@@ -140,14 +141,14 @@ export default function VipPagoExitoPage() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen pb-24 md:pb-0 bg-[#F6F8F7] text-[#111614]">
-        <VipTopBar variant="linear" title="Confirmación de Pago" subtitle="Servicio Palcos · Estadio León" />
+    <div className="flex flex-col min-h-screen pb-24 md:pb-0 bg-[#F8FAF9] text-[#111827]">
+      <VipTopBar variant="linear" title="Confirmación de Pago" subtitle="Servicio Palcos VIP · Club León" />
       <main className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto w-full">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
-          className="bg-white p-8 rounded-3xl border border-[#DFE5E2] shadow-xs flex flex-col items-center gap-4 w-full"
+          className="bg-white p-8 rounded-3xl border border-[#E5EBE8] shadow-[0_4px_20px_rgba(6,46,32,0.04)] flex flex-col items-center gap-4 w-full"
         >
           <div className="relative flex items-center justify-center min-h-[196px]">
             {confirming ? (
@@ -171,7 +172,7 @@ export default function VipPagoExitoPage() {
                   ? "Pedido no programado"
                   : paid
                   ? preorder
-                    ? "¡Preventa confirmada!"
+                    ? "¡Pedido confirmado!"
                     : "¡Pago Confirmado!"
                   : "Pago recibido"}
             </h1>
@@ -240,6 +241,7 @@ export default function VipPagoExitoPage() {
           setShowProcessingOverlay(false);
         }}
       />
+      <VipLegalLinks className="px-4 pb-6" />
     </div>
   );
 }

@@ -47,14 +47,16 @@ export function VipGuideLookupForm({
   const dark = tone === "dark";
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-1.5">
+    <form onSubmit={submit} noValidate className="flex flex-col gap-1.5 w-full">
       <label htmlFor={inputId} className="sr-only">
         Guía de pedido
       </label>
-      <div className="flex gap-2">
+      <div className="flex gap-2 w-full">
         <div className="relative flex-1 min-w-0">
           <Search
-            className={`pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 ${dark ? "text-[#9FB3AA]" : "text-[#7E8E87]"}`}
+            className={`pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 ${
+              dark ? "text-[#C5A059]" : "text-[#A67C2E]"
+            }`}
           />
           <input
             id={inputId}
@@ -72,28 +74,28 @@ export function VipGuideLookupForm({
             placeholder="XXXX-XXXX"
             aria-invalid={Boolean(error)}
             aria-describedby={error ? errorId : undefined}
-            className={`h-[52px] w-full rounded-xl border pl-11 pr-3 font-mono text-lg font-bold uppercase tracking-[0.18em] transition-all focus:outline-none focus:ring-2 ${
+            className={`h-[50px] sm:h-[52px] w-full rounded-xl border pl-11 pr-3 font-mono text-base sm:text-lg font-bold uppercase tracking-[0.18em] transition-all focus:outline-none focus:ring-2 ${
               dark
-                ? "border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus:border-[#FADC06]/60 focus:ring-[#FADC06]/20"
-                : "border-[#DFE5E2] bg-[#F6F8F7] text-[#111614] placeholder:text-[#B3BFB9] focus:border-[#187B56] focus:bg-white focus:ring-[#187B56]/20"
+                ? "border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus:border-[#C5A059] focus:ring-[#C5A059]/20"
+                : "border-[#E5EBE8] bg-[#F8FAF9] text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#0D4A34] focus:bg-white focus:ring-[#0D4A34]/15"
             } ${error ? (dark ? "border-[#FF8A8A]/70" : "border-[#C43D3D]/60") : ""}`}
           />
         </div>
         <button
           type="submit"
-          className={`inline-flex h-[52px] shrink-0 items-center gap-1.5 rounded-xl px-4 sm:px-5 font-headline-md text-base font-extrabold transition-all active:scale-[0.97] cursor-pointer ${
+          className={`inline-flex h-[50px] sm:h-[52px] shrink-0 items-center justify-center gap-1.5 rounded-xl px-4 sm:px-5 font-[family-name:var(--font-montserrat)] text-sm sm:text-base font-bold transition-all active:scale-[0.98] cursor-pointer shadow-sm ${
             dark
-              ? "bg-[#FADC06] text-black hover:brightness-95"
-              : "bg-[#102D24] text-white hover:bg-[#183C32]"
+              ? "bg-[#C5A059] text-[#062319] hover:bg-[#D4AF37] border border-[#FFF8E7]/40"
+              : "bg-gradient-to-r from-[#062E20] to-[#0D4A34] hover:from-[#093E2B] hover:to-[#115C41] text-white border border-[#C5A059]/30"
           }`}
         >
           <span className="hidden sm:inline">Consultar</span>
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="h-4 w-4 text-[#E6C687]" />
           <span className="sr-only sm:hidden">Consultar</span>
         </button>
       </div>
       {error && (
-        <p id={errorId} role="alert" className={`text-sm font-medium ${dark ? "text-[#FFB4B4]" : "text-[#A83232]"}`}>
+        <p id={errorId} role="alert" className={`text-xs sm:text-sm font-medium ${dark ? "text-[#FFB4B4]" : "text-[#A83232]"}`}>
           {error}
         </p>
       )}
