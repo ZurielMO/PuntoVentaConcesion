@@ -47,6 +47,39 @@ if (fs.existsSync(apiDir)) {
   console.log("→ API route ocultada temporalmente para export estático");
 }
 
+function readEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  const text = fs.readFileSync(filePath, "utf8");
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq <= 0) continue;
+    const key = line.slice(0, eq).trim();
+    let value = line.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (!process.env[key]) process.env[key] = value;
+  }
+}
+
+readEnvFile(path.join(root, ".env"));
+readEnvFile(path.join(root, ".env.local"));
+
+// El hosting estático no tiene el proxy `/api`. La API de .env.local suele ser
+// localhost; el sitio publicado tiene que llamar a la Cloud Function.
+const PRODUCTION_API = "https://us-central1-puntoventacl.cloudfunctions.net/apiV2";
+const configured = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
+const configuredIsLocal = !configured || /localhost|127\.0\.0\.1/.test(configured);
+if (configuredIsLocal) {
+  process.env.NEXT_PUBLIC_API_BASE_URL = PRODUCTION_API;
+  console.log("→ NEXT_PUBLIC_API_BASE_URL de producción (el valor local no se publica)");
+}
+
 const env = {
   ...process.env,
   FTP_EXPORT: "1",
@@ -90,21 +123,21 @@ if (fs.existsSync(palcosHtaccess)) {
   fs.rmSync(palcosHtaccess);
 }
 
-// La raíz usa `redirect()` de servidor, que en `output: export` no se puede
-// resolver: Next prerenderiza un shell de error sin estilos. Se sustituye por
-// una redirección que funciona en cualquier hosting, con o sin mod_rewrite.
-const indexHtml = path.join(outDir, "index.html");
-if (fs.existsSync(indexHtml)) {
+// `redirect()` de servidor no se puede resolver en `output: export`: Next
+// prerenderiza un shell de error. Se sustituye por una redirección relativa,
+// válida al subir el contenido de `out/` a la raíz del dominio.
+function writeClientRedirect(filePath, url, title, linkLabel) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(
-    indexHtml,
+    filePath,
     `<!DOCTYPE html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta http-equiv="refresh" content="0; url=./login/" />
-    <link rel="icon" href="./favicon.ico" type="image/x-icon" />
-    <title>PuntoVenta - Concesiones Estadio</title>
+    <meta http-equiv="refresh" content="0; url=${url}" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <title>${title}</title>
     <style>
       html,
       body {
@@ -114,18 +147,45 @@ if (fs.existsSync(indexHtml)) {
       }
     </style>
     <script>
-      window.location.replace("./login/");
+      window.location.replace(${JSON.stringify(url)});
     </script>
   </head>
   <body>
-    <noscript><a href="./login/">Ir al inicio de sesión</a></noscript>
+    <noscript><a href="${url}">${linkLabel}</a></noscript>
   </body>
 </html>
 `,
     "utf8",
   );
-  console.log("→ out/index.html reescrito como redirección a /login/");
 }
+
+writeClientRedirect(
+  path.join(outDir, "index.html"),
+  "./login/",
+  "PuntoVenta - Concesiones Estadio",
+  "Ir al inicio de sesión",
+);
+console.log("→ out/index.html reescrito como redirección a /login/");
+
+writeClientRedirect(
+  path.join(outDir, "servicio-palcos", "index.html"),
+  "./inicio/",
+  "Servicio de palcos",
+  "Ir al inicio",
+);
+writeClientRedirect(
+  path.join(outDir, "servicio-palcos", "pedidos", "index.html"),
+  "../inicio/",
+  "Servicio de palcos",
+  "Ir al inicio",
+);
+writeClientRedirect(
+  path.join(outDir, "vip", "index.html"),
+  "../servicio-palcos/inicio/",
+  "Servicio de palcos",
+  "Ir al inicio",
+);
+console.log("→ redirecciones de servicio-palcos y /vip listas");
 
 // Apache/cPanel a veces prioriza index.php sobre index.html.
 const indexPhp = path.join(outDir, "index.php");
@@ -139,16 +199,39 @@ readfile(__DIR__ . '/index.html');
 );
 console.log("→ out/index.php escrito (fallback Apache)");
 
+function detectInlinedApi(dir) {
+  const stack = [dir];
+  const pattern = /https:\/\/[^"'\\\s]+cloudfunctions\.net\/apiV2/;
+  while (stack.length) {
+    const current = stack.pop();
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "node_modules") continue;
+        stack.push(full);
+        continue;
+      }
+      if (!entry.name.endsWith(".js")) continue;
+      const text = fs.readFileSync(full, "utf8");
+      const match = text.match(pattern);
+      if (match) return match[0];
+    }
+  }
+  return null;
+}
+
 const builtAt = new Date().toISOString();
+const inlinedApi = detectInlinedApi(path.join(outDir, "_next")) ||
+  (env.NEXT_PUBLIC_API_BASE_URL && !/localhost|127\.0\.0\.1/.test(env.NEXT_PUBLIC_API_BASE_URL)
+    ? env.NEXT_PUBLIC_API_BASE_URL
+    : null);
 fs.writeFileSync(
   path.join(outDir, "version.json"),
   JSON.stringify(
     {
       app: "puntoventa-front",
       builtAt,
-      apiBaseUrl:
-        env.NEXT_PUBLIC_API_BASE_URL ||
-        "(definido en .env.local / entorno de build)",
+      apiBaseUrl: inlinedApi || "(no se encontró la URL pública en el bundle)",
       site: "foodmarket.clubleon.mx",
     },
     null,

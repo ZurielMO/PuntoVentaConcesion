@@ -3,6 +3,7 @@ import { Montserrat, Inter } from "next/font/google";
 import { VipProviders } from "@/components/vip/vip-providers";
 import { VipMobileChrome } from "@/components/vip/ui/mobile-chrome";
 import { VipCookieNotice } from "@/components/vip/legal/cookie-notice";
+import { VipIntroFilm } from "@/components/vip/intro/vip-intro-film";
 import "./vip-hospitality.css";
 
 const montserrat = Montserrat({
@@ -57,6 +58,7 @@ export default function VipRootLayout({
           {children}
           <VipCookieNotice />
           <VipMobileChrome />
+          <VipIntroFilm />
         </div>
       </VipProviders>
     </div>
