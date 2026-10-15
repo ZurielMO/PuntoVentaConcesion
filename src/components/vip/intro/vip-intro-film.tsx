@@ -10,7 +10,8 @@ import "./vip-intro-film.css";
  * tipografía revelada por máscara y la ruta del restaurante al palco.
  * Personalidad Premium (sin rebote) con capa principal, secundaria y de ambiente.
  * Cada elemento declara su momento con `at()`; los keyframes viven en vip-intro-film.css.
- * Se monta de nuevo en cada entrada y cada refresh de la portada; no se guarda en sesión.
+ * Solo corre cuando el documento abre o recarga la portada. Entrar a un módulo y
+ * volver no la repite: el layout sigue montado y esta visita ya la consumió.
  */
 
 const SCENES = [
@@ -90,7 +91,25 @@ function usePrefersReducedMotion() {
 
 export function VipIntroFilm() {
   const pathname = usePathname() || "";
-  if (!isVipHome(pathname)) return null;
+  const home = isVipHome(pathname);
+  // En el servidor no hay `window`: la portada sí incluye la intro en el HTML.
+  // En el cliente se congela la URL con la que se cargó el documento, así un
+  // cambio de ruta dentro de Servicio Palcos no vuelve a armarla.
+  const [openedOnHome] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return isVipHome(window.location.pathname);
+  });
+  const phase = useRef<"pending" | "showing" | "done">("pending");
+
+  if (!openedOnHome) return null;
+
+  if (!home) {
+    if (phase.current === "showing") phase.current = "done";
+    return null;
+  }
+
+  if (phase.current === "done") return null;
+  phase.current = "showing";
   return <VipIntroPlayer />;
 }
 
