@@ -9,6 +9,11 @@ const nextConfig: NextConfig = isFtpExport
       images: { unoptimized: true },
       // Sin assetPrefix: CSS/JS usan /_next/... (válido en HTTP y HTTPS).
       // Un prefijo http:// lo bloquea Chrome por mixed-content al forzar HTTPS.
+      // Un solo proceso de webpack: en Windows los compiladores en paralelo
+      // pisan app-paths-manifest.json y el export falla a mitad.
+      experimental: {
+        webpackBuildWorker: false,
+      },
     }
   : {
       allowedDevOrigins: ["172.18.2.131", "http://172.18.2.131:9002"],
