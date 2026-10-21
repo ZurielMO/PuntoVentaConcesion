@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useState, useEffect, useMemo } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { VipCartItem, VipProduct } from "@/lib/vip/types";
 import { vipServiceFeeFromSubtotal } from "@/lib/vip/money";
 import { vipToast } from "./use-vip-toast";
@@ -25,11 +25,20 @@ interface AddItemOptions {
 /** NOW = entrega durante el partido en curso; PREORDER = pedido programado a un partido. */
 export type VipOrderMode = "NOW" | "PREORDER";
 
+/** Último producto agregado, para que la barra del carrito confirme sin un toast. */
+export interface VipCartAddSignal {
+  key: number;
+  nombre: string;
+  cantidad: number;
+}
+
 interface VipCartContextType {
+  /** El carrito guardado ya se leyó del dispositivo. Antes de esto `items` está vacío. */
+  ready: boolean;
   orderMode: VipOrderMode;
   setOrderMode: (mode: VipOrderMode) => void;
   items: VipCartItem[];
-  addItem: (producto: VipProduct, options?: AddItemOptions) => void;
+  addItem: (producto: VipProduct, options?: AddItemOptions) => boolean;
   removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, newQuantity: number) => void;
   updateInstructions: (itemId: string, instrucciones: string) => void;
@@ -43,6 +52,7 @@ interface VipCartContextType {
   restaurantId: string | null;
   restaurantNombre: string | null;
   setRestaurantInfo: (id: string, nombre: string) => void;
+  lastAdded: VipCartAddSignal | null;
 }
 
 const VipCartContext = createContext<VipCartContextType | undefined>(undefined);
@@ -50,15 +60,46 @@ const VipCartContext = createContext<VipCartContextType | undefined>(undefined);
 const CART_STORAGE_KEY = "vip_arena_cart_v1";
 const ORDER_MODE_STORAGE_KEY = "vip_order_mode_v1";
 
+const sameLine = (a: VipCartItem, productId: string, optionsKey: string, noteKey: string) =>
+  a.producto.id === productId &&
+  JSON.stringify(a.opcionesSeleccionadas || []) === optionsKey &&
+  (a.instrucciones || "").trim() === noteKey;
+
 export function VipCartProvider({ children }: { children: React.ReactNode }) {
-  const [orderMode, setOrderModeState] = useState<VipOrderMode>(() => {
-    if (typeof window === "undefined") return "NOW";
+  const [ready, setReady] = useState(false);
+  const [orderMode, setOrderModeState] = useState<VipOrderMode>("NOW");
+  const [items, setItems] = useState<VipCartItem[]>([]);
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [restaurantNombre, setRestaurantNombre] = useState<string | null>(null);
+  const [lastAdded, setLastAdded] = useState<VipCartAddSignal | null>(null);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  // El servidor renderiza sin carrito; el guardado se lee al montar para no romper la hidratación.
+  useEffect(() => {
     try {
-      return sessionStorage.getItem(ORDER_MODE_STORAGE_KEY) === "PREORDER" ? "PREORDER" : "NOW";
+      const stored = localStorage.getItem(CART_STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) : [];
+      if (Array.isArray(parsed)) setItems(parsed);
     } catch {
-      return "NOW";
+      // Carrito ilegible: se empieza vacío.
     }
-  });
+    try {
+      if (sessionStorage.getItem(ORDER_MODE_STORAGE_KEY) === "PREORDER") setOrderModeState("PREORDER");
+    } catch {
+      // ignore
+    }
+    setReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    } catch {
+      // ignore
+    }
+  }, [items, ready]);
 
   const setOrderMode = useCallback((mode: VipOrderMode) => {
     setOrderModeState(mode);
@@ -69,63 +110,28 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const [items, setItems] = useState<VipCartItem[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = localStorage.getItem(CART_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [restaurantId, setRestaurantId] = useState<string | null>(null);
-  const [restaurantNombre, setRestaurantNombre] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-    } catch {
-      // ignore
-    }
-  }, [items]);
-
-  const setRestaurantInfo = (id: string, nombre: string) => {
+  const setRestaurantInfo = useCallback((id: string, nombre: string) => {
     setRestaurantId(id);
     setRestaurantNombre(nombre);
-  };
+  }, []);
 
-  const addItem = (producto: VipProduct, options?: AddItemOptions) => {
+  const addItem = useCallback((producto: VipProduct, options?: AddItemOptions): boolean => {
     if (producto.disponible === false && !options?.permitirSinStock) {
       vipToast.error(VIP_PURCHASE_UNAVAILABLE_TITLE, {
         id: `vip-cart-stock-${producto.id}`,
         description: VIP_PURCHASE_UNAVAILABLE_HINT,
       });
-      return;
+      return false;
     }
     const qty = options?.cantidad && options.cantidad > 0 ? options.cantidad : 1;
     const extrasPrice =
       options?.opcionesSeleccionadas?.reduce((sum, opt) => sum + opt.precioExtra, 0) || 0;
     const precioUnitario = producto.precio + extrasPrice;
-
     const optionsKey = JSON.stringify(options?.opcionesSeleccionadas || []);
     const noteKey = (options?.instrucciones || "").trim();
-    const existing = items.find(
-      (it) =>
-        it.producto.id === producto.id &&
-        JSON.stringify(it.opcionesSeleccionadas || []) === optionsKey &&
-        (it.instrucciones || "").trim() === noteKey,
-    );
-    const nextQty = (existing?.cantidad || 0) + qty;
 
     setItems((prevItems) => {
-      const existingIdx = prevItems.findIndex(
-        (it) =>
-          it.producto.id === producto.id &&
-          JSON.stringify(it.opcionesSeleccionadas || []) === optionsKey &&
-          (it.instrucciones || "").trim() === noteKey,
-      );
-
+      const existingIdx = prevItems.findIndex((it) => sameLine(it, producto.id, optionsKey, noteKey));
       if (existingIdx > -1) {
         const updated = [...prevItems];
         const prevItem = updated[existingIdx];
@@ -138,7 +144,6 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
         };
         return updated;
       }
-
       return [
         ...prevItems,
         {
@@ -152,68 +157,67 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
         },
       ];
     });
+    setLastAdded({ key: Date.now(), nombre: producto.nombre, cantidad: qty });
+    return true;
+  }, []);
 
-    vipToast.success("Agregado al carrito", {
-      id: `vip-cart-add-${producto.id}`,
-      description: `${producto.nombre} (${nextQty}x)`,
+  const removeItem = useCallback((itemId: string) => {
+    const current = itemsRef.current;
+    const index = current.findIndex((i) => i.id === itemId);
+    if (index < 0) return;
+    const removed = current[index];
+    setItems((prev) => prev.filter((i) => i.id !== itemId));
+    vipToast.info("Producto eliminado", {
+      id: `vip-cart-remove-${itemId}`,
+      description: removed.producto.nombre,
+      action: {
+        label: "Deshacer",
+        onClick: () =>
+          setItems((prev) => {
+            if (prev.some((i) => i.id === removed.id)) return prev;
+            const next = [...prev];
+            next.splice(Math.min(index, next.length), 0, removed);
+            return next;
+          }),
+      },
     });
-  };
+  }, []);
 
-  const removeItem = (itemId: string) => {
-    let removedName = "";
-    setItems((prev) => {
-      const itemToRemove = prev.find((i) => i.id === itemId);
-      if (itemToRemove) removedName = itemToRemove.producto.nombre;
-      return prev.filter((i) => i.id !== itemId);
-    });
-    if (removedName) {
-      vipToast.info("Producto eliminado", {
-        id: `vip-cart-remove-${itemId}`,
-        description: removedName,
-      });
-    }
-  };
+  const updateQuantity = useCallback(
+    (itemId: string, newQuantity: number) => {
+      if (newQuantity <= 0) {
+        removeItem(itemId);
+        return;
+      }
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId
+            ? { ...item, cantidad: newQuantity, subtotal: newQuantity * item.precioUnitario }
+            : item,
+        ),
+      );
+    },
+    [removeItem],
+  );
 
-  const updateQuantity = (itemId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeItem(itemId);
-      return;
-    }
-
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id === itemId) {
-          return {
-            ...item,
-            cantidad: newQuantity,
-            subtotal: newQuantity * item.precioUnitario,
-          };
-        }
-        return item;
-      }),
-    );
-  };
-
-  const updateInstructions = (itemId: string, instrucciones: string) => {
+  const updateInstructions = useCallback((itemId: string, instrucciones: string) => {
     const next = instrucciones.slice(0, 500);
-    setItems((prev) =>
-      prev.map((item) => (item.id === itemId ? { ...item, instrucciones: next } : item)),
-    );
-  };
+    setItems((prev) => prev.map((item) => (item.id === itemId ? { ...item, instrucciones: next } : item)));
+  }, []);
 
   const clearCart = useCallback(() => {
+    // Se borra también el guardado de inmediato: la página de pago exitoso vacía el carrito
+    // en su primer efecto, antes de que este proveedor termine de leer el almacenamiento.
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, "[]");
+    } catch {
+      // ignore
+    }
     setItems([]);
   }, []);
 
-  const totalItemsCount = useMemo(
-    () => items.reduce((acc, item) => acc + item.cantidad, 0),
-    [items],
-  );
-
-  const subtotal = useMemo(
-    () => items.reduce((acc, item) => acc + item.subtotal, 0),
-    [items],
-  );
+  const totalItemsCount = useMemo(() => items.reduce((acc, item) => acc + item.cantidad, 0), [items]);
+  const subtotal = useMemo(() => items.reduce((acc, item) => acc + item.subtotal, 0), [items]);
 
   const cargoServicio = vipServiceFeeFromSubtotal(subtotal);
   const descuento = 0;
@@ -222,6 +226,7 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
   return (
     <VipCartContext.Provider
       value={{
+        ready,
         orderMode,
         setOrderMode,
         items,
@@ -239,6 +244,7 @@ export function VipCartProvider({ children }: { children: React.ReactNode }) {
         restaurantId,
         restaurantNombre,
         setRestaurantInfo,
+        lastAdded,
       }}
     >
       {children}

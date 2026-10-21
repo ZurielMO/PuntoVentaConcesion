@@ -1,51 +1,35 @@
 "use client";
 
 import React from "react";
-import { formatVipMxn } from "@/lib/vip/money";
+import { VIP_SERVICE_FEE_PERCENT, formatVipPrice } from "@/lib/vip/money";
 
-interface OrderBreakdownCardProps {
+interface OrderBreakdownProps {
   subtotal: number;
   cargoServicio: number;
   total: number;
+  itemCount?: number;
 }
 
-export const VipOrderBreakdownCard: React.FC<OrderBreakdownCardProps> = ({
-  subtotal,
-  cargoServicio,
-  total,
-}) => {
-  return (
-    <section className="bg-white rounded-2xl sm:rounded-[24px] p-5 sm:p-6 border border-[#E5EBE8] shadow-[0_4px_20px_rgba(6,46,32,0.04)] flex flex-col gap-4">
-      <div className="flex items-center justify-between border-b border-[#EEF2F0] pb-3">
-        <h3 className="font-[family-name:var(--font-montserrat)] text-base sm:text-lg font-bold text-[#111827] tracking-tight">
-          Resumen de Cuenta
-        </h3>
-      </div>
-
-      <div className="flex flex-col gap-2.5 text-sm sm:text-base">
-        <div className="flex justify-between items-center">
-          <span className="font-sans text-[#4B5563]">Productos</span>
-          <span className="font-[family-name:var(--font-montserrat)] font-bold text-[#111827]">{formatVipMxn(subtotal)}</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="font-sans text-[#4B5563]">Cargo por servicio de palco</span>
-          <span className="font-[family-name:var(--font-montserrat)] font-bold text-[#111827]">{formatVipMxn(cargoServicio)}</span>
-        </div>
-      </div>
-
-      <div className="flex justify-between items-baseline border-t border-[#EEF2F0] pt-4 mt-1">
-        <div>
-          <span className="font-[family-name:var(--font-montserrat)] text-base sm:text-lg font-bold text-[#111827] block tracking-tight">
-            Total a Pagar
-          </span>
-          <span className="text-xs text-[#6B7280] font-medium">
-            IVA incluido
-          </span>
-        </div>
-        <span className="font-[family-name:var(--font-montserrat)] text-2xl sm:text-3xl font-black text-[#0D4A34] tracking-tight">
-          {formatVipMxn(total)}
-        </span>
-      </div>
-    </section>
-  );
-};
+/** Desglose antes de pagar. Es el mismo cálculo de siempre; el cobro final lo valida el backend. */
+export const VipOrderBreakdownCard: React.FC<OrderBreakdownProps> = ({ subtotal, cargoServicio, total, itemCount }) => (
+  <dl className="palco-num flex flex-col gap-2.5 text-[15px]">
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className="text-palco-ink-2">
+        Productos{itemCount ? <span className="text-palco-ink-3"> ({itemCount})</span> : null}
+      </dt>
+      <dd className="text-palco-ink">{formatVipPrice(subtotal, { cents: "always" })}</dd>
+    </div>
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className="text-palco-ink-2">Servicio a palco ({VIP_SERVICE_FEE_PERCENT}%)</dt>
+      <dd className="text-palco-ink">{formatVipPrice(cargoServicio, { cents: "always" })}</dd>
+    </div>
+    <div className="mt-1.5 flex items-baseline justify-between gap-4 border-t border-palco-line pt-3.5">
+      <dt className="font-palco-display text-base font-bold text-palco-ink">
+        Total <span className="font-palco-sans text-xs font-normal text-palco-ink-3">MXN, IVA incluido</span>
+      </dt>
+      <dd className="font-palco-display text-[1.375rem] font-extrabold tracking-[-0.01em] text-palco-ink">
+        {formatVipPrice(total, { cents: "always" })}
+      </dd>
+    </div>
+  </dl>
+);

@@ -2,8 +2,9 @@
 
 import React, { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { normalizeVipGuide } from "@/lib/vip/types";
+import { GUIDE_CODE_FONT } from "../ui/guide-font";
 
 const formatGuideInput = (raw: string): string => {
   const compact = raw.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 8);
@@ -20,23 +21,27 @@ export function VipGuideLookupForm({
   onSubmitCode,
   tone = "light",
   autoFocus = false,
+  label = "Guía de pedido",
 }: {
   initialValue?: string;
   onSubmitCode?: (code: string) => void;
   tone?: "light" | "dark";
   autoFocus?: boolean;
+  label?: string;
 }) {
   const router = useRouter();
   const inputId = useId();
   const errorId = `${inputId}-error`;
+  const hintId = `${inputId}-hint`;
   const [value, setValue] = useState(() => formatGuideInput(initialValue));
   const [error, setError] = useState<string | null>(null);
+  const dark = tone === "dark";
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     const code = normalizeVipGuide(value);
     if (!code) {
-      setError("La guía tiene 8 caracteres, por ejemplo 7KQ4-M2XD.");
+      setError(value.trim() ? "La guía tiene 8 caracteres, por ejemplo 7KQ4-M2XD." : "Escribe la guía de tu correo de confirmación.");
       return;
     }
     setError(null);
@@ -44,59 +49,51 @@ export function VipGuideLookupForm({
     else router.push(guideLookupPath(code));
   };
 
-  const dark = tone === "dark";
-
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-1.5 w-full">
-      <label htmlFor={inputId} className="sr-only">
-        Guía de pedido
+    <form onSubmit={submit} noValidate className="flex w-full flex-col gap-2">
+      <label htmlFor={inputId} className={`text-sm font-semibold ${dark ? "text-palco-on-dark-2" : "text-palco-ink-2"}`}>
+        {label}
       </label>
-      <div className="flex gap-2 w-full">
-        <div className="relative flex-1 min-w-0">
-          <Search
-            className={`pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 ${
-              dark ? "text-[#C5A059]" : "text-[#A67C2E]"
-            }`}
-          />
-          <input
-            id={inputId}
-            value={value}
-            autoFocus={autoFocus}
-            onChange={(event) => {
-              setValue(formatGuideInput(event.target.value));
-              if (error) setError(null);
-            }}
-            inputMode="text"
-            autoCapitalize="characters"
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={9}
-            placeholder="XXXX-XXXX"
-            aria-invalid={Boolean(error)}
-            aria-describedby={error ? errorId : undefined}
-            className={`h-[50px] sm:h-[52px] w-full rounded-xl border pl-11 pr-3 font-mono text-base sm:text-lg font-bold uppercase tracking-[0.18em] transition-all focus:outline-none focus:ring-2 ${
-              dark
-                ? "border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus:border-[#C5A059] focus:ring-[#C5A059]/20"
-                : "border-[#E5EBE8] bg-[#F8FAF9] text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#0D4A34] focus:bg-white focus:ring-[#0D4A34]/15"
-            } ${error ? (dark ? "border-[#FF8A8A]/70" : "border-[#C43D3D]/60") : ""}`}
-          />
-        </div>
+      <div className="flex w-full gap-2">
+        <input
+          id={inputId}
+          value={value}
+          autoFocus={autoFocus}
+          onChange={(event) => {
+            setValue(formatGuideInput(event.target.value));
+            if (error) setError(null);
+          }}
+          inputMode="text"
+          autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
+          maxLength={9}
+          placeholder="XXXX-XXXX"
+          aria-invalid={Boolean(error) || undefined}
+          aria-describedby={error ? errorId : hintId}
+          className={`h-12 min-w-0 flex-1 rounded-full border px-5 ${GUIDE_CODE_FONT} text-[17px] font-semibold uppercase tracking-[0.16em] outline-none transition-[border-color,box-shadow] ${
+            dark
+              ? "border-white/25 bg-white/5 text-palco-on-dark placeholder:text-white/35 focus:border-palco-gold focus:shadow-[0_0_0_3px_rgb(230_198_135_/_0.25)]"
+              : "border-palco-field bg-palco-surface text-palco-ink placeholder:text-palco-ink-3/60 focus:border-palco-700 focus:shadow-[0_0_0_3px_var(--color-palco-100)]"
+          } ${error ? (dark ? "border-[#ffb4ab]" : "border-palco-danger") : ""}`}
+        />
         <button
           type="submit"
-          className={`inline-flex h-[50px] sm:h-[52px] shrink-0 items-center justify-center gap-1.5 rounded-xl px-4 sm:px-5 font-[family-name:var(--font-montserrat)] text-sm sm:text-base font-bold transition-all active:scale-[0.98] cursor-pointer shadow-sm ${
-            dark
-              ? "bg-[#C5A059] text-[#062319] hover:bg-[#D4AF37] border border-[#FFF8E7]/40"
-              : "bg-gradient-to-r from-[#062E20] to-[#0D4A34] hover:from-[#093E2B] hover:to-[#115C41] text-white border border-[#C5A059]/30"
+          className={`palco-press inline-flex h-12 shrink-0 items-center justify-center gap-1.5 rounded-full px-5 font-palco-display text-[15px] font-bold ${
+            dark ? "bg-palco-gold text-palco-900 hover:bg-palco-gold-strong" : "bg-palco-700 text-white hover:bg-palco-600"
           }`}
         >
-          <span className="hidden sm:inline">Consultar</span>
-          <ArrowRight className="h-4 w-4 text-[#E6C687]" />
-          <span className="sr-only sm:hidden">Consultar</span>
+          Consultar
+          <ArrowRight aria-hidden className="size-4" />
         </button>
       </div>
-      {error && (
-        <p id={errorId} role="alert" className={`text-xs sm:text-sm font-medium ${dark ? "text-[#FFB4B4]" : "text-[#A83232]"}`}>
+      {error ? (
+        <p id={errorId} role="alert" className={`text-sm font-medium ${dark ? "text-[#ffb4ab]" : "text-palco-danger"}`}>
           {error}
+        </p>
+      ) : (
+        <p id={hintId} className={`text-[13px] ${dark ? "text-palco-on-dark-2" : "text-palco-ink-3"}`}>
+          Está en tu correo de confirmación, por ejemplo 7KQ4-M2XD.
         </p>
       )}
     </form>

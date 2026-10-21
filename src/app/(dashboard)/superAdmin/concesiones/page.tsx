@@ -42,6 +42,7 @@ export default function ConcesionesPage() {
     updateConcession,
     deleteConcession,
     uploadConcessionImages,
+    deleteConcessionImage,
   } = useConcessions();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -151,7 +152,12 @@ export default function ConcesionesPage() {
           tipo,
         });
         if (imageFiles.length > 0) {
+          // La imagen nueva reemplaza a la anterior (el backend agrega al final).
+          const previas = editing.imagenes?.length ?? 0;
           await uploadConcessionImages(editing.id, imageFiles);
+          for (let i = 0; i < previas; i++) {
+            await deleteConcessionImage(editing.id, 0);
+          }
         }
         toast.success("Concesión actualizada");
       } else {

@@ -1,25 +1,28 @@
 "use client";
 
-import React, { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Armchair, PackageSearch, ReceiptText, RotateCw } from "lucide-react";
-import { motion } from "motion/react";
+import { CircleAlert, RotateCw } from "lucide-react";
 import { VipTopBar } from "@/components/vip/ui/top-bar";
 import { VipPreorderTicket } from "@/components/vip/preorder/preorder-ticket";
 import { VipOrderProgress } from "@/components/vip/preorder/order-progress";
 import { VipGuideLookupForm, guideLookupPath } from "@/components/vip/preorder/guide-lookup-form";
+import { VipRecentOrdersList } from "@/components/vip/preorder/home-preorder-cards";
+import { VipSkeleton } from "@/components/vip/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import { VipService } from "@/lib/vip/vip-service";
-import { formatVipGuide, normalizeVipGuide, type VipGuideLookupResponse } from "@/lib/vip/types";
+import { formatVipGuide, normalizeVipGuide, shortVipOrderNumber, type VipGuideLookupResponse } from "@/lib/vip/types";
 import {
   isVipCancelledStatus,
   isVipTerminalStatus,
-  vipOrderProgress,
   vipOrderStatusHeadline,
+  vipOrderTimeline,
   vipPaymentStatusLabel,
 } from "@/lib/vip/preorder";
-import { formatVipMxn } from "@/lib/vip/money";
+import { formatVipPrice } from "@/lib/vip/money";
+import { catalogAcronyms, formatDisplayName } from "@/lib/vip/catalog";
 import { VipLegalLinks } from "@/components/vip/legal/legal-links";
+import { GUIDE_CODE_FONT } from "@/components/vip/ui/guide-font";
 
 const POLL_MS = 20_000;
 
@@ -41,25 +44,35 @@ function lookupError(error: unknown): LookupError {
 }
 
 const PAYMENT_TONE: Record<string, string> = {
-  ok: "bg-[#187B56]/10 text-[#136244] border-[#187B56]/25",
-  warn: "bg-[#B7791F]/10 text-[#8A5A12] border-[#B7791F]/25",
-  muted: "bg-[#7E8E87]/10 text-[#4E5C56] border-[#7E8E87]/25",
-  bad: "bg-[#C43D3D]/10 text-[#A83232] border-[#C43D3D]/25",
+  ok: "bg-palco-50 text-palco-500",
+  warn: "bg-palco-warning-50 text-palco-warning",
+  muted: "bg-palco-sunken text-palco-ink-2",
+  bad: "bg-palco-danger-50 text-palco-danger",
 };
 
 function GuideSkeleton() {
   return (
-    <div className="flex flex-col gap-4" aria-hidden>
-      <div className="h-[220px] rounded-[22px] bg-white border border-[#DFE5E2] animate-pulse" />
-      <div className="h-[180px] rounded-[22px] bg-[#E4EAE6] animate-pulse" />
-      <div className="h-[160px] rounded-[22px] bg-white border border-[#DFE5E2] animate-pulse" />
+    <div aria-hidden className="flex flex-col gap-4">
+      <VipSkeleton className="h-[22rem] w-full rounded-[var(--radius-palco-lg)]" />
+      <VipSkeleton className="h-40 w-full rounded-[var(--radius-palco-lg)]" />
     </div>
   );
 }
 
-function GuideResult({ order, refreshing, onRefresh }: {
+function updatedLabel(at: number | null): string {
+  if (!at) return "";
+  return new Intl.DateTimeFormat("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(at));
+}
+
+function GuideResult({
+  order,
+  refreshing,
+  updatedAt,
+  onRefresh,
+}: {
   order: VipGuideLookupResponse;
   refreshing: boolean;
+  updatedAt: number | null;
   onRefresh: () => void;
 }) {
   const preorder = order.orderType === "PREORDER" && order.preorder ? order.preorder : null;
@@ -67,127 +80,129 @@ function GuideResult({ order, refreshing, onRefresh }: {
   const payment = vipPaymentStatusLabel(order.paymentStatus);
   const cancelled = isVipCancelledStatus(order.status);
   const live = !isVipTerminalStatus(order.status);
-  const concessionNames = [...new Set(order.fulfillments.map((row) => row.concessionName).filter(Boolean))];
-  const concessionById = new Map(order.fulfillments.map((row) => [row.concessionId, row.concessionName]));
+
+  const acronyms = useMemo(
+    () => catalogAcronyms(order.fulfillments.map((row) => row.concessionName)),
+    [order.fulfillments],
+  );
+  const groups = useMemo(() => {
+    const names = new Map(order.fulfillments.map((row) => [row.concessionId, formatDisplayName(row.concessionName, acronyms)]));
+    const map = new Map<string, typeof order.items>();
+    for (const item of order.items) map.set(item.concessionId, [...(map.get(item.concessionId) || []), item]);
+    return [...map.entries()].map(([id, items]) => ({ id, name: names.get(id) || "", items }));
+  }, [order, acronyms]);
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-5">
-      <motion.section
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        className="rounded-[22px] border border-[#DFE5E2] bg-white p-5 sm:p-7 shadow-xs"
-      >
+    <div className="flex flex-col gap-4">
+      <section aria-labelledby="guia-status" className="rounded-[var(--radius-palco-lg)] border border-palco-line bg-palco-surface p-5 sm:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="rounded-lg bg-[#F1F4F2] px-2.5 py-1 font-mono text-sm font-bold tracking-[0.14em] text-[#111614]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`rounded-full bg-palco-sunken px-3 py-1 ${GUIDE_CODE_FONT} text-sm font-semibold tracking-[0.12em] text-palco-ink`}>
               {formatVipGuide(order.guideCode) || order.guideCode}
             </span>
-            <span className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${PAYMENT_TONE[payment.tone]}`}>
-              {payment.label}
-            </span>
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${PAYMENT_TONE[payment.tone]}`}>{payment.label}</span>
           </div>
           <button
             type="button"
             onClick={onRefresh}
             disabled={refreshing}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-[#4E5C56] hover:text-[#187B56] disabled:opacity-60 cursor-pointer"
+            className="palco-press -mx-3 inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-palco-ink-2 hover:bg-palco-sunken disabled:opacity-60"
           >
-            {live && <span className="h-1.5 w-1.5 rounded-full bg-[#187B56] animate-pulse" aria-hidden />}
-            <RotateCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            {live ? "En vivo" : "Actualizar"}
+            <RotateCw aria-hidden className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
+            {live ? `Actualizado ${updatedLabel(updatedAt)}` : "Actualizar"}
           </button>
         </div>
 
-        <h2 className="mt-4 font-headline-md text-2xl sm:text-[28px] font-extrabold tracking-tight text-[#111614]">
+        <h1 id="guia-status" className="mt-5 font-palco-display text-[1.625rem] font-extrabold leading-tight tracking-[-0.02em] text-palco-ink sm:text-[1.875rem]">
           {headline.title}
-        </h2>
-        <p className="mt-1 text-sm sm:text-base text-[#4E5C56]">{headline.detail}</p>
-        <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-[#8A9992]">
-          Orden {order.orderNumber}
+        </h1>
+        <p className="mt-1.5 text-[15px] text-palco-ink-2">{headline.detail}</p>
+        <p className="palco-num mt-1.5 text-sm text-palco-ink-3">
+          Orden {shortVipOrderNumber(order.orderNumber)}
+          {live && <span> · se actualiza sola cada 20 segundos</span>}
         </p>
 
-        <div className="mt-6">
+        <div className="mt-6 border-t border-palco-line pt-6">
           {cancelled ? (
-            <div className="flex items-start gap-2.5 rounded-2xl border border-[#C43D3D]/20 bg-[#C43D3D]/[0.05] p-3.5 text-sm text-[#8C2828]">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="flex items-start gap-3 rounded-[var(--radius-palco-md)] bg-palco-danger-50 p-4 text-sm text-palco-ink">
+              <CircleAlert aria-hidden className="mt-0.5 size-5 shrink-0 text-palco-danger" />
               Este pedido ya no se entregará. Si tienes dudas, acércate a un módulo de Servicio Palcos con tu guía.
             </div>
           ) : (
-            <VipOrderProgress steps={vipOrderProgress(order.status, Boolean(preorder))} />
+            <VipOrderProgress steps={vipOrderTimeline(order.status, Boolean(preorder), order.timestamps)} preorder={Boolean(preorder)} />
           )}
         </div>
-      </motion.section>
+      </section>
 
       {preorder && <VipPreorderTicket info={preorder} palco={order.delivery.palco || null} />}
 
-      <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-[1fr_1.35fr]">
-        <section className="rounded-[22px] border border-[#DFE5E2] bg-white p-5 sm:p-6 shadow-xs">
-          <h3 className="flex items-center gap-2 font-headline-md text-base font-extrabold text-[#111614]">
-            <Armchair className="h-4 w-4 text-[#9E7844]" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_1.4fr]">
+        <section aria-labelledby="guia-entrega" className="rounded-[var(--radius-palco-lg)] border border-palco-line bg-palco-surface p-5 sm:p-6">
+          <h2 id="guia-entrega" className="font-palco-display text-base font-bold text-palco-ink">
             Entrega
-          </h3>
-          <dl className="mt-3 grid grid-cols-3 gap-2">
+          </h2>
+          <dl className="mt-3 grid grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
             {[
               ["Zona", order.delivery.zona],
               ["Palco", order.delivery.palco],
               ["Piso", order.delivery.nivel.replace(/^Piso\s*/i, "")],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-xl bg-[#F6F8F7] px-3 py-2.5">
-                <dt className="text-[11px] font-bold uppercase tracking-wider text-[#8A9992]">{label}</dt>
-                <dd className="font-headline-md text-base font-extrabold text-[#111614] truncate">{value || "—"}</dd>
+              <div key={label} className="rounded-[var(--radius-palco-sm)] bg-palco-ground px-3 py-2.5">
+                <dt className="text-xs text-palco-ink-3">{label}</dt>
+                <dd className="palco-num break-words font-palco-display text-base font-bold leading-snug text-palco-ink">{value || "—"}</dd>
               </div>
             ))}
           </dl>
-          <p className="mt-3 text-sm text-[#4E5C56]">
-            Recibe <span className="font-bold text-[#111614]">{order.customer.name}</span>
+          <p className="mt-3 text-sm text-palco-ink-2">
+            Recibe <span className="font-semibold text-palco-ink">{order.customer.name}</span>
+          </p>
+          <p className="mt-3 text-[13px] text-palco-ink-3">
+            ¿Algo no está bien? Muestra tu guía en un módulo de Servicio Palcos.
           </p>
         </section>
 
-        <section className="rounded-[22px] border border-[#DFE5E2] bg-white p-5 sm:p-6 shadow-xs">
-          <h3 className="flex items-center gap-2 font-headline-md text-base font-extrabold text-[#111614]">
-            <ReceiptText className="h-4 w-4 text-[#9E7844]" />
-            Resumen
-            {concessionNames.length > 0 && (
-              <span className="ml-auto truncate text-xs font-semibold text-[#8A9992]">{concessionNames.join(" · ")}</span>
-            )}
-          </h3>
-          <ul className="mt-3 divide-y divide-[#EEF2F0]">
-            {order.items.map((item) => {
-              const extras = [...item.selectedOptions, ...item.extras].map((option) => option.name).filter(Boolean);
-              return (
-                <li key={item.id} className="flex items-start justify-between gap-3 py-2.5">
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-[#111614]">
-                      <span className="tabular-nums text-[#187B56]">{item.quantity}×</span> {item.name}
-                    </p>
-                    {(extras.length > 0 || (concessionNames.length > 1 && concessionById.get(item.concessionId))) && (
-                      <p className="text-xs text-[#6E7E77] truncate">
-                        {[concessionNames.length > 1 ? concessionById.get(item.concessionId) : "", ...extras]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                    )}
-                  </div>
-                  <span className="shrink-0 text-sm font-semibold tabular-nums text-[#3B4843]">
-                    {formatVipMxn(item.lineTotal)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          <dl className="mt-2 flex flex-col gap-1 border-t border-[#DFE5E2] pt-3 text-sm">
-            <div className="flex justify-between text-[#4E5C56]">
-              <dt>Subtotal</dt>
-              <dd className="tabular-nums">{formatVipMxn(order.subtotal)}</dd>
+        <section aria-labelledby="guia-resumen" className="rounded-[var(--radius-palco-lg)] border border-palco-line bg-palco-surface p-5 sm:p-6">
+          <h2 id="guia-resumen" className="font-palco-display text-base font-bold text-palco-ink">
+            Tu pedido
+          </h2>
+          <div className="mt-2 flex flex-col gap-3">
+            {groups.map((group) => (
+              <div key={group.id}>
+                {groups.length > 1 && group.name && <h3 className="mt-1 text-[13px] font-semibold text-palco-ink-3">{group.name}</h3>}
+                <ul className="divide-y divide-palco-line">
+                  {group.items.map((item) => {
+                    const extras = [...item.selectedOptions, ...item.extras]
+                      .map((option) => formatDisplayName(option.name, acronyms))
+                      .filter(Boolean);
+                    return (
+                      <li key={item.id} className="flex items-start justify-between gap-3 py-2.5">
+                        <div className="min-w-0 text-[15px]">
+                          <p className="text-palco-ink">
+                            <span className="palco-num font-semibold text-palco-700">{item.quantity}×</span>{" "}
+                            {formatDisplayName(item.name, acronyms)}
+                          </p>
+                          {extras.length > 0 && <p className="text-[13px] text-palco-ink-3">{extras.join(" · ")}</p>}
+                        </div>
+                        <span className="palco-num shrink-0 text-[15px] text-palco-ink-2">{formatVipPrice(item.lineTotal, { cents: "always" })}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <dl className="palco-num mt-2 flex flex-col gap-1.5 border-t border-palco-line pt-3 text-sm">
+            <div className="flex justify-between text-palco-ink-2">
+              <dt>Productos</dt>
+              <dd>{formatVipPrice(order.subtotal, { cents: "always" })}</dd>
             </div>
-            <div className="flex justify-between text-[#4E5C56]">
-              <dt>Cargo por servicio</dt>
-              <dd className="tabular-nums">{formatVipMxn(order.serviceFee)}</dd>
+            <div className="flex justify-between text-palco-ink-2">
+              <dt>Servicio a palco</dt>
+              <dd>{formatVipPrice(order.serviceFee, { cents: "always" })}</dd>
             </div>
-            <div className="mt-1 flex justify-between font-headline-md text-base font-extrabold text-[#111614]">
+            <div className="mt-1 flex justify-between font-palco-display text-base font-bold text-palco-ink">
               <dt>Total</dt>
-              <dd className="tabular-nums">{formatVipMxn(order.total)}</dd>
+              <dd>{formatVipPrice(order.total, { cents: "always" })}</dd>
             </div>
           </dl>
         </section>
@@ -206,28 +221,33 @@ function GuidePageInner() {
   const [error, setError] = useState<LookupError | null>(null);
   const [loading, setLoading] = useState(Boolean(code));
   const [refreshing, setRefreshing] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const inFlight = useRef(false);
 
-  const load = useCallback(async (mode: "initial" | "refresh" | "poll") => {
-    if (!code || inFlight.current) return;
-    inFlight.current = true;
-    if (mode === "refresh") setRefreshing(true);
-    try {
-      const next = await VipService.lookupOrderByGuide(code);
-      setOrder(next);
-      setError(null);
-    } catch (err) {
-      // En sondeo se conserva lo último mostrado; solo la primera carga muestra el error.
-      if (mode !== "poll") {
-        setError(lookupError(err));
-        if (mode === "initial") setOrder(null);
+  const load = useCallback(
+    async (mode: "initial" | "refresh" | "poll") => {
+      if (!code || inFlight.current) return;
+      inFlight.current = true;
+      if (mode === "refresh") setRefreshing(true);
+      try {
+        const next = await VipService.lookupOrderByGuide(code);
+        setOrder(next);
+        setError(null);
+        setUpdatedAt(Date.now());
+      } catch (err) {
+        // En sondeo se conserva lo último mostrado; solo la primera carga muestra el error.
+        if (mode !== "poll") {
+          setError(lookupError(err));
+          if (mode === "initial") setOrder(null);
+        }
+      } finally {
+        inFlight.current = false;
+        setLoading(false);
+        setRefreshing(false);
       }
-    } finally {
-      inFlight.current = false;
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [code]);
+    },
+    [code],
+  );
 
   useEffect(() => {
     setOrder(null);
@@ -242,59 +262,62 @@ function GuidePageInner() {
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void load("poll");
     }, POLL_MS);
-    return () => window.clearInterval(interval);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load("poll");
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [live, load]);
 
   const goTo = (next: string) => router.replace(guideLookupPath(next));
 
   return (
-    <div className="flex flex-col min-h-screen pb-44 md:pb-28 bg-[#F8FAF9] text-[#111827]">
+    <div className="flex min-h-screen flex-col pb-28 md:pb-12">
       <VipTopBar
         variant="linear"
-        title="Estatus del pedido"
-        subtitle="Consulta con tu guía"
+        title="Mi pedido"
+        subtitle={order ? `Guía ${formatVipGuide(order.guideCode)}` : "Consulta con tu guía"}
+        titleTag="p"
         onBack={() => router.push("/servicio-palcos/inicio")}
       />
 
-      <main className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-5 sm:py-8 flex flex-col gap-5">
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-5 sm:py-8">
         {!code ? (
-          <motion.section
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#041A12] via-[#062319] to-[#0A3224] p-6 sm:p-8 text-white border border-[#C5A059]/35 shadow-[0_16px_40px_rgba(4,26,18,0.3)]"
-          >
-            <div className="pointer-events-none absolute -top-20 -right-16 h-56 w-56 rounded-full bg-[#C5A059]/15 blur-3xl" />
-            <div className="relative">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#C5A059]/15 text-[#D4AF37] border border-[#C5A059]/30 mb-2">
-                <PackageSearch className="h-6 w-6 text-[#D4AF37]" />
-              </span>
-              <h2 className="mt-3 font-[family-name:var(--font-montserrat)] text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                Consulta tu pedido
-              </h2>
-              <p className="mt-1.5 mb-5 text-sm sm:text-base text-[#D3E0D9]">
-                Escribe la guía de 8 caracteres que llegó a tu correo de confirmación.
-              </p>
-              <VipGuideLookupForm tone="dark" autoFocus onSubmitCode={goTo} />
+          <section aria-labelledby="guia-empty" className="rounded-[var(--radius-palco-lg)] border border-palco-line bg-palco-surface p-5 sm:p-7">
+            <h1 id="guia-empty" className="font-palco-display text-[1.625rem] font-extrabold tracking-[-0.02em] text-palco-ink">
+              Consulta tu pedido
+            </h1>
+            <p className="mt-1.5 text-[15px] text-palco-ink-2">
+              Escribe la guía de 8 caracteres de tu correo de confirmación para ver en qué va tu pedido.
+            </p>
+            <div className="mt-5">
+              <VipGuideLookupForm onSubmitCode={goTo} />
             </div>
-          </motion.section>
+            <div className="mt-6 empty:hidden">
+              <VipRecentOrdersList />
+            </div>
+          </section>
         ) : loading ? (
           <GuideSkeleton />
         ) : error && !order ? (
-          <section className="rounded-[22px] border border-[#DFE5E2] bg-white p-6 sm:p-7 shadow-xs">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#C43D3D]/10 text-[#C43D3D]">
-              <AlertCircle className="h-5 w-5" />
+          <section aria-labelledby="guia-error" className="rounded-[var(--radius-palco-lg)] border border-palco-line bg-palco-surface p-5 sm:p-7">
+            <span className="flex size-11 items-center justify-center rounded-full bg-palco-danger-50 text-palco-danger">
+              <CircleAlert aria-hidden className="size-5" />
             </span>
-            <h2 className="mt-3 font-headline-md text-xl font-extrabold text-[#111614]">{error.title}</h2>
-            <p className="mt-1 mb-5 text-sm text-[#4E5C56]">{error.detail}</p>
+            <h1 id="guia-error" className="mt-3 font-palco-display text-xl font-bold text-palco-ink">
+              {error.title}
+            </h1>
+            <p className="mb-5 mt-1 text-sm text-palco-ink-2">{error.detail}</p>
             <VipGuideLookupForm key={code} initialValue={code} onSubmitCode={goTo} />
           </section>
         ) : order ? (
           <>
-            <GuideResult order={order} refreshing={refreshing} onRefresh={() => void load("refresh")} />
-            <section className="rounded-[22px] border border-dashed border-[#DFE5E2] p-5">
-              <p className="mb-3 text-sm font-bold text-[#3B4843]">¿Tienes otra guía?</p>
-              <VipGuideLookupForm onSubmitCode={goTo} />
+            <GuideResult order={order} refreshing={refreshing} updatedAt={updatedAt} onRefresh={() => void load("refresh")} />
+            <section aria-label="Consultar otra guía" className="rounded-[var(--radius-palco-lg)] border border-dashed border-palco-line-strong p-5">
+              <VipGuideLookupForm onSubmitCode={goTo} label="¿Tienes otra guía?" />
             </section>
           </>
         ) : null}
@@ -308,8 +331,8 @@ export default function VipGuiaPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#F6F8F7] text-[#7E8E87]">
-          Cargando…
+        <div className="flex min-h-screen flex-col">
+          <div className="h-14 bg-palco-900 md:h-16" />
         </div>
       }
     >

@@ -46,10 +46,17 @@ export interface VipProductOption {
   precioExtra: number;
 }
 
+/**
+ * Grupo de personalización. `single` = elige una (radio); `multiple` = varias (casillas)
+ * entre `minSeleccion` y `maxSeleccion`. Hoy el backend solo envía `options` y se mapean
+ * a un único grupo `single`; los `extras` existen en el backend pero no se muestran.
+ */
 export interface VipProductOptionGroup {
   id: string;
   titulo: string;
   requerido: boolean;
+  tipo?: "single" | "multiple";
+  minSeleccion?: number;
   maxSeleccion?: number;
   opciones: VipProductOption[];
 }

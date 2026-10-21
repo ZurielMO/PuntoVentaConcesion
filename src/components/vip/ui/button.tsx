@@ -2,7 +2,6 @@
 
 import React from "react";
 import { motion, type HTMLMotionProps } from "motion/react";
-import { VIP_MOTION } from "@/lib/vip/motion";
 import { Loader2 } from "lucide-react";
 
 export type ButtonVariant = "primary" | "secondary" | "gold" | "outline" | "ghost" | "danger";
@@ -12,66 +11,60 @@ export interface VipButtonProps extends Omit<HTMLMotionProps<"button">, "size"> 
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
+  /** Texto mientras `loading` está activo. */
+  loadingLabel?: string;
   fullWidth?: boolean;
   children: React.ReactNode;
 }
+
+const BASE =
+  "palco-press inline-flex select-none items-center justify-center rounded-full font-palco-display font-bold tracking-[-0.005em] cursor-pointer disabled:cursor-not-allowed";
+
+const SIZES: Record<ButtonSize, string> = {
+  sm: "min-h-11 px-4 text-sm gap-1.5",
+  md: "min-h-12 px-5 text-[15px] gap-2",
+  lg: "min-h-14 px-6 text-base gap-2.5",
+};
+
+// Deshabilitado se distingue por color, no por transparencia: sigue legible.
+const FILLED_DISABLED = "disabled:bg-palco-sunken disabled:text-palco-ink-3 disabled:border-transparent";
+
+const VARIANTS: Record<ButtonVariant, string> = {
+  primary: `bg-palco-700 text-white hover:bg-palco-600 active:bg-palco-800 ${FILLED_DISABLED}`,
+  secondary: `bg-palco-900 text-palco-on-dark hover:bg-palco-800 ${FILLED_DISABLED}`,
+  gold: `bg-palco-gold text-palco-900 hover:bg-palco-gold-strong ${FILLED_DISABLED}`,
+  outline:
+    "border border-palco-line-strong bg-palco-surface text-palco-ink hover:border-palco-ink-3 hover:bg-palco-ground disabled:text-palco-ink-3 disabled:border-palco-line",
+  ghost: "bg-transparent text-palco-ink-2 hover:bg-palco-sunken hover:text-palco-ink disabled:text-palco-ink-3",
+  danger: `bg-palco-danger text-white hover:bg-[#9c1f18] ${FILLED_DISABLED}`,
+};
 
 export const VipButton: React.FC<VipButtonProps> = ({
   variant = "primary",
   size = "md",
   loading = false,
+  loadingLabel = "Procesando…",
   fullWidth = false,
   children,
   className = "",
   disabled,
+  type = "button",
   ...props
-}) => {
-  const baseStyles =
-    "inline-flex items-center justify-center font-[family-name:var(--font-montserrat)] font-bold tracking-wide transition-all select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0D4A34] focus-visible:ring-offset-2 disabled:opacity-45 disabled:pointer-events-none cursor-pointer rounded-xl active:scale-[0.98]";
-
-  const sizeStyles: Record<ButtonSize, string> = {
-    sm: "min-h-[44px] px-4 text-xs sm:text-sm gap-1.5",
-    md: "min-h-[50px] px-6 text-sm sm:text-base gap-2",
-    lg: "min-h-[56px] px-8 text-base sm:text-lg gap-2.5",
-  };
-
-  const variantStyles: Record<ButtonVariant, string> = {
-    primary:
-      "bg-gradient-to-r from-[#062E20] to-[#0D4A34] hover:from-[#093E2B] hover:to-[#115C41] active:from-[#041A12] active:to-[#082D1F] text-white shadow-[0_4px_16px_rgba(6,46,32,0.25)] hover:shadow-[0_6px_22px_rgba(197,160,89,0.22)] border border-[#C5A059]/30",
-    secondary:
-      "bg-[#0A3224] text-white hover:bg-[#0D4A34] active:bg-[#062319] shadow-sm border border-[#C5A059]/30",
-    gold:
-      "bg-gradient-to-r from-[#C5A059] to-[#D4AF37] text-[#062319] hover:brightness-105 active:brightness-95 shadow-[0_4px_16px_rgba(197,160,89,0.3)] border border-[#FFF8E7]/40",
-    outline:
-      "border border-[#E5EBE8] bg-white text-[#111827] hover:bg-[#F8FAF9] hover:border-[#0D4A34] hover:text-[#0D4A34] shadow-xs",
-    ghost:
-      "bg-transparent text-[#4B5563] hover:text-[#111827] hover:bg-[#ECEFEA]/60",
-    danger:
-      "bg-[#C43D3D] text-white hover:bg-[#A83232] active:bg-[#8C2828] shadow-sm",
-  };
-
-  return (
-    <motion.button
-      whileTap={!disabled && !loading ? { scale: VIP_MOTION.press.scale } : undefined}
-      transition={{ duration: VIP_MOTION.press.duration }}
-      className={`
-        ${baseStyles}
-        ${sizeStyles[size]}
-        ${variantStyles[variant]}
-        ${fullWidth ? "w-full" : ""}
-        ${className}
-      `}
-      disabled={disabled || loading}
-      {...props}
-    >
-      {loading ? (
-        <>
-          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-          <span>Procesando...</span>
-        </>
-      ) : (
-        children
-      )}
-    </motion.button>
-  );
-};
+}) => (
+  <motion.button
+    type={type}
+    className={`${BASE} ${SIZES[size]} ${VARIANTS[variant]} ${fullWidth ? "w-full" : ""} ${className}`}
+    disabled={disabled || loading}
+    aria-busy={loading || undefined}
+    {...props}
+  >
+    {loading ? (
+      <>
+        <Loader2 aria-hidden className="size-4 shrink-0 animate-spin" />
+        <span>{loadingLabel}</span>
+      </>
+    ) : (
+      children
+    )}
+  </motion.button>
+);

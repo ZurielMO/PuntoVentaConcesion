@@ -27,7 +27,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Servicio Palcos VIP · Club León | Hospitality Estadio León",
+  title: "Servicio Palcos · Club León | Estadio León",
   description: "Servicio oficial de alimentos y bebidas con entrega directa a tu palco durante el partido.",
   icons: {
     icon: [{ url: "/brand/club-leon-fc.png", type: "image/png", sizes: "any" }],
@@ -55,9 +55,12 @@ export default function VipRootLayout({
     >
       <VipProviders>
         <div className="w-full min-h-screen flex flex-col bg-[#F8FAF9] relative">
-          {children}
-          <VipCookieNotice />
-          <VipMobileChrome />
+          {/* La intro queda fuera de `.palco-app`: los estilos del storefront no la alcanzan. */}
+          <div className="palco-app flex min-h-screen w-full flex-col">
+            {children}
+            <VipCookieNotice />
+            <VipMobileChrome />
+          </div>
           <VipIntroFilm />
         </div>
       </VipProviders>

@@ -146,6 +146,58 @@
   --font-sans: var(--font-outfit);
 }
 
+/* Servicio Palcos (storefront del aficionado). Solo agrega utilidades `palco-*`;
+   los estilos base viven en servicio-palcos/vip-hospitality.css, acotados a [data-vip-root]. */
+@theme {
+  --color-palco-950: #041f16;
+  --color-palco-900: #062e20;
+  --color-palco-800: #0a3a29;
+  --color-palco-700: #0d4a34;
+  --color-palco-600: #145c42;
+  --color-palco-500: #1b7350;
+  --color-palco-100: #e1eee6;
+  --color-palco-50: #eff6f1;
+
+  --color-palco-gold: #e6c687;
+  --color-palco-gold-strong: #d4ac5c;
+  --color-palco-gold-ink: #74561c;
+
+  --color-palco-ink: #0f1a15;
+  --color-palco-ink-2: #39443e;
+  --color-palco-ink-3: #5c6862;
+  --color-palco-on-dark: #f4f1e8;
+  --color-palco-on-dark-2: #b8c9c0;
+
+  --color-palco-ground: #f5f4ef;
+  --color-palco-surface: #ffffff;
+  --color-palco-sunken: #eeede7;
+  --color-palco-line: #e2e3dd;
+  --color-palco-line-strong: #c9ccc4;
+  --color-palco-field: #858e88;
+
+  /* Estado "en vivo" sobre el verde oscuro */
+  --color-palco-live: #5ed292;
+  --color-palco-danger: #b3261e;
+  --color-palco-danger-50: #fcedeb;
+  --color-palco-warning: #845000;
+  --color-palco-warning-50: #fff2d9;
+
+  --font-palco-display: var(--font-montserrat), "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --font-palco-sans: var(--font-inter-vip), "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-palco-sm: 10px;
+  --radius-palco-md: 14px;
+  --radius-palco-lg: 20px;
+  --radius-palco-xl: 28px;
+
+  --shadow-palco-raise: 0 1px 2px rgb(4 31 22 / 0.05), 0 6px 16px -6px rgb(4 31 22 / 0.12);
+  --shadow-palco-float: 0 2px 6px rgb(4 31 22 / 0.1), 0 14px 32px -10px rgb(4 31 22 / 0.35);
+  --shadow-palco-sheet: 0 -10px 40px rgb(4 31 22 / 0.18);
+
+  --ease-palco-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-palco-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 html {
   font-size: 68.75%;
   -webkit-text-size-adjust: 100%;

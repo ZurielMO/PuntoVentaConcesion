@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { VipBottomNav } from "./bottom-nav";
 
+/** Rutas con su propia barra fija (checkout) o que no son del aficionado (Central). */
 const HIDE_NAV_PREFIXES = ["/servicio-palcos/central", "/servicio-palcos/carrito"];
 
 export function VipMobileChrome() {

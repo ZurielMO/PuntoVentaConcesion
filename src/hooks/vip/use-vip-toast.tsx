@@ -7,42 +7,59 @@ export interface VipToastOptions {
   duration?: number;
   icon?: string;
   id?: string;
+  action?: { label: string; onClick: () => void };
 }
 
-function toastOptions(
-  options: VipToastOptions | undefined,
-  borderColor: string,
-  duration: number,
-) {
+const TONE: Record<"success" | "error" | "info" | "warning", string> = {
+  success: "#1b7350",
+  error: "#b3261e",
+  info: "#0d4a34",
+  warning: "#845000",
+};
+
+function toastOptions(options: VipToastOptions | undefined, tone: keyof typeof TONE, duration: number) {
   return {
     id: options?.id,
     description: options?.description,
     duration: options?.duration || duration,
-    className:
-      "bg-white text-[#171A19] border shadow-xl rounded-2xl font-body-md text-sm",
+    action: options?.action,
+    // Sonner vive en el layout raíz; aquí se fija el aspecto del storefront.
     style: {
       backgroundColor: "#FFFFFF",
-      color: "#171A19",
-      borderColor,
+      color: "#0F1A15",
+      border: "1px solid #E2E3DD",
+      borderRadius: "16px",
+      fontFamily: "var(--font-inter-vip), Inter, sans-serif",
+      fontSize: "14px",
+      boxShadow: "0 2px 6px rgb(4 31 22 / 0.1), 0 14px 32px -10px rgb(4 31 22 / 0.35)",
+      ["--normal-text" as string]: TONE[tone],
+    },
+    actionButtonStyle: {
+      backgroundColor: "#0D4A34",
+      color: "#FFFFFF",
+      borderRadius: "999px",
+      fontWeight: 600,
+      padding: "0 12px",
+      height: "30px",
     },
   };
 }
 
 export const vipToast = {
   success: (title: string, options?: VipToastOptions) => {
-    sonnerToast.success(title, toastOptions(options, "#1F8A55", 3000));
+    sonnerToast.success(title, toastOptions(options, "success", 3000));
   },
 
   error: (title: string, options?: VipToastOptions) => {
-    sonnerToast.error(title, toastOptions(options, "#C43D3D", 4000));
+    sonnerToast.error(title, toastOptions(options, "error", 4500));
   },
 
   info: (title: string, options?: VipToastOptions) => {
-    sonnerToast.info(title, toastOptions(options, "#3978A8", 3000));
+    sonnerToast.info(title, toastOptions(options, "info", options?.action ? 5000 : 3000));
   },
 
   warning: (title: string, options?: VipToastOptions) => {
-    sonnerToast.warning(title, toastOptions(options, "#D99721", 3500));
+    sonnerToast.warning(title, toastOptions(options, "warning", 4000));
   },
 };
 

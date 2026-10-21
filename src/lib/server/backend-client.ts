@@ -1,7 +1,15 @@
+const PRODUCTION_BACKEND = "https://us-central1-puntoventacl.cloudfunctions.net/apiV2";
+const LOCAL_BACKEND = "http://localhost:3000/api";
+
+/**
+ * - `next dev` → backend local (`npm run dev` en PuntoVentaConcesionBackend).
+ * - `next build` / `next start` / Vercel → Cloud Function desplegada.
+ * API_BASE_URL siempre tiene prioridad (p. ej. para probar contra otro host).
+ */
 const BACKEND_BASE =
   process.env.API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:3000/api";
+  (process.env.NODE_ENV === "production" ? PRODUCTION_BACKEND : LOCAL_BACKEND);
 
 export function getBackendBaseUrl(): string {
   return BACKEND_BASE.replace(/\/$/, "");

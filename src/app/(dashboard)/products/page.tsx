@@ -63,6 +63,7 @@ export default function ProductsPage() {
     createProduct,
     createProductWithImages,
     uploadProductImages,
+    deleteProductImage,
     updateProduct,
     deleteProduct,
   } = useProducts({ includeInactive: true });
@@ -187,7 +188,13 @@ export default function ProductsPage() {
       if (editingProduct?.id) {
         await updateProduct(editingProduct.id, payload);
         if (imageFiles.length > 0) {
+          // La imagen nueva reemplaza a la anterior: el backend la agrega al final y
+          // el catálogo muestra la primera, así que se quitan las previas.
+          const previas = editingProduct.imagenes?.length ?? 0;
           await uploadProductImages(editingProduct.id, imageFiles);
+          for (let i = 0; i < previas; i++) {
+            await deleteProductImage(editingProduct.id, 0);
+          }
         }
         toast.success("Producto actualizado");
       } else {
