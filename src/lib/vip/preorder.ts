@@ -88,9 +88,9 @@ export function vipOrderProgress(status: VipOrderStatus, preorder: boolean): Vip
   const level = PROGRESS_LEVEL[status] ?? 0;
   const steps = [
     { key: "paid", title: "Pago confirmado" },
-    { key: "accepted", title: preorder ? "Programado" : "Aceptado" },
+    { key: "accepted", title: preorder ? "Programado" : "Aceptado por cocina" },
     { key: "preparing", title: "En preparación" },
-    { key: "on_the_way", title: "En camino" },
+    { key: "on_the_way", title: "En camino a tu palco" },
     { key: "delivered", title: "Entregado" },
   ];
   return steps.map((step, index) => {
@@ -102,6 +102,32 @@ export function vipOrderProgress(status: VipOrderStatus, preorder: boolean): Vip
           ? "current"
           : "upcoming";
     return { ...step, state };
+  });
+}
+
+/** Momento registrado por el backend para cada etapa (claves de `timestamps`). */
+const STEP_TIME_KEYS: Record<string, string[]> = {
+  paid: ["paidAt", "receivedAt"],
+  accepted: ["acceptedAt", "scheduledAt"],
+  preparing: ["preparingAt", "readyForPickupAt"],
+  on_the_way: ["pickedUpAt", "onTheWayAt"],
+  delivered: ["deliveredAt"],
+};
+
+export type VipTimelineStep = VipProgressStep & { time: string };
+
+/**
+ * Línea de tiempo con los estados reales del backend y la hora en que ocurrió cada uno
+ * (hora del estadio). Una etapa sin hora registrada se muestra sin hora, nunca con una estimada.
+ */
+export function vipOrderTimeline(
+  status: VipOrderStatus,
+  preorder: boolean,
+  timestamps: Record<string, string | null> = {},
+): VipTimelineStep[] {
+  return vipOrderProgress(status, preorder).map((step) => {
+    const iso = (STEP_TIME_KEYS[step.key] || []).map((key) => timestamps[key]).find(Boolean);
+    return { ...step, time: step.state === "upcoming" ? "" : formatVipStadiumTime(iso) };
   });
 }
 

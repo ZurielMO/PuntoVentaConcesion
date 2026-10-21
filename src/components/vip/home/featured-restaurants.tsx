@@ -1,205 +1,382 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Clock, ArrowRight, MapPin, Sparkles, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, CupSoda, IceCreamCone, LayoutGrid, Package, Popcorn, Search, SearchX, UtensilsCrossed, X } from "lucide-react";
 import type { VipRestaurant } from "@/lib/vip/types";
-import { formatVipAmount } from "@/lib/vip/money";
+import {
+  VIP_CATEGORY_LABEL,
+  VIP_CATEGORY_ORDER,
+  categoryKeyFromLabel,
+  productKeyword,
+  productsByCategory,
+  searchCatalog,
+  type VipCategoryKey,
+} from "@/lib/vip/catalog";
 import { vipRestaurantPath } from "@/lib/vip/vip-routes";
+import type { VipSalesState } from "@/lib/vip/availability";
+import { VipRestaurantCard } from "./restaurant-card";
+import { VipProductCard } from "../menu/menu-item-card";
 import { VipMedia } from "../ui/media";
-import { motion } from "motion/react";
 
-interface FeaturedRestaurantsProps {
-  restaurants: VipRestaurant[];
+type Filter = VipCategoryKey | "all";
+
+const CATEGORY_ICON: Record<VipCategoryKey, typeof CupSoda> = {
+  comida: UtensilsCrossed,
+  bebidas: CupSoda,
+  botanas: Popcorn,
+  postres: IceCreamCone,
+  combos: Package,
+};
+
+const BROWSE_KEY = "vip_home_browse_v1";
+
+/** Ejemplos reales del catálogo para el texto de la búsqueda: "Busca tacos o michelada". */
+function searchPlaceholder(byCategory: Map<VipCategoryKey, Array<{ product: { nombre: string } }>>): string {
+  const examples: string[] = [];
+  for (const key of VIP_CATEGORY_ORDER) {
+    const word = (byCategory.get(key) || []).map(({ product }) => productKeyword(product.nombre)).find(Boolean);
+    if (word && !examples.includes(word)) examples.push(word);
+    if (examples.length === 2) break;
+  }
+  if (examples.length < 2) return "Busca comida, bebidas o establecimientos";
+  return `Busca ${examples.slice(0, -1).join(", ")} o ${examples.at(-1)}`;
 }
 
-export const VipFeaturedRestaurants: React.FC<FeaturedRestaurantsProps> = ({ restaurants }) => {
-  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
+function SectionHeading({ id, title, meta, action }: { id: string; title: string; meta?: string; action?: React.ReactNode }) {
+  return (
+    <div className="mb-3 flex items-end justify-between gap-3">
+      <div className="flex items-baseline gap-2">
+        <h2 id={id} className="font-palco-display text-xl font-bold tracking-[-0.015em] text-palco-ink md:text-2xl">
+          {title}
+        </h2>
+        {meta && <span className="palco-num text-sm text-palco-ink-3">{meta}</span>}
+      </div>
+      {action}
+    </div>
+  );
+}
 
-  // Extract unique categories for horizontal filter chips
-  const categories = useMemo(() => {
-    const cats = new Set<string>();
-    restaurants.forEach((r) => {
-      if (r.categoria) {
-        cats.add(r.categoria.trim());
-      }
-    });
-    return Array.from(cats);
-  }, [restaurants]);
+export function VipCatalogBrowser({ restaurants, sales }: { restaurants: VipRestaurant[]; sales: VipSalesState }) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+  const deferredQuery = useDeferredValue(query);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
 
-  const filteredRestaurants = useMemo(() => {
-    if (selectedCategory === "ALL") return restaurants;
-    return restaurants.filter(
-      (r) => r.categoria?.toLowerCase() === selectedCategory.toLowerCase()
-    );
-  }, [restaurants, selectedCategory]);
+  // Al volver de un establecimiento se conserva lo que se estaba buscando.
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(BROWSE_KEY) || "null") as { query?: string; filter?: Filter } | null;
+      if (saved?.query) setQuery(saved.query);
+      if (saved?.filter) setFilter(saved.filter);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(BROWSE_KEY, JSON.stringify({ query, filter }));
+    } catch {
+      // ignore
+    }
+  }, [query, filter]);
+
+  const byCategory = useMemo(() => productsByCategory(restaurants), [restaurants]);
+  const categories = VIP_CATEGORY_ORDER.filter((key) => (byCategory.get(key)?.length || 0) > 0);
+  const totalProducts = restaurants.reduce((sum, row) => sum + row.productos.length, 0);
+  const showSearch = totalProducts >= 6;
+  const activeFilter: Filter = filter !== "all" && !categories.includes(filter) ? "all" : filter;
+
+  const search = useMemo(
+    () => (deferredQuery.trim() ? searchCatalog(restaurants, deferredQuery) : null),
+    [restaurants, deferredQuery],
+  );
+
+  const searchProducts = useMemo(() => {
+    if (!search) return [];
+    if (activeFilter === "all") return search.products;
+    return search.products.filter((hit) => categoryKeyFromLabel(hit.product.categoria) === activeFilter);
+  }, [search, activeFilter]);
+
+  const pickFilter = (next: Filter) => {
+    setFilter(next);
+    if (topRef.current && topRef.current.getBoundingClientRect().top < 0) {
+      topRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const clearSearch = () => {
+    setQuery("");
+    inputRef.current?.focus();
+  };
+
+  const priorityCount = 2;
 
   return (
-    <section className="flex flex-col gap-4 sm:gap-6 pb-6" aria-label="Restaurantes y Concesiones en el Estadio">
-      {/* Header section with refined editorial layout (replaces cartoon mascot) */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-[#E5EBE8] pb-3 sm:pb-4 gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-[#A67C2E] uppercase tracking-[0.2em]">
-            <Sparkles className="w-3 h-3 text-[#D4AF37]" />
-            <span>Selección Gastronómica · Estadio León</span>
-          </div>
-          <h2 className="font-[family-name:var(--font-montserrat)] text-xl sm:text-2xl md:text-3xl font-extrabold text-[#111827] tracking-tight mt-0.5">
-            Restaurantes disponibles
-          </h2>
-        </div>
-
-        {/* Status indicator badge */}
-        <div className="flex items-center gap-2 self-start sm:self-end">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0D4A34]/8 border border-[#0D4A34]/20 text-[#0D4A34] text-xs font-semibold shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-[#0D4A34] animate-pulse" />
-            <span>
-              {restaurants.length} {restaurants.length === 1 ? "concesión activa" : "concesiones activas"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Horizontal scrollable category chips */}
-      {categories.length > 0 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 vip-scroll-hide -mx-1 px-1">
-          <button
-            type="button"
-            onClick={() => setSelectedCategory("ALL")}
-            className={`min-h-[38px] px-4 py-1.5 rounded-full text-xs font-[family-name:var(--font-montserrat)] font-bold transition-all shrink-0 cursor-pointer border select-none ${
-              selectedCategory === "ALL"
-                ? "bg-[#062E20] text-white border-[#062E20] shadow-sm"
-                : "bg-white text-[#4B5563] border-[#E5EBE8] hover:border-[#0D4A34]/40 hover:text-[#111827]"
-            }`}
-          >
-            Todas ({restaurants.length})
-          </button>
-          {categories.map((cat) => {
-            const count = restaurants.filter((r) => r.categoria?.toLowerCase() === cat.toLowerCase()).length;
-            const isSelected = selectedCategory.toLowerCase() === cat.toLowerCase();
-            return (
+    <div ref={topRef} className="scroll-mt-16 md:scroll-mt-20">
+      {showSearch && (
+        <div className="relative z-10 -mt-7 md:-mt-8">
+          <label htmlFor="palco-search" className="sr-only">
+            Buscar en el menú del estadio
+          </label>
+          <div className="relative">
+            <Search aria-hidden className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-palco-ink-3" />
+            <input
+              ref={inputRef}
+              id="palco-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape" && query) {
+                  event.preventDefault();
+                  setQuery("");
+                }
+              }}
+              enterKeyHint="search"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={searchPlaceholder(byCategory)}
+              className="h-14 w-full rounded-full border border-palco-line bg-palco-surface pl-13 pr-14 text-base text-palco-ink shadow-palco-float outline-none transition-[border-color,box-shadow] [appearance:none] focus:border-palco-700 md:h-16 md:text-[17px] [&::-webkit-search-cancel-button]:hidden"
+            />
+            {query && (
               <button
-                key={cat}
                 type="button"
-                onClick={() => setSelectedCategory(cat)}
-                className={`min-h-[38px] px-4 py-1.5 rounded-full text-xs font-[family-name:var(--font-montserrat)] font-bold transition-all shrink-0 cursor-pointer border select-none capitalize ${
-                  isSelected
-                    ? "bg-[#062E20] text-white border-[#062E20] shadow-sm"
-                    : "bg-white text-[#4B5563] border-[#E5EBE8] hover:border-[#0D4A34]/40 hover:text-[#111827]"
-                }`}
+                onClick={clearSearch}
+                aria-label="Borrar búsqueda"
+                className="palco-press absolute right-2 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full text-palco-ink-2 hover:bg-palco-sunken"
               >
-                {cat} ({count})
+                <X aria-hidden className="size-5" />
               </button>
-            );
-          })}
+            )}
+          </div>
         </div>
       )}
 
-      {/* Gastronomic Showcase Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-        {filteredRestaurants.map((restaurant) => (
-          <motion.article
-            key={restaurant.id}
-            whileHover={{ y: -3 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="group relative bg-white rounded-2xl sm:rounded-[24px] border border-[#E5EBE8] shadow-[0_4px_20px_rgba(6,46,32,0.04)] hover:shadow-[0_12px_36px_rgba(6,46,32,0.1)] overflow-hidden flex flex-col transition-all cursor-pointer select-none"
-          >
-            <Link
-              href={vipRestaurantPath(restaurant.id)}
-              className="flex flex-col h-full"
-              aria-label={`Ver menú de ${restaurant.nombre}`}
-            >
-              {/* Image Container with 16:10 Vitrina Gastronómica Aspect Ratio */}
-              <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#EAEFEA]">
-                <VipMedia
-                  src={restaurant.imagen || restaurant.portada}
-                  alt={restaurant.nombre}
-                  categoria={restaurant.categoria}
-                  className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-600 ease-out"
-                />
+      {categories.length > 1 && (
+        <div className="sticky top-14 z-20 -mx-4 bg-palco-ground px-4 pb-2 pt-3 md:top-16 md:-mx-6 md:px-6">
+          <div role="group" aria-label="Categorías" className="palco-rail -mx-4 flex gap-2 scroll-px-4 px-4 md:mx-0 md:scroll-px-0 md:px-0">
+            {(["all", ...categories] as Filter[]).map((key) => {
+              const selected = activeFilter === key;
+              const Icon = key === "all" ? LayoutGrid : CATEGORY_ICON[key];
+              const count = key === "all" ? totalProducts : byCategory.get(key)?.length || 0;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => pickFilter(key)}
+                  className={`palco-press flex h-10 shrink-0 items-center gap-2 rounded-full border pl-3 pr-3.5 text-sm font-semibold ${
+                    selected
+                      ? "border-palco-900 bg-palco-900 text-palco-on-dark"
+                      : "border-palco-line bg-palco-surface text-palco-ink hover:border-palco-line-strong"
+                  }`}
+                >
+                  <Icon aria-hidden className={`size-4 ${selected ? "text-palco-gold" : "text-palco-ink-3"}`} />
+                  {key === "all" ? "Todo" : VIP_CATEGORY_LABEL[key]}
+                  <span className={`palco-num text-xs ${selected ? "text-palco-on-dark-2" : "text-palco-ink-3"}`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-                {/* Subtle dark gradient scrim for contrast */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/10" />
-
-                {/* Top Overlay Badges */}
-                <div className="absolute top-2.5 left-2.5 right-2.5 sm:top-3 sm:left-3 sm:right-3 flex items-center justify-between gap-1.5">
-                  <div className="flex items-center gap-1.5">
-                    {restaurant.destacado && (
-                      <span className="inline-flex items-center gap-1 bg-gradient-to-r from-[#C5A059] to-[#D4AF37] text-[#062319] text-[10px] font-black uppercase px-2.5 py-1 rounded-full shadow-xs border border-white/30">
-                        <Sparkles className="w-2.5 h-2.5" />
-                        <span>Destacado</span>
-                      </span>
-                    )}
-                    {restaurant.etiquetaRapido && (
-                      <span className="inline-flex items-center gap-1 bg-[#062E20]/90 backdrop-blur-md text-[#E6C687] text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border border-[#C5A059]/40 shadow-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
-                        <span>Rápido</span>
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Delivery ETA Pill */}
-                  <span className="inline-flex items-center gap-1.5 bg-black/60 backdrop-blur-md text-white text-[11px] font-semibold px-2.5 py-1 rounded-full border border-white/20 shadow-xs">
-                    <Clock className="w-3 h-3 text-[#D4AF37]" />
-                    <span>{restaurant.tiempoEntrega}</span>
-                  </span>
-                </div>
-
-                {/* Bottom Overlay: Suite Delivery Indicator */}
-                <div className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3">
-                  <span className="inline-flex items-center gap-1.5 bg-[#062E20]/90 backdrop-blur-md text-[#E6C687] text-[10px] font-bold uppercase px-2.5 py-1 rounded-lg border border-[#C5A059]/40 shadow-xs">
-                    <MapPin className="w-3 h-3 text-[#D4AF37]" />
-                    <span>Entrega a Palco</span>
-                  </span>
-                </div>
+      <div className="pt-4" aria-busy={deferredQuery !== query}>
+        <p className="sr-only" role="status">
+          {search ? `${searchProducts.length + (activeFilter === "all" ? search.restaurants.length : 0)} resultados para ${deferredQuery.trim()}` : ""}
+        </p>
+        {search ? (
+          <SearchResults
+            query={deferredQuery.trim()}
+            products={searchProducts}
+            restaurants={activeFilter === "all" ? search.restaurants : []}
+            filterLabel={activeFilter === "all" ? null : VIP_CATEGORY_LABEL[activeFilter]}
+            onClear={clearSearch}
+            onClearFilter={() => setFilter("all")}
+          />
+        ) : activeFilter !== "all" ? (
+          <CategoryView category={activeFilter} restaurants={restaurants} />
+        ) : (
+          <div className="flex flex-col gap-10">
+            <section aria-labelledby="palco-establecimientos">
+              <SectionHeading
+                id="palco-establecimientos"
+                title="Establecimientos"
+                meta={`${restaurants.length}`}
+              />
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+                {restaurants.map((restaurant, index) => (
+                  <VipRestaurantCard key={restaurant.id} restaurant={restaurant} sales={sales} priority={index < priorityCount} />
+                ))}
               </div>
+            </section>
 
-              {/* Card Body & Editorial Typography */}
-              <div className="p-4 sm:p-5 flex flex-col flex-1 justify-between gap-3 sm:gap-4">
-                <div>
-                  <h3 className="font-[family-name:var(--font-montserrat)] text-base sm:text-lg font-bold text-[#111827] group-hover:text-[#0D4A34] transition-colors line-clamp-1 tracking-tight">
-                    {restaurant.nombre}
-                  </h3>
-
-                  <p className="font-sans text-xs sm:text-sm text-[#4B5563] mt-1 line-clamp-2 leading-relaxed">
-                    {restaurant.subtitulo || restaurant.descripcion || "Establecimiento oficial en Estadio León."}
-                  </p>
-                </div>
-
-                {/* Footer with Price and Interactive Action CTA */}
-                <div className="flex items-center justify-between pt-3 border-t border-[#EEF2F0] gap-2">
-                  <div className="min-w-0">
-                    <span className="text-[10px] text-[#6B7280] block uppercase font-bold tracking-wider">
-                      Desde
-                    </span>
-                    <span className="font-[family-name:var(--font-montserrat)] text-base sm:text-lg font-extrabold text-[#0D4A34]">
-                      ${formatVipAmount(restaurant.precioMinimo)} <span className="text-xs font-semibold text-[#6B7280]">MXN</span>
-                    </span>
+            {categories.map((key) => {
+              const list = byCategory.get(key) || [];
+              return (
+                <section key={key} aria-labelledby={`palco-rail-${key}`}>
+                  <SectionHeading
+                    id={`palco-rail-${key}`}
+                    title={VIP_CATEGORY_LABEL[key]}
+                    meta={`${list.length}`}
+                    action={
+                      list.length > 3 ? (
+                        <button
+                          type="button"
+                          onClick={() => pickFilter(key)}
+                          className="palco-press -mr-2 flex min-h-10 items-center gap-1 rounded-full px-3 text-sm font-semibold text-palco-700 hover:bg-palco-50"
+                        >
+                          Ver todo
+                          <ArrowRight aria-hidden className="size-4" />
+                        </button>
+                      ) : undefined
+                    }
+                  />
+                  <div className="palco-rail -mx-4 flex gap-3 scroll-px-4 px-4 pb-1 md:-mx-6 md:scroll-px-6 md:px-6">
+                    {list.map(({ product, restaurant }) => (
+                      <VipProductCard key={product.id} product={product} restaurantName={restaurant.nombre} layout="tile" />
+                    ))}
                   </div>
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-                  <div className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-[#F8FAF9] group-hover:bg-[#062E20] text-[#111827] group-hover:text-white font-[family-name:var(--font-montserrat)] text-xs font-bold transition-all border border-[#E5EBE8] group-hover:border-[#062E20] shadow-2xs shrink-0">
-                    <span>Ver menú</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-[#A67C2E] group-hover:text-[#E6C687]" />
-                  </div>
-                </div>
+function CategoryView({ category, restaurants }: { category: VipCategoryKey; restaurants: VipRestaurant[] }) {
+  const groups = restaurants
+    .map((restaurant) => ({
+      restaurant,
+      products: restaurant.productos.filter((product) => categoryKeyFromLabel(product.categoria) === category),
+    }))
+    .filter((group) => group.products.length > 0);
+  const total = groups.reduce((sum, group) => sum + group.products.length, 0);
+
+  return (
+    <section aria-labelledby="palco-category-title">
+      <SectionHeading id="palco-category-title" title={VIP_CATEGORY_LABEL[category]} meta={`${total}`} />
+      <div className="flex flex-col gap-6">
+        {groups.map(({ restaurant, products }) => (
+          <div key={restaurant.id} className="rounded-[var(--radius-palco-lg)] border border-palco-line bg-palco-surface px-4 pt-3 md:px-5">
+            <div className="flex items-center justify-between gap-3 border-b border-palco-line pb-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="size-10 shrink-0 overflow-hidden rounded-full border border-palco-line">
+                  <VipMedia src={restaurant.imagen} alt="" fit="brand" className="size-full" categoria={restaurant.categoria} />
+                </span>
+                <h3 className="truncate font-palco-display text-base font-bold text-palco-ink">{restaurant.nombre}</h3>
               </div>
-            </Link>
-          </motion.article>
+              <Link
+                href={vipRestaurantPath(restaurant.id)}
+                className="palco-press flex min-h-10 shrink-0 items-center gap-1 rounded-full px-3 text-sm font-semibold text-palco-700 hover:bg-palco-50"
+              >
+                Ver menú
+                <ArrowRight aria-hidden className="size-4" />
+              </Link>
+            </div>
+            <div className="divide-y divide-palco-line md:grid md:grid-cols-2 md:gap-x-8 md:divide-y-0">
+              {products.map((product) => (
+                <div key={product.id} className="md:border-b md:border-palco-line md:[&:nth-last-child(-n+2)]:border-b-0">
+                  <VipProductCard product={product} restaurantName={restaurant.nombre} />
+                </div>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
+    </section>
+  );
+}
 
-      {filteredRestaurants.length === 0 && (
-        <div className="p-8 text-center bg-white rounded-2xl border border-[#E5EBE8]">
-          <UtensilsCrossed className="w-8 h-8 text-[#A67C2E] mx-auto mb-2" />
-          <p className="text-sm font-semibold text-[#111827]">No hay concesiones en esta categoría</p>
+function SearchResults({
+  query,
+  products,
+  restaurants,
+  filterLabel,
+  onClear,
+  onClearFilter,
+}: {
+  query: string;
+  products: ReturnType<typeof searchCatalog>["products"];
+  restaurants: VipRestaurant[];
+  filterLabel: string | null;
+  onClear: () => void;
+  onClearFilter: () => void;
+}) {
+  const total = products.length + restaurants.length;
+
+  if (total === 0) {
+    return (
+      <div className="flex flex-col items-center rounded-[var(--radius-palco-lg)] border border-dashed border-palco-line-strong px-6 py-12 text-center">
+        <SearchX aria-hidden className="size-8 text-palco-ink-3" />
+        <h2 className="mt-3 font-palco-display text-lg font-bold text-palco-ink">
+          No encontramos «{query}»{filterLabel ? ` en ${filterLabel.toLowerCase()}` : ""}
+        </h2>
+        <p className="mt-1 max-w-xs text-sm text-palco-ink-3">Prueba con otra palabra o explora el menú por categoría.</p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {filterLabel && (
+            <button
+              type="button"
+              onClick={onClearFilter}
+              className="palco-press min-h-11 rounded-full border border-palco-line-strong bg-palco-surface px-4 text-sm font-semibold text-palco-ink"
+            >
+              Buscar en todo el menú
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => setSelectedCategory("ALL")}
-            className="mt-2 text-xs font-bold text-[#0D4A34] underline"
+            onClick={onClear}
+            className="palco-press min-h-11 rounded-full bg-palco-700 px-4 text-sm font-semibold text-white hover:bg-palco-600"
           >
-            Ver todas las concesiones
+            Borrar búsqueda
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <section aria-labelledby="palco-search-title">
+      <SectionHeading
+        id="palco-search-title"
+        title="Resultados"
+        meta={`${total} para «${query}»${filterLabel ? ` en ${filterLabel.toLowerCase()}` : ""}`}
+      />
+      {restaurants.length > 0 && (
+        <div className="mb-4 flex flex-col gap-2">
+          {restaurants.map((restaurant) => (
+            <Link
+              key={restaurant.id}
+              href={vipRestaurantPath(restaurant.id)}
+              className="palco-press palco-lift flex items-center gap-3 rounded-[var(--radius-palco-lg)] border border-palco-line bg-palco-surface p-2.5 pr-4"
+            >
+              <span className="h-14 w-20 shrink-0 overflow-hidden rounded-[var(--radius-palco-sm)]">
+                <VipMedia src={restaurant.imagen} alt="" fit="brand" className="size-full" categoria={restaurant.categoria} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-palco-display text-base font-bold text-palco-ink">{restaurant.nombre}</span>
+                <span className="block truncate text-[13px] text-palco-ink-3">{restaurant.subtitulo}</span>
+              </span>
+              <ArrowRight aria-hidden className="size-5 shrink-0 text-palco-ink-3" />
+            </Link>
+          ))}
+        </div>
+      )}
+      {products.length > 0 && (
+        <div className="rounded-[var(--radius-palco-lg)] border border-palco-line bg-palco-surface px-4 md:px-5">
+          <div className="divide-y divide-palco-line">
+            {products.map(({ product, restaurant }) => (
+              <VipProductCard key={product.id} product={product} restaurantName={restaurant.nombre} />
+            ))}
+          </div>
         </div>
       )}
     </section>
   );
-};
+}

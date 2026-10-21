@@ -1,0 +1,288 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-19T00:00:00.000Z",
+  "title": "Design System: Servicio Palcos · Club León",
+  "extensions": {
+    "colorMeta": {
+      "leon-deep": {
+        "role": "primary",
+        "displayName": "Verde León profundo",
+        "canonical": "#062e20",
+        "tonalRamp": [
+          "#020f0a",
+          "#041f16",
+          "#062e20",
+          "#0a3a29",
+          "#0d4a34",
+          "#145c42",
+          "#e1eee6",
+          "#eff6f1"
+        ]
+      },
+      "action-green": {
+        "role": "primary",
+        "displayName": "Verde de acción",
+        "canonical": "#0d4a34",
+        "tonalRamp": [
+          "#041f16",
+          "#062e20",
+          "#0a3a29",
+          "#0d4a34",
+          "#145c42",
+          "#1b7350",
+          "#e1eee6",
+          "#eff6f1"
+        ]
+      },
+      "palco-gold": {
+        "role": "secondary",
+        "displayName": "Oro de palco",
+        "canonical": "#e6c687",
+        "tonalRamp": [
+          "#3d2d0e",
+          "#5a4416",
+          "#74561c",
+          "#a07a33",
+          "#d4ac5c",
+          "#e6c687",
+          "#f2e2bf",
+          "#faf3e3"
+        ]
+      },
+      "warm-ground": {
+        "role": "neutral",
+        "displayName": "Blanco cálido",
+        "canonical": "#f5f4ef",
+        "tonalRamp": [
+          "#0f1a15",
+          "#39443e",
+          "#5c6862",
+          "#858e88",
+          "#c9ccc4",
+          "#e2e3dd",
+          "#eeede7",
+          "#f5f4ef"
+        ]
+      },
+      "live-signal": {
+        "role": "status",
+        "displayName": "Señal en vivo",
+        "canonical": "#5ed292"
+      },
+      "danger": {
+        "role": "status",
+        "displayName": "Peligro",
+        "canonical": "#b3261e"
+      },
+      "warning": {
+        "role": "status",
+        "displayName": "Aviso",
+        "canonical": "#845000"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Título de inicio (26px en teléfono), de cada establecimiento y titulares de confirmación y estado; 36–44px en escritorio."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Títulos de sección: Establecimientos, Bebidas, Tu pedido, Resumen."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Nombres de producto y establecimiento, botones."
+      },
+      "price": {
+        "displayName": "Price",
+        "purpose": "Precios, totales, cantidades y horarios con cifras tabulares."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Descripciones, ayudas y avisos."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Etiquetas de campo y metadatos."
+      },
+      "guide-code": {
+        "displayName": "Guía",
+        "purpose": "Solo la guía de pedido XXXX-XXXX, un identificador que se dicta carácter por carácter."
+      }
+    },
+    "shadows": [
+      {
+        "name": "raise",
+        "value": "0 1px 2px rgb(4 31 22 / 0.05), 0 6px 16px -6px rgb(4 31 22 / 0.12)",
+        "purpose": "Hover de tarjetas con puntero fino y botones + sobre fotos."
+      },
+      {
+        "name": "float",
+        "value": "0 2px 6px rgb(4 31 22 / 0.1), 0 14px 32px -10px rgb(4 31 22 / 0.35)",
+        "purpose": "Lo que flota: búsqueda sobre la banda, píldora del carrito, diálogos, toasts."
+      },
+      {
+        "name": "sheet",
+        "value": "0 -10px 40px rgb(4 31 22 / 0.18)",
+        "purpose": "Hojas inferiores y barra de pago fija."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-palco-out",
+        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Entradas y respuesta al presionar (160–280ms)."
+      },
+      {
+        "name": "ease-palco-drawer",
+        "value": "cubic-bezier(0.32, 0.72, 0, 1)",
+        "purpose": "Apertura de la hoja inferior (340ms); cierre más rápido (220ms)."
+      },
+      {
+        "name": "press",
+        "value": "transform: scale(0.97) en 160ms",
+        "purpose": "Todo lo que se toca."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "sin desplazamientos; solo opacidad",
+        "purpose": "prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "min-380",
+        "value": "380px"
+      },
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "La única acción principal de cada pantalla: Agregar, Ir a pagar, Consultar.",
+      "html": "<button class=\"ds-btn-primary\">Agregar · $150</button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:48px; padding:0 20px; border:none; border-radius:9999px; background:var(--color-palco-700, #0d4a34); color:#fff; font-family:Montserrat, system-ui, sans-serif; font-weight:700; font-size:15px; font-variant-numeric:tabular-nums; cursor:pointer; transition:transform 160ms cubic-bezier(0.23,1,0.32,1), background-color 160ms ease; } .ds-btn-primary:hover { background:var(--color-palco-600, #145c42); } .ds-btn-primary:active { transform:scale(0.97); } .ds-btn-primary:focus-visible { outline:2px solid var(--color-palco-700, #0d4a34); outline-offset:2px; } .ds-btn-primary:disabled { background:#eeede7; color:#5c6862; cursor:not-allowed; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Acción secundaria junto a la principal: Volver al menú, Programar pedido.",
+      "html": "<button class=\"ds-btn-outline\">Volver al menú</button>",
+      "css": ".ds-btn-outline { min-height:48px; padding:0 20px; border:1px solid #c9ccc4; border-radius:9999px; background:#fff; color:#0f1a15; font-family:Montserrat, system-ui, sans-serif; font-weight:700; font-size:15px; cursor:pointer; transition:transform 160ms cubic-bezier(0.23,1,0.32,1), border-color 160ms ease; } .ds-btn-outline:hover { border-color:#5c6862; background:#f5f4ef; } .ds-btn-outline:active { transform:scale(0.97); } .ds-btn-outline:focus-visible { outline:2px solid #0d4a34; outline-offset:2px; }"
+    },
+    {
+      "name": "Category Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Filtro de categoría con conteo real de productos.",
+      "html": "<div style=\"display:flex;gap:8px\"><button class=\"ds-chip ds-chip-on\" aria-pressed=\"true\">Todo <span>24</span></button><button class=\"ds-chip\" aria-pressed=\"false\">Bebidas <span>13</span></button></div>",
+      "css": ".ds-chip { display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 14px; border:1px solid #e2e3dd; border-radius:9999px; background:#fff; color:#0f1a15; font-family:Inter, system-ui, sans-serif; font-weight:600; font-size:14px; cursor:pointer; } .ds-chip span { font-size:12px; color:#5c6862; font-variant-numeric:tabular-nums; } .ds-chip:hover { border-color:#c9ccc4; } .ds-chip-on { background:#062e20; border-color:#062e20; color:#f4f1e8; } .ds-chip-on span { color:#b8c9c0; } .ds-chip:focus-visible { outline:2px solid #0d4a34; outline-offset:2px; }"
+    },
+    {
+      "name": "Establishment Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Arte oficial del establecimiento, nombre, categorías reales y precio inicial.",
+      "html": "<article class=\"ds-card\"><div class=\"ds-card-media\"></div><div class=\"ds-card-body\"><h3>Pizza Tigre Negro</h3><p>Comida</p><p class=\"ds-card-meta\">Desde $140 · 1 producto</p></div></article>",
+      "css": ".ds-card { width:220px; overflow:hidden; border:1px solid #e2e3dd; border-radius:20px; background:#fff; transition:box-shadow 220ms cubic-bezier(0.23,1,0.32,1), border-color 220ms ease; } .ds-card:hover { box-shadow:0 1px 2px rgb(4 31 22 / 0.05), 0 6px 16px -6px rgb(4 31 22 / 0.12); border-color:#c9ccc4; } .ds-card-media { aspect-ratio:16/10; background:#eeede7; } .ds-card-body { padding:12px 16px 16px; font-family:Inter, system-ui, sans-serif; } .ds-card-body h3 { margin:0; font-family:Montserrat, system-ui, sans-serif; font-weight:700; font-size:17px; color:#0f1a15; } .ds-card-body p { margin:2px 0 0; font-size:13px; color:#5c6862; } .ds-card-meta { padding-top:6px; color:#39443e !important; font-variant-numeric:tabular-nums; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo del checkout con etiqueta arriba y error debajo.",
+      "html": "<label class=\"ds-field\"><span>Correo electrónico</span><input placeholder=\"nombre@correo.com\" /><small>Aquí te llegan la confirmación y la guía del pedido.</small></label>",
+      "css": ".ds-field { display:flex; flex-direction:column; gap:8px; width:300px; font-family:Inter, system-ui, sans-serif; } .ds-field span { font-size:14px; font-weight:600; color:#39443e; } .ds-field input { height:52px; padding:0 16px; border:1px solid #858e88; border-radius:14px; background:#fff; font-size:16px; color:#0f1a15; outline:none; transition:border-color 160ms ease, box-shadow 160ms ease; } .ds-field input:focus { border-color:#0d4a34; box-shadow:0 0 0 3px #e1eee6; } .ds-field small { font-size:13px; color:#5c6862; }"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "refersTo": "top-bar",
+      "description": "Casco verde con marca y el palco como dirección de entrega.",
+      "html": "<header class=\"ds-topbar\"><strong>Servicio Palcos</strong><button class=\"ds-palco\">Palco 214 · Ote.</button></header>",
+      "css": ".ds-topbar { display:flex; align-items:center; justify-content:space-between; height:56px; padding:0 16px; background:#062e20; color:#f4f1e8; font-family:Montserrat, system-ui, sans-serif; } .ds-topbar strong { font-size:15px; font-weight:700; } .ds-palco { height:40px; padding:0 12px; border:none; border-radius:9999px; background:rgb(255 255 255 / 0.1); color:#f4f1e8; font-family:Inter, system-ui, sans-serif; font-weight:600; font-size:14px; font-variant-numeric:tabular-nums; cursor:pointer; } .ds-palco:hover { background:rgb(255 255 255 / 0.15); } .ds-palco:focus-visible { outline:2px solid #e6c687; outline-offset:2px; }"
+    },
+    {
+      "name": "Cart Pill",
+      "kind": "custom",
+      "refersTo": "button-primary",
+      "description": "Barra inferior: crece con el primer producto y muestra conteo y subtotal.",
+      "html": "<a class=\"ds-pill\" href=\"#\"><span class=\"ds-pill-count\">3</span><span>Ver carrito</span><span class=\"ds-pill-total\">$370</span></a>",
+      "css": ".ds-pill { display:flex; align-items:center; gap:10px; width:240px; height:48px; padding:0 16px 0 10px; border-radius:9999px; background:#0d4a34; color:#fff; font-family:Montserrat, system-ui, sans-serif; font-weight:700; font-size:15px; text-decoration:none; box-shadow:0 2px 6px rgb(4 31 22 / 0.1), 0 14px 32px -10px rgb(4 31 22 / 0.35); transition:transform 160ms cubic-bezier(0.23,1,0.32,1), background-color 160ms ease; } .ds-pill:hover { background:#145c42; } .ds-pill:active { transform:scale(0.97); } .ds-pill-count { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; border-radius:9999px; background:#e6c687; color:#062e20; font-size:11px; } .ds-pill-total { margin-left:auto; font-variant-numeric:tabular-nums; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "El palco es la dirección de entrega",
+    "overview": "Servicio Palcos se usa de pie o sentado en un palco del Estadio León, con el teléfono en una mano y el partido al frente. Por eso el sistema es el de una app de delivery que ya sabes usar: barra superior con la ubicación, búsqueda, categorías, tarjetas de establecimiento, filas de producto con un \"+\" a la mano y un carrito que vive bajo el pulgar. Lo que lo vuelve Club León no es ornamento sino tres decisiones: el verde profundo del club como casco de la app, el dorado reservado para lo que es tuyo (tu palco, tu carrito, tu horario) y el palco tratado como dirección de entrega en cada pantalla.\n\nLa densidad es de producto, no de portada: el catálogo aparece en el primer pantallazo y la información institucional se queda en la intro. Las superficies son planas y cálidas; la profundidad aparece solo en lo que flota (búsqueda sobre la banda, barra del carrito, hojas y diálogos). Los estados (en vivo, preventa, cerrado, agotado, solo preventa) vienen del backend y se nombran tal cual; nada se estima ni se inventa.",
+    "keyCharacteristics": [
+      "Casco verde León (#062e20) arriba; contenido en blanco cálido.",
+      "Un solo color de acción sobre claro: verde #0d4a34. El dorado vive sobre verde.",
+      "Montserrat para nombres, títulos y precios; Inter para leer.",
+      "Controles en píldora; tarjetas de 20px; fotos de producto sobre blanco.",
+      "Estados honestos: punto vivo, preventa con partido real, avisos que explican por qué algo no se puede."
+    ],
+    "rules": [
+      {
+        "name": "The Gold On Green Rule",
+        "body": "El dorado nunca va sobre blanco como texto ni como relleno de botón; sobre claro se usa la tinta dorada.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Action Rule",
+        "body": "Sobre fondos claros hay un solo verde de acción. Los demás botones son contorno o texto.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Kicker Rule",
+        "body": "No hay rótulos en mayúsculas espaciadas sobre los títulos; el título dice lo que es.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Money Rule",
+        "body": "Todo precio, total, cantidad y horario usa cifras tabulares (.palco-num).",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Nada en reposo lleva sombra salvo lo que de verdad flota. Los anillos de foco (0 0 0 3px verde claro) son estado, no elevación.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do mostrar el catálogo (búsqueda, categorías y establecimientos) dentro del primer pantallazo del teléfono.",
+      "Do usar el verde de acción #0d4a34 para la única acción principal de cada pantalla.",
+      "Do nombrar el estado real del servicio y del pedido con las etiquetas del backend; una etapa sin hora registrada va sin hora.",
+      "Do derivar categorías y ejemplos de búsqueda del catálogo que llega del backend.",
+      "Do dar a cada carga su esqueleto en la misma geometría, y a cada error su salida (Reintentar, Ver establecimientos).",
+      "Do pedir las imágenes del catálogo solo cuando estén cerca de la vista y mostrarlas ya decodificadas.",
+      "Do respetar prefers-reduced-motion: sin desplazamientos, solo cambios de opacidad."
+    ],
+    "donts": [
+      "Don't poner rótulos en mayúsculas espaciadas sobre los títulos ni insignias \"VIP\" decorativas.",
+      "Don't usar degradados en fondos, botones o texto, ni vidrio esmerilado como decoración.",
+      "Don't mostrar tiempos de entrega, distancias o mapas que el backend no entrega.",
+      "Don't repetir en cada tarjeta un estado general que la banda de inicio ya dice.",
+      "Don't marcar un pago como confirmado antes de la respuesta del servidor.",
+      "Don't poner el dorado como texto sobre fondos claros."
+    ]
+  }
+}

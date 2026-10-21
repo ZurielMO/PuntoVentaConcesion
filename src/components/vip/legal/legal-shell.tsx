@@ -34,24 +34,23 @@ export function VipLegalShell({ document }: { document: VipLegalDocumentId }) {
   const current = DOCUMENTS[document];
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F8FAF9] pb-28 text-[#111827] md:pb-16">
+    <div className="flex min-h-screen flex-col pb-28 md:pb-16">
       <VipTopBar
         variant="linear"
-        title={current.title}
-        subtitle="Servicio Palcos VIP · Club León"
+        title="Información legal"
+        subtitle="Servicio Palcos · Club León"
+        titleTag="p"
         onBack={() => router.push("/servicio-palcos/inicio")}
       />
       <article className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
-        <header className="flex flex-col gap-2">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#A67C2E]">
-            {current.eyebrow}
-          </p>
-          <h1 className="font-[family-name:var(--font-montserrat)] text-3xl font-extrabold tracking-tight text-[#111827] sm:text-4xl">
+        <header>
+          <h1 className="font-palco-display text-[1.875rem] font-extrabold leading-tight tracking-[-0.02em] text-palco-ink sm:text-4xl">
             {current.title}
           </h1>
+          <p className="mt-1.5 text-[15px] text-palco-ink-3">{current.eyebrow}</p>
         </header>
-        {current.body}
-        <VipLegalLinks className="border-t border-[#E5EBE8] pt-5" />
+        <div className="rounded-[var(--radius-palco-lg)] border border-palco-line bg-palco-surface p-5 sm:p-8">{current.body}</div>
+        <VipLegalLinks className="pt-2" />
       </article>
     </div>
   );

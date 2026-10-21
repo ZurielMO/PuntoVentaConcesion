@@ -11,7 +11,7 @@ const BrandFrame: React.FC<{
     role="img"
     aria-label={label}
     title={label}
-    className={`inline-flex h-8 w-[48px] items-center justify-center rounded-[6px] border px-1 overflow-hidden shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${className}`}
+    className={`inline-flex h-8 w-[48px] items-center justify-center rounded-[6px] border px-1 overflow-hidden shrink-0 ${className}`}
   >
     {children}
   </span>
@@ -75,7 +75,7 @@ const MastercardIcon = () => (
 
 const AmexIcon = () => (
   <BrandFrame label="American Express">
-    <svg viewBox="0 0 256 256" className="h-5.5 w-auto rounded-[3px] shadow-[0_1px_2px_rgba(0,0,0,0.08)]" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 256 256" className="h-5.5 w-auto rounded-[3px]" fill="none" aria-hidden="true">
       <defs>
         <radialGradient cx="16.6%" cy="17.4%" fx="16.6%" fy="17.4%" r="118.5%" id="amexRadial">
           <stop stopColor="#6BC2E7" offset="0%" />

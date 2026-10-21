@@ -2,12 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ShoppingBag } from "lucide-react";
+import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
 import { VipTopBar } from "@/components/vip/ui/top-bar";
-import { VipMascot } from "@/components/vip/ui/mascot";
-import { VipButton } from "@/components/vip/ui/button";
 import { clearPendingCheckout, readPendingCheckout, VipService } from "@/lib/vip/vip-service";
-import { motion } from "motion/react";
 import { VipLegalLinks } from "@/components/vip/legal/legal-links";
 
 export default function VipPagoCanceladoPage() {
@@ -19,8 +16,7 @@ export default function VipPagoCanceladoPage() {
     started.current = true;
     const stored = readPendingCheckout();
     const params = new URLSearchParams(window.location.search);
-    const sessionId =
-      params.get("cs") || params.get("session_id") || stored?.checkoutSessionId || "";
+    const sessionId = params.get("cs") || params.get("session_id") || stored?.checkoutSessionId || "";
     const orderId = params.get("order_id") || stored?.orderId || "";
     const trackingToken = stored?.trackingToken || "";
 
@@ -43,35 +39,35 @@ export default function VipPagoCanceladoPage() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen pb-24 md:pb-0 bg-[#F8FAF9] text-[#111827]">
-      <VipTopBar variant="linear" title="Pago no completado" subtitle="Servicio Palcos VIP · Club León" />
-      <main className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto w-full">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
-          className="bg-white p-8 rounded-3xl border border-[#E5EBE8] shadow-[0_4px_20px_rgba(6,46,32,0.04)] flex flex-col items-center gap-4 w-full"
-        >
-          <VipMascot name="pagos" size="empty" className="-my-2" />
-          <div>
-            <h1 className="font-headline-md text-2xl sm:text-3xl font-extrabold text-[#111614] tracking-tight">
-              Proceso Cancelado
-            </h1>
-            <p className="font-body-md text-base sm:text-lg text-[#4E5C56] mt-2 leading-relaxed">
-              {releasing
-                ? "Estamos liberando la reserva de inventario. No se realizó ningún cargo en tu tarjeta."
-                : "No se realizó ningún cargo en tu tarjeta. Los productos siguen guardados en tu carrito para cuando desees reintentar."}
-            </p>
-          </div>
-          <div className="w-full pt-2">
-            <Link href="/servicio-palcos/carrito" className="w-full block">
-              <VipButton variant="primary" fullWidth size="lg" className="flex items-center justify-center gap-2">
-                <ShoppingBag className="w-4 h-4" />
-                <span>Volver al Carrito</span>
-              </VipButton>
-            </Link>
-          </div>
-        </motion.div>
+    <div className="flex min-h-screen flex-col pb-28 md:pb-12">
+      <VipTopBar variant="linear" title="Pago no completado" titleTag="p" onBack={() => window.location.assign("/servicio-palcos/carrito")} />
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-12 text-center">
+        <span className="flex size-16 items-center justify-center rounded-full bg-palco-sunken text-palco-ink-2">
+          {releasing ? <Loader2 aria-hidden className="size-7 animate-spin" /> : <CreditCard aria-hidden className="size-7" />}
+        </span>
+        <h1 className="mt-4 font-palco-display text-[1.75rem] font-extrabold leading-tight tracking-[-0.02em] text-palco-ink">
+          No se completó el pago
+        </h1>
+        <p className="mt-2 text-[15px] leading-relaxed text-palco-ink-2" aria-live="polite">
+          {releasing
+            ? "Estamos liberando la reserva de tus productos. No se hizo ningún cargo a tu tarjeta."
+            : "No se hizo ningún cargo a tu tarjeta. Tus productos siguen en el carrito para cuando quieras intentarlo de nuevo."}
+        </p>
+        <div className="mt-7 flex w-full flex-col gap-2.5">
+          <Link
+            href="/servicio-palcos/carrito"
+            className="palco-press inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-palco-700 px-6 font-palco-display text-base font-bold text-white hover:bg-palco-600"
+          >
+            <ArrowLeft aria-hidden className="size-4" />
+            Volver al carrito
+          </Link>
+          <Link
+            href="/servicio-palcos/inicio"
+            className="palco-press inline-flex min-h-14 items-center justify-center rounded-full border border-palco-line-strong bg-palco-surface px-6 font-palco-display text-base font-bold text-palco-ink"
+          >
+            Seguir viendo el menú
+          </Link>
+        </div>
       </main>
       <VipLegalLinks className="px-4 pb-6" />
     </div>

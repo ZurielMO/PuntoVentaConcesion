@@ -14,27 +14,27 @@ export function VipLegalLinks({ className = "" }: { className?: string }) {
   const pathname = usePathname() || "";
 
   return (
-    <nav
-      aria-label="Información legal"
-      className={`flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-[#7E8E87] ${className}`}
-    >
-      {LINKS.map((link, index) => {
-        const current = pathname.startsWith(link.href);
-        return (
-          <span key={link.href} className="inline-flex items-center gap-3">
-            {index > 0 && <span aria-hidden className="text-[#C5A059]/70">·</span>}
-            <Link
-              href={link.href}
-              aria-current={current ? "page" : undefined}
-              className={`min-h-8 inline-flex items-center font-medium underline-offset-4 hover:text-[#0D4A34] hover:underline ${
-                current ? "text-[#0D4A34] font-semibold" : ""
-              }`}
-            >
-              {link.label}
-            </Link>
-          </span>
-        );
-      })}
-    </nav>
+    <footer className={`flex flex-col items-center gap-1 text-center ${className}`}>
+      <nav aria-label="Información legal" className="flex flex-wrap items-center justify-center gap-x-1 text-[13px] text-palco-ink-3">
+        {LINKS.map((link, index) => {
+          const current = pathname.startsWith(link.href);
+          return (
+            <span key={link.href} className="inline-flex items-center gap-1">
+              {index > 0 && <span aria-hidden>·</span>}
+              <Link
+                href={link.href}
+                aria-current={current ? "page" : undefined}
+                className={`inline-flex min-h-10 items-center rounded-full px-2 underline-offset-4 hover:text-palco-ink hover:underline ${
+                  current ? "font-semibold text-palco-ink" : ""
+                }`}
+              >
+                {link.label}
+              </Link>
+            </span>
+          );
+        })}
+      </nav>
+      <p className="text-xs text-palco-ink-3">Servicio Palcos · Club León · Estadio León</p>
+    </footer>
   );
 }

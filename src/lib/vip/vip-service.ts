@@ -21,6 +21,14 @@ import type {
   VipGuideLookupResponse,
 } from "./types";
 import { VIP_STRIPE_PAYMENT_METHOD, formatVipGuide, isVipStadiumZone, normalizeVipGuide } from "./types";
+import {
+  VIP_CATEGORY_LABEL,
+  catalogAcronyms,
+  classifyRestaurantProducts,
+  formatDisplayName,
+  normalizeText,
+  restaurantCategories,
+} from "./catalog";
 
 function firstImage(value: unknown): string {
   if (Array.isArray(value)) {
@@ -78,22 +86,25 @@ interface VipBackendLocation {
 const CATALOG_TTL_MS = 20_000;
 let restaurantsCache: { at: number; data: VipRestaurant[] } | null = null;
 
-function mapVipConcession(c: VipBackendConcession): VipRestaurant {
-  const concessionName = c.name || c.nombre || c.id;
+const concessionRawName = (c: VipBackendConcession): string => c.name || c.nombre || c.id;
+
+function mapVipConcession(
+  c: VipBackendConcession,
+  acronyms: Set<string> = catalogAcronyms([concessionRawName(c)]),
+): VipRestaurant {
+  const concessionName = formatDisplayName(concessionRawName(c), acronyms);
   const concessionImage = firstImage(c.images || c.imagenes);
   const concessionType = c.type || c.tipo || "GENERAL";
   const rawProds = c.products || c.productos || [];
 
   const products: VipProduct[] = rawProds.flatMap((p) => {
-    const prodName = ("name" in p ? p.name : p.nombre) || "Producto";
+    const prodName = formatDisplayName(("name" in p ? p.name : p.nombre) || "Producto", acronyms);
     const rawPrice = "price" in p ? p.price : "precio" in p ? p.precio : undefined;
     const price = Number(rawPrice);
     if (!p.id || !Number.isFinite(price) || price < 0) return [];
     const pOptions = "options" in p && Array.isArray(p.options) ? p.options : [];
     const pExtras = "extras" in p && Array.isArray(p.extras) ? p.extras : [];
-    const categoria =
-      ("categoria" in p ? p.categoria : undefined) ||
-      (concessionType === "CERVECERIA" ? "Bebidas" : "Comida");
+    const categoria = ("categoria" in p ? p.categoria : undefined) || "";
     return [{
       id: p.id,
       concesionId: c.id,
@@ -117,9 +128,11 @@ function mapVipConcession(c: VipBackendConcession): VipRestaurant {
                 id: `opt-${p.id}`,
                 titulo: "Opciones",
                 requerido: false,
+                // Comportamiento actual: un solo grupo, una opción por producto.
+                tipo: "single" as const,
                 opciones: pOptions.map((o) => ({
                   id: o.id,
-                  nombre: o.name,
+                  nombre: formatDisplayName(o.name, acronyms),
                   precioExtra: o.price,
                 })),
               },
@@ -128,25 +141,32 @@ function mapVipConcession(c: VipBackendConcession): VipRestaurant {
     }];
   });
 
-  const categories = ["Todos", ...new Set(products.map((item) => item.categoria))];
+  // El backend no manda categoría por producto: se infiere del nombre y del establecimiento.
+  const inferred = classifyRestaurantProducts(products, { nombre: concessionName, tipo: concessionType });
+  for (const product of products) {
+    if (!product.categoria) product.categoria = VIP_CATEGORY_LABEL[inferred.get(product.id) || "comida"];
+  }
+  const categoryKeys = restaurantCategories({ productos: products });
+  const categoryLabels = categoryKeys.map((key) => VIP_CATEGORY_LABEL[key]);
   const precioMinimo = products.length > 0 ? Math.min(...products.map((item) => item.precio)) : 0;
 
   return {
     id: c.id,
     nombre: concessionName,
-    subtitulo: "Establecimiento oficial · Estadio León",
-    descripcion: `Menú de ${concessionName} con entrega en palco.`,
+    subtitulo: categoryLabels.join(" · "),
+    descripcion: "",
     imagen: concessionImage,
     portada: concessionImage,
     logo: concessionImage,
-    categoria: concessionType === "CERVECERIA" ? "Bebidas" : "Comida",
+    categoria: categoryLabels[0] || (concessionType === "CERVECERIA" ? "Bebidas" : "Comida"),
     tipo: concessionType,
     precioMinimo,
-    tiempoEntrega: "12-20 min",
+    // Sin dato real de tiempos de entrega: no se muestra.
+    tiempoEntrega: "",
     distanciaMinutos: 0,
     disponible: c.activo !== false,
     productos: products,
-    categorias: categories,
+    categorias: ["Todos", ...categoryLabels],
   };
 }
 
@@ -164,20 +184,26 @@ export class VipService {
    * Obtiene concesiones y productos activos del catálogo VIP.
    */
   static async getRestaurants(token?: string | null): Promise<VipRestaurant[]> {
+    try {
+      return await this.loadCatalog(token);
+    } catch {
+      // Catálogo VIP no disponible: no inventar restaurantes.
+      return [];
+    }
+  }
+
+  /** Igual que `getRestaurants`, pero distingue "sin establecimientos" (lista vacía) de "no se pudo leer" (error). */
+  static async loadCatalog(token?: string | null): Promise<VipRestaurant[]> {
     if (restaurantsCache && Date.now() - restaurantsCache.at < CATALOG_TTL_MS) {
       return restaurantsCache.data;
     }
-    try {
-      const vipRes = await api.get<ApiResponse<VipBackendConcession[]>>("/vip/concessions", token);
-      if (vipRes.data && Array.isArray(vipRes.data) && vipRes.data.length > 0) {
-        const data = vipRes.data.map(mapVipConcession);
-        restaurantsCache = { at: Date.now(), data };
-        return data;
-      }
-    } catch {
-      // Catálogo VIP no disponible: no inventar restaurantes.
+    const vipRes = await api.get<ApiResponse<VipBackendConcession[]>>("/vip/concessions", token);
+    if (vipRes.data && Array.isArray(vipRes.data) && vipRes.data.length > 0) {
+      const acronyms = catalogAcronyms(vipRes.data.map(concessionRawName));
+      const data = vipRes.data.map((row) => mapVipConcession(row, acronyms));
+      restaurantsCache = { at: Date.now(), data };
+      return data;
     }
-
     return [];
   }
 
@@ -185,9 +211,8 @@ export class VipService {
    * Obtiene un restaurante por ID o slug.
    */
   static async getRestaurantById(id: string, token?: string | null): Promise<VipRestaurant | null> {
-    const cached = restaurantsCache?.data.find(
-      (row) => row.id === id || row.nombre.toLowerCase().replace(/\s+/g, "-") === id,
-    );
+    const slug = (name: string) => normalizeText(name).replace(/\s+/g, "-");
+    const cached = restaurantsCache?.data.find((row) => row.id === id || slug(row.nombre) === id);
     if (cached && restaurantsCache && Date.now() - restaurantsCache.at < CATALOG_TTL_MS) {
       return cached;
     }
@@ -197,7 +222,8 @@ export class VipService {
         token,
       );
       if (res.data?.id) {
-        return mapVipConcession(res.data);
+        const knownNames = restaurantsCache?.data.map((row) => row.nombre.toUpperCase()) || [];
+        return mapVipConcession(res.data, catalogAcronyms([...knownNames, concessionRawName(res.data)]));
       }
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
@@ -205,7 +231,27 @@ export class VipService {
       }
     }
     const list = await this.getRestaurants(token);
-    return list.find((r) => r.id === id || r.nombre.toLowerCase().replace(/\s+/g, "-") === id) || null;
+    return list.find((r) => r.id === id || slug(r.nombre) === id) || null;
+  }
+
+  /** Un establecimiento: `null` si no existe; lanza si no se pudo consultar (sin conexión, backend caído). */
+  static async loadRestaurant(id: string): Promise<VipRestaurant | null> {
+    const slug = (name: string) => normalizeText(name).replace(/\s+/g, "-");
+    const cached = restaurantsCache?.data.find((row) => row.id === id || slug(row.nombre) === id);
+    if (cached && restaurantsCache && Date.now() - restaurantsCache.at < CATALOG_TTL_MS) return cached;
+    try {
+      const res = await api.get<ApiResponse<VipBackendConcession>>(`/vip/concessions/${encodeURIComponent(id)}`);
+      if (res.data?.id) {
+        const knownNames = restaurantsCache?.data.map((row) => row.nombre.toUpperCase()) || [];
+        return mapVipConcession(res.data, catalogAcronyms([...knownNames, concessionRawName(res.data)]));
+      }
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      // Respaldo: la lista completa (lanza si tampoco responde).
+      const list = await this.loadCatalog();
+      return list.find((row) => row.id === id || slug(row.nombre) === id) || null;
+    }
+    return null;
   }
 
   /**
