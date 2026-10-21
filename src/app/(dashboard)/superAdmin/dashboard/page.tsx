@@ -20,9 +20,9 @@ import {
 } from "lucide-react";
 import { RequireRole } from "@/components/auth/require-role";
 import { formatCompactNumber } from "@/components/charts/chart-theme";
-import { SegmentedControl } from "@/components/charts/segmented-control";
 import { DashboardBanner } from "@/components/dashboard/dashboard-banner";
 import { DataTable } from "@/components/dashboard/data-table";
+import { VentaTotalCell } from "@/components/dashboard/venta-total-cell";
 import {
   JornadaSelect,
   type JornadaSelectOption,
@@ -30,13 +30,12 @@ import {
 import { StatCard } from "@/components/dashboard/stat-card";
 import { VentaDetalleDialog } from "@/components/dashboard/venta-detalle-dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Field } from "@/components/ui/field";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { useConcessions } from "@/hooks/use-concessions";
-import { useCortes, useDetalleVentas } from "@/hooks/use-cortes";
+import { useDetalleVentas } from "@/hooks/use-cortes";
 import { useEquipoVendedores } from "@/hooks/use-equipo";
 import { useJornadas, useJornadasDisponibles } from "@/hooks/use-inventarios";
 import { useProducts } from "@/hooks/use-products";
@@ -44,7 +43,6 @@ import { useSucursales } from "@/hooks/use-sucursales";
 import { useUsers } from "@/hooks/use-users";
 import { useZonas } from "@/hooks/use-zonas";
 import {
-  aggregateProductosFromCortes,
   computeVariacion,
   groupVentasByConcesion,
   groupVentasByJornada,
@@ -62,8 +60,7 @@ import {
   ramaLabel,
 } from "@/lib/jornada";
 import { buildJornadaSelectOptions } from "@/lib/jornada-select-options";
-import { concesionHubPath } from "@/lib/concesion-routes";
-import type { ComprobanteVenta, Concession } from "@/lib/types";
+import type { ComprobanteVenta } from "@/lib/types";
 
 function ChartPlaceholder({ tall = false }: { tall?: boolean }) {
   return (
@@ -93,13 +90,6 @@ const DonutChart = dynamic(
   { ssr: false, loading: () => <ChartPlaceholder /> },
 );
 
-type ProductoMetrica = "importe" | "unidades";
-
-const METRICAS_PRODUCTO: { value: ProductoMetrica; label: string }[] = [
-  { value: "importe", label: "Importe" },
-  { value: "unidades", label: "Unidades" },
-];
-
 export default function SuperAdminDashboardPage() {
   const { posUser } = useAuth();
   const { concessions, loading: loadingCon } = useConcessions();
@@ -114,15 +104,13 @@ export default function SuperAdminDashboardPage() {
 
   const [concesionId, setConcesionId] = useState("");
   const [jornadaId, setJornadaId] = useState("");
-  const [productoMetrica, setProductoMetrica] =
-    useState<ProductoMetrica>("importe");
 
   const { activas } = useJornadas();
   const {
     jornadas,
     loading: loadingJornadas,
     refetch: refetchJornadas,
-  } = useJornadasDisponibles({ concesionId: concesionId || undefined });
+  } = useJornadasDisponibles();
 
   const jornadaOptions = useMemo<JornadaSelectOption[]>(
     () => buildJornadaSelectOptions(jornadas, activas),
@@ -157,15 +145,6 @@ export default function SuperAdminDashboardPage() {
   }, [jornadaSeleccionada, jornadaId]);
 
   const equipoLabel = ramaLabel(ramaSeleccionada);
-
-  const {
-    cortes,
-    loading: loadingCortes,
-    refetch: refetchCortes,
-  } = useCortes({
-    concesionId: concesionId || undefined,
-    jornadaId: jornadaId || undefined,
-  });
 
   const activeConcessions = useMemo(
     () => concessions.filter((c) => c.activo !== false),
@@ -236,24 +215,6 @@ export default function SuperAdminDashboardPage() {
     [ventasFiltradas, sucursales],
   );
 
-  const productos = useMemo(
-    () => aggregateProductosFromCortes(cortes),
-    [cortes],
-  );
-
-  const productosData = useMemo(() => {
-    const ordenados = [...productos].sort((a, b) =>
-      productoMetrica === "importe"
-        ? b.subtotal - a.subtotal
-        : b.cantidad - a.cantidad,
-    );
-    return ordenados.map((p) => ({
-      id: p.productoId,
-      nombre: p.nombre,
-      valor: productoMetrica === "importe" ? p.subtotal : p.cantidad,
-    }));
-  }, [productos, productoMetrica]);
-
   const ventaPeriodo = useMemo(() => sumVentas(ventasFiltradas), [ventasFiltradas]);
   const ticketPromedio =
     ventasFiltradas.length > 0 ? ventaPeriodo / ventasFiltradas.length : 0;
@@ -295,11 +256,6 @@ export default function SuperAdminDashboardPage() {
 
   const concesionLider = porConcesion[0];
   const zonaLider = porZona[0];
-
-  const ventaPorConcesionId = useMemo(
-    () => new Map(porConcesion.map((item) => [item.id, item.total])),
-    [porConcesion],
-  );
 
   const contextoJornada = jornadaId
     ? formatJornadaLabel(jornadaId)
@@ -349,14 +305,11 @@ export default function SuperAdminDashboardPage() {
 
   const handleConcesionChange = (value: string) => {
     setConcesionId(value);
-    // Las jornadas disponibles cambian con la concesión: re-selecciona activa.
-    setJornadaId("");
   };
 
   const refreshAll = () => {
     void refetchJornadas();
     void refetchVentas();
-    void refetchCortes();
   };
 
   return (
@@ -518,55 +471,23 @@ export default function SuperAdminDashboardPage() {
           />
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <RankingBarChart
-            title="Ventas por sucursal"
-            subtitle={contexto}
-            data={porSucursal.map((item) => ({
-              id: item.id,
-              nombre: item.nombre,
-              valor: item.total,
-            }))}
-            loading={loadingVentas}
-            emptyMessage="Sin ventas para el filtro seleccionado"
-            footer={
-              <p className="text-[1.3rem] text-muted-foreground">
-                Top {Math.min(porSucursal.length, 8)} de {porSucursal.length}{" "}
-                sucursales con venta
-              </p>
-            }
-          />
-          <RankingBarChart
-            title="Top productos"
-            subtitle="Calculado con el resumen de los cortes de caja"
-            data={productosData}
-            loading={loadingCortes}
-            valueLabel={productoMetrica === "importe" ? "Importe" : "Unidades"}
-            formatValue={
-              productoMetrica === "importe"
-                ? formatPrice
-                : (value) => formatCompactNumber(value)
-            }
-            axisFormatter={
-              productoMetrica === "importe" ? undefined : formatCompactNumber
-            }
-            emptyMessage="Aún no hay cortes con resumen de productos"
-            actions={
-              <SegmentedControl
-                value={productoMetrica}
-                options={METRICAS_PRODUCTO}
-                onChange={setProductoMetrica}
-                ariaLabel="Métrica de productos"
-              />
-            }
-            footer={
-              <p className="text-[1.3rem] text-muted-foreground">
-                {cortes.length} corte{cortes.length === 1 ? "" : "s"} considerado
-                {cortes.length === 1 ? "" : "s"} en {contextoJornada.toLowerCase()}
-              </p>
-            }
-          />
-        </div>
+        <RankingBarChart
+          title="Ventas por sucursal"
+          subtitle={contexto}
+          data={porSucursal.map((item) => ({
+            id: item.id,
+            nombre: item.nombre,
+            valor: item.total,
+          }))}
+          loading={loadingVentas}
+          emptyMessage="Sin ventas para el filtro seleccionado"
+          footer={
+            <p className="text-[1.3rem] text-muted-foreground">
+              Top {Math.min(porSucursal.length, 8)} de {porSucursal.length}{" "}
+              sucursales con venta
+            </p>
+          }
+        />
 
         <div>
           <h2 className="mb-3 text-[1.8rem] font-semibold text-green-dark">
@@ -627,64 +548,16 @@ export default function SuperAdminDashboardPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-[1.8rem] font-semibold text-green-dark">
-                Concesiones
-              </h2>
-              <Button asChild variant="outline" size="sm">
-                <Link href="/superAdmin/concesiones">Ver todas</Link>
-              </Button>
-            </div>
-            <DataTable<Concession>
-              loading={loadingCon}
-              data={activeConcessions.slice(0, 6)}
-              getRowKey={(r) => r.id}
-              emptyMessage="No hay concesiones registradas"
-              columns={[
-                {
-                  key: "nombre",
-                  header: "Nombre",
-                  cell: (r) => <span className="font-medium">{r.nombre}</span>,
-                },
-                {
-                  key: "venta",
-                  header: "Venta",
-                  cell: (r) => formatPrice(ventaPorConcesionId.get(r.id) ?? 0),
-                },
-                {
-                  key: "activo",
-                  header: "Estado",
-                  cell: (r) => (
-                    <Badge variant={r.activo ? "default" : "secondary"}>
-                      {r.activo ? "Activa" : "Inactiva"}
-                    </Badge>
-                  ),
-                },
-                {
-                  key: "config",
-                  header: "",
-                  cell: (r) => (
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={concesionHubPath(r.id)}>Configurar</Link>
-                    </Button>
-                  ),
-                },
-              ]}
-            />
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[1.8rem] font-semibold text-green-dark">
+              Ventas recientes
+            </h2>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/ventas">Ver reporte</Link>
+            </Button>
           </div>
-
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-[1.8rem] font-semibold text-green-dark">
-                Ventas recientes
-              </h2>
-              <Button asChild variant="outline" size="sm">
-                <Link href="/ventas">Ver reporte</Link>
-              </Button>
-            </div>
-            <DataTable<ComprobanteVenta>
+          <DataTable<ComprobanteVenta>
               loading={loadingVentas}
               data={ventasFiltradas.slice(0, 6)}
               getRowKey={(r) => r.id}
@@ -709,7 +582,14 @@ export default function SuperAdminDashboardPage() {
                   key: "total",
                   header: "Total",
                   mobileRole: "primary",
-                  cell: (r) => formatPrice(Number(r.total)),
+                  cell: (r) => (
+                    <VentaTotalCell
+                      total={Number(r.total)}
+                      cajaNombre={r.cajaNombre}
+                      cajeroNombre={r.cajeroNombre}
+                      ventaId={r.ventaId}
+                    />
+                  ),
                 },
                 {
                   key: "detalle",
@@ -727,7 +607,6 @@ export default function SuperAdminDashboardPage() {
                 },
               ]}
             />
-          </div>
         </div>
 
         <VentaDetalleDialog

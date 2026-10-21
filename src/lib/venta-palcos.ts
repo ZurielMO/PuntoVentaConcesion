@@ -27,3 +27,21 @@ export function isVentaPalcos(venta: {
 
   return false;
 }
+
+/** Cargo de palcos sobre el neto. Ya incluye la comisión de Stripe. */
+export const COMISION_PALCOS_PERCENT = 15;
+
+/** Comisión en pesos, redondeada a centavos como el checkout de palcos. */
+export function comisionPalcosDesdeNeto(neto: number): number {
+  if (!Number.isFinite(neto) || neto <= 0) return 0;
+  const minor = Math.round(neto * 100);
+  return Math.round((minor * COMISION_PALCOS_PERCENT) / 100) / 100;
+}
+
+/** Neto de palcos más la comisión del 15%. */
+export function totalCobradoPalcos(neto: number): number {
+  if (!Number.isFinite(neto) || neto <= 0) return 0;
+  const minor = Math.round(neto * 100);
+  const feeMinor = Math.round((minor * COMISION_PALCOS_PERCENT) / 100);
+  return (minor + feeMinor) / 100;
+}

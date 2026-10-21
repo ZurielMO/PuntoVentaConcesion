@@ -173,6 +173,9 @@ export interface ComprobanteVenta {
   fecha?: unknown;
   createdAt?: unknown;
   metodoPago?: string | null;
+  vipOrderId?: string | null;
+  vipPalco?: string | null;
+  vipZona?: string | null;
   puntosUsados?: number | null;
   montoPuntos?: number | null;
   montoEfectivo?: number | null;
@@ -292,6 +295,8 @@ export interface ReporteProductoRow {
   ventasTotales: number;
   /** Parte de ventasTotales originada en VIP / VIP Stripe (palcos). */
   ventaPalcos?: number;
+  /** Unidades pagadas de palcos. El resto de unidades pagadas es POS. */
+  cantidadPalcos?: number;
   /** Precio de lista actual del catálogo */
   precioActual?: number;
   /** Descuento unitario abonado (precio lista − precio abonado) */
@@ -308,6 +313,8 @@ export interface ReporteProductoTotales {
   ventasTotales: number;
   /** Parte de ventasTotales originada en VIP / VIP Stripe (palcos). */
   ventaPalcos?: number;
+  /** Unidades pagadas de palcos. */
+  cantidadPalcos?: number;
   dineroReal: number;
 }
 
@@ -370,6 +377,8 @@ export interface JornadaDisponible {
   numero: number;
   rama?: "varonil" | "femenil";
   etiqueta: string;
+  equipoLocal?: string | null;
+  equipoVisitante?: string | null;
 }
 
 export interface JornadaActivaValue {

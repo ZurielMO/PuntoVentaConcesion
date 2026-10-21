@@ -68,10 +68,7 @@ export default function CortesPage() {
   }, [perms.isSuperAdmin, perms.concesionId, concesionId]);
 
   const { jornadas, loading: jornadasLoading, refetch: refetchJornadas } =
-    useJornadasDisponibles({
-      concesionId: effectiveConcesionId || undefined,
-      sucursalId: sucursalId || undefined,
-    });
+    useJornadasDisponibles();
 
   const jornadaOptions = useMemo<JornadaSelectOption[]>(
     () => buildJornadaSelectOptions(jornadas, activas),
@@ -143,12 +140,10 @@ export default function CortesPage() {
   const handleConcesionChange = (value: string) => {
     setConcesionId(value);
     setSucursalId("");
-    setJornadaId("");
   };
 
   const handleSucursalChange = (value: string) => {
     setSucursalId(value);
-    setJornadaId("");
   };
 
   const handlePdfConcesion = () => {
@@ -158,13 +153,19 @@ export default function CortesPage() {
       concesionActual?.nombre ??
       reporte.resumen[0]?.nombre ??
       effectiveConcesionId;
-    downloadReporteConcesionPdf(reporte, nombre, tipoConcesion);
+    void downloadReporteConcesionPdf(reporte, nombre, tipoConcesion, {
+      equipoLocal: jornadaSeleccionada?.equipoLocal,
+      equipoVisitante: jornadaSeleccionada?.equipoVisitante,
+    });
   };
 
   const handlePdfConsolidado = () => {
     if (!reporte || loadingReporte) return;
     if (reporte.jornada?.jornadaId !== jornadaId) return;
-    downloadReporteConsolidadoPdf(reporte);
+    void downloadReporteConsolidadoPdf(reporte, {
+      equipoLocal: jornadaSeleccionada?.equipoLocal,
+      equipoVisitante: jornadaSeleccionada?.equipoVisitante,
+    });
   };
 
   const showProductosTable = Boolean(effectiveConcesionId);

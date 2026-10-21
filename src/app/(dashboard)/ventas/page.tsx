@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Eye, Minus, Plus, RefreshCw, ShoppingBag } from "lucide-react";
+import { Check, Eye, Minus, Plus, RefreshCw, ShoppingBag, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
@@ -18,6 +18,7 @@ import { RequireRole } from "@/components/auth/require-role";
 import { DataTable } from "@/components/dashboard/data-table";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { VentaDetalleDialog } from "@/components/dashboard/venta-detalle-dialog";
+import { VentaTotalCell } from "@/components/dashboard/venta-total-cell";
 import { MetricCard } from "@/components/pos/metric-card";
 import { PosProductTile } from "@/components/pos/pos-product-tile";
 import { useDetalleVentas } from "@/hooks/use-cortes";
@@ -44,12 +45,21 @@ import {
 import { buildJornadaSelectOptions } from "@/lib/jornada-select-options";
 import { isVentaPalcos } from "@/lib/venta-palcos";
 import type { ComprobanteVenta } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import {
   JornadaSelect,
   type JornadaSelectOption,
 } from "@/components/dashboard/jornada-select";
 import { Badge } from "@/components/ui/badge";
 import { Field } from "@/components/ui/field";
+
+type TipoVentaFiltro = "todas" | "pos" | "palcos";
+
+const TIPOS_VENTA: { value: TipoVentaFiltro; label: string; hint: string }[] = [
+  { value: "todas", label: "Todas", hint: "Mostrador y palcos" },
+  { value: "pos", label: "Venta Mostrador", hint: "Solo ventas de mostrador" },
+  { value: "palcos", label: "Venta Palcos", hint: "Solo servicio a palco" },
+];
 
 export default function VentasPage() {
   const perms = usePermissions();
@@ -62,19 +72,14 @@ export default function VentasPage() {
   const [filterConcesionId, setFilterConcesionId] = useState("");
   const [filterSucursalId, setFilterSucursalId] = useState("");
   const [filterCajaId, setFilterCajaId] = useState("");
+  const [tipoVenta, setTipoVenta] = useState<TipoVentaFiltro>("todas");
   const [selectedJornadaId, setSelectedJornadaId] = useState("");
   const [miCajaNombre, setMiCajaNombre] = useState<string | null>(null);
   const [detalleVenta, setDetalleVenta] = useState<ComprobanteVenta | null>(null);
 
-  const effectiveConcesionId = useMemo(() => {
-    if (perms.isSuperAdmin) return filterConcesionId;
-    return perms.concesionId ?? filterConcesionId;
-  }, [perms.isSuperAdmin, perms.concesionId, filterConcesionId]);
-
-  const { jornadas, loading: jornadasLoading } = useJornadasDisponibles({
-    concesionId: effectiveConcesionId || undefined,
-    sucursalId: filterSucursalId || undefined,
-  });
+  // El catálogo no depende de concesión ni sucursal: cambiar esos filtros
+  // no debe sustituir la jornada ya elegida.
+  const { jornadas, loading: jornadasLoading } = useJornadasDisponibles();
 
   const jornadaOptions = useMemo<JornadaSelectOption[]>(
     () => buildJornadaSelectOptions(jornadas, activas),
@@ -84,21 +89,12 @@ export default function VentasPage() {
   const jornadasReady = !jornadasLoading && !activasLoading;
 
   useEffect(() => {
-    if (!jornadasReady) return;
-    if (
-      selectedJornadaId &&
-      (isJornadaTodas(selectedJornadaId) ||
-        jornadaOptions.some((j) => j.jornadaId === selectedJornadaId))
-    ) {
-      return;
-    }
+    if (!jornadasReady || selectedJornadaId) return;
     const activaOpt = jornadaOptions.find((j) => j.activa);
     if (activaOpt) {
       setSelectedJornadaId(activaOpt.jornadaId);
     } else if (jornadaOptions.length > 0) {
       setSelectedJornadaId(jornadaOptions[0].jornadaId);
-    } else if (selectedJornadaId) {
-      setSelectedJornadaId("");
     }
   }, [jornadasReady, jornadaOptions, selectedJornadaId]);
 
@@ -187,6 +183,12 @@ export default function VentasPage() {
 
   const { ventas, loading, error, refetch, createVenta } =
     useDetalleVentas(ventaFilters);
+
+  const ventasVisibles = useMemo(() => {
+    if (tipoVenta === "palcos") return ventas.filter((venta) => isVentaPalcos(venta));
+    if (tipoVenta === "pos") return ventas.filter((venta) => !isVentaPalcos(venta));
+    return ventas;
+  }, [ventas, tipoVenta]);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cantidad, setCantidad] = useState(1);
@@ -361,7 +363,75 @@ export default function VentasPage() {
         }
       />
 
-      
+      <section
+        aria-label="Filtro de tipo de venta"
+        className="mb-6 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm sm:p-5"
+      >
+        <div className="mb-4 flex items-start gap-3">
+          <span className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-green-dark">
+            <SlidersHorizontal className="size-4" />
+          </span>
+          <div>
+            <p className="text-[1.05rem] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+              Filtro
+            </p>
+            <p className="text-[1.65rem] font-semibold leading-tight text-green-dark">
+              Tipo de venta
+            </p>
+            <p className="mt-0.5 text-[1.25rem] text-muted-foreground">
+              Elige qué ventas mostrar. La opción en verde es la que está aplicada.
+            </p>
+          </div>
+        </div>
+        <div
+          role="radiogroup"
+          aria-label="Filtro de tipo de venta"
+          className="grid gap-2 sm:grid-cols-3"
+        >
+          {TIPOS_VENTA.map((option) => {
+            const selected = tipoVenta === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => setTipoVenta(option.value)}
+                className={cn(
+                  "flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition",
+                  selected
+                    ? "border-green-dark bg-green-dark text-white shadow-md"
+                    : "border-emerald-200 bg-emerald-50/50 text-green-dark hover:border-green-dark hover:bg-emerald-50",
+                )}
+              >
+                <span>
+                  <span className="block text-[1.45rem] font-semibold leading-tight">
+                    {option.label}
+                  </span>
+                  <span
+                    className={cn(
+                      "mt-0.5 block text-[1.2rem]",
+                      selected ? "text-emerald-100" : "text-muted-foreground",
+                    )}
+                  >
+                    {option.hint}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "inline-flex size-6 shrink-0 items-center justify-center rounded-full border",
+                    selected
+                      ? "border-white bg-white text-green-dark"
+                      : "border-emerald-300 bg-white",
+                  )}
+                >
+                  {selected ? <Check className="size-3.5" strokeWidth={3} /> : null}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       <section>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
@@ -453,7 +523,7 @@ export default function VentasPage() {
 
         <DataTable<ComprobanteVenta>
           loading={loading}
-          data={ventas}
+          data={ventasVisibles}
           getRowKey={(v) => v.id}
           pageSize={20}
           emptyMessage={
@@ -506,7 +576,7 @@ export default function VentasPage() {
                       variant="secondary"
                       className="border-sky-200 bg-sky-50 text-sky-900"
                     >
-                      Palcos
+                      Venta Palcos
                     </Badge>
                   )}
                 </div>
@@ -522,9 +592,12 @@ export default function VentasPage() {
               header: "Total",
               mobileRole: "primary",
               cell: (v) => (
-                <span className="font-semibold text-green-dark">
-                  {formatPrice(Number(v.total))}
-                </span>
+                <VentaTotalCell
+                  total={Number(v.total)}
+                  cajaNombre={v.cajaNombre}
+                  cajeroNombre={v.cajeroNombre}
+                  ventaId={v.ventaId}
+                />
               ),
             },
             {

@@ -1,4 +1,5 @@
 import { DataTable } from "@/components/dashboard/data-table";
+import { ventaMostradorMonto } from "@/lib/cortes-desglose-general";
 import { formatPrice } from "@/lib/format";
 import type { ReporteConcesionRow } from "@/lib/types";
 
@@ -17,10 +18,19 @@ export function CorteReporteComisionTable({
     (acc, row) => ({
       totalVenta: acc.totalVenta + row.totalVenta,
       ventaPalcos: acc.ventaPalcos + Number(row.ventaPalcos ?? 0),
+      ventaMostrador:
+        acc.ventaMostrador +
+        ventaMostradorMonto(row.totalVenta, Number(row.ventaPalcos ?? 0)),
       comision: acc.comision + row.comision,
       gananciaConcesion: acc.gananciaConcesion + row.gananciaConcesion,
     }),
-    { totalVenta: 0, ventaPalcos: 0, comision: 0, gananciaConcesion: 0 },
+    {
+      totalVenta: 0,
+      ventaPalcos: 0,
+      ventaMostrador: 0,
+      comision: 0,
+      gananciaConcesion: 0,
+    },
   );
 
   return (
@@ -28,7 +38,7 @@ export function CorteReporteComisionTable({
       <div className="-mx-1 overflow-x-auto px-1">
         <DataTable<ReporteConcesionRow>
           loading={loading}
-          className="md:min-w-[48rem]"
+          className="md:min-w-[64rem]"
           data={data}
           getRowKey={(row) => row.concesionId}
           emptyMessage="Sin datos de comisión para los filtros seleccionados."
@@ -41,23 +51,25 @@ export function CorteReporteComisionTable({
               ),
             },
             {
-              key: "porcentaje",
-              header: "Comisión %",
+              key: "ventaMostrador",
+              header: "Venta Mostrador",
               className: "whitespace-nowrap text-right",
-              cell: (row) => `${row.porcentajeComision.toLocaleString("es-MX")}%`,
-            },
-            {
-              key: "totalVenta",
-              header: "Venta total",
-              className: "whitespace-nowrap text-right",
-              cell: (row) => (
-                <div>
-                  <p>{formatPrice(row.totalVenta)}</p>
-                  <p className="text-[1.1rem] font-normal text-muted-foreground">
-                    Incluye POS y palcos
-                  </p>
-                </div>
-              ),
+              cell: (row) => {
+                const monto = ventaMostradorMonto(
+                  row.totalVenta,
+                  Number(row.ventaPalcos ?? 0),
+                );
+                return (
+                  <div>
+                    <p className="font-medium">{formatPrice(monto)}</p>
+                    {monto > 0 ? (
+                      <p className="text-[1.1rem] font-normal text-muted-foreground">
+                        incluido en total
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              },
             },
             {
               key: "ventaPalcos",
@@ -83,8 +95,27 @@ export function CorteReporteComisionTable({
               },
             },
             {
+              key: "totalVenta",
+              header: "Venta total",
+              className: "whitespace-nowrap text-right",
+              cell: (row) => (
+                <div>
+                  <p>{formatPrice(row.totalVenta)}</p>
+                  <p className="text-[1.1rem] font-normal text-muted-foreground">
+                    Incluye Ventas Mostrador y palcos
+                  </p>
+                </div>
+              ),
+            },
+            {
+              key: "porcentaje",
+              header: "Comisión %",
+              className: "whitespace-nowrap text-right",
+              cell: (row) => `${row.porcentajeComision.toLocaleString("es-MX")}%`,
+            },
+            {
               key: "comision",
-              header: "Comisión",
+              header: "Comisión $",
               className: "whitespace-nowrap text-right",
               cell: (row) => formatPrice(row.comision),
             },
@@ -103,11 +134,14 @@ export function CorteReporteComisionTable({
       </div>
 
       {showTotals && data.length > 1 && (
-        <div className="dashboard-card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="dashboard-card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <div>
-            <p className="text-[1.2rem] text-muted-foreground">Venta total</p>
+            <p className="text-[1.2rem] text-muted-foreground">Venta Mostrador</p>
             <p className="text-[1.8rem] font-semibold text-green-dark">
-              {formatPrice(totals.totalVenta)}
+              {formatPrice(totals.ventaMostrador)}
+            </p>
+            <p className="text-[1.1rem] text-muted-foreground">
+              Incluido en la venta total
             </p>
           </div>
           <div>
@@ -117,6 +151,12 @@ export function CorteReporteComisionTable({
             </p>
             <p className="text-[1.1rem] text-muted-foreground">
               Incluido en la venta total
+            </p>
+          </div>
+          <div>
+            <p className="text-[1.2rem] text-muted-foreground">Venta total</p>
+            <p className="text-[1.8rem] font-semibold text-green-dark">
+              {formatPrice(totals.totalVenta)}
             </p>
           </div>
           <div>
