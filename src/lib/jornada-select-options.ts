@@ -50,20 +50,22 @@ export function buildJornadaSelectOptions(
     const rama = normalizeRama(j.rama);
     const activa = activeIds.has(j.jornadaId);
     const meta = activeMeta.get(j.jornadaId);
+    const equipoLocal = j.equipoLocal || meta?.equipoLocal;
+    const equipoVisitante = j.equipoVisitante || meta?.equipoVisitante;
     byId.set(j.jornadaId, {
       jornadaId: j.jornadaId,
       numero: j.numero,
       fecha: j.fecha,
       rama,
       activa,
-      equipoLocal: meta?.equipoLocal,
-      equipoVisitante: meta?.equipoVisitante,
+      equipoLocal,
+      equipoVisitante,
       etiqueta: buildJornadaSelectLabel({
         numero: j.numero,
         fecha: j.fecha,
         rama,
-        equipoLocal: meta?.equipoLocal,
-        equipoVisitante: meta?.equipoVisitante,
+        equipoLocal,
+        equipoVisitante,
         activa,
       }),
     });

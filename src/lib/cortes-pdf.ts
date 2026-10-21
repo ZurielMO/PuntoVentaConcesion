@@ -7,18 +7,22 @@ import {
   alignNumericHead,
   CONTENT_TOP,
   drawMetaStrip,
+  drawPartidoStrip,
   drawReportHeader,
   drawSectionTitle,
   ensureSpace,
   PDF_BRAND,
   stampFooters,
   tableTheme,
+  type PartidoStripInfo,
   type ReportHeaderInfo,
 } from "@/lib/pdf/report-chrome";
+import { loadTeamCrest } from "@/lib/team-crest";
 import {
   precioEfectivoDivergente,
   toDesgloseGeneralRow,
   toDesgloseGeneralTotales,
+  ventaMostradorMonto,
 } from "@/lib/cortes-desglose-general";
 import type { ConcessionTipo, ReporteCortes } from "@/lib/types";
 
@@ -29,7 +33,7 @@ const dashOrQty = (value: number) =>
 
 /** Venta total (comisión): monto + nota de que incluye POS y palcos. */
 const moneyTotalIncluyePosPalcos = (value: number) =>
-  `${money(value)}\nIncluye POS y palcos`;
+  `${money(value)}\nIncluye Ventas Mostrador y palcos`;
 
 /** Venta palcos (comisión): monto + qty o “Sin ventas palcos”. */
 const moneyVentaPalcosComision = (monto: number, qty: number) => {
@@ -40,19 +44,34 @@ const moneyVentaPalcosComision = (monto: number, qty: number) => {
   return `${line}\nSin ventas palcos`;
 };
 
-/** Venta palcos por producto: monto con nota, o guión si es 0. */
+/** Venta palcos por producto: monto neto, o guión si es 0. */
 const moneyProductoPalcos = (value: number) =>
   value > 0 ? `${money(value)}\nincluido en total` : "—";
 
 /** V. totales por producto: monto + nota de inclusión. */
 const moneyTotalesIncluyePosPalcos = (value: number) =>
-  value > 0 ? `${money(value)}\nIncluye POS y palcos` : "—";
+  value > 0 ? `${money(value)}\nIncluye Ventas Mostrador y palcos` : "—";
 
 const getFinalY = (doc: jsPDF) =>
   (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
 
 /** Espacio minimo para no dejar un titulo de seccion solo al pie de la hoja. */
 const SECTION_MIN_SPACE = 30;
+
+export interface PartidoReporte {
+  equipoLocal?: string | null;
+  equipoVisitante?: string | null;
+}
+
+const drawIntro = (
+  doc: jsPDF,
+  reporte: ReporteCortes,
+  partido?: PartidoStripInfo,
+): number => {
+  const afterMeta = drawMetaStrip(doc, 31, metaItems(reporte));
+  if (!partido?.equipoLocal && !partido?.equipoVisitante) return CONTENT_TOP;
+  return drawPartidoStrip(doc, afterMeta + 2, partido ?? {}) + 4;
+};
 
 const metaItems = (reporte: ReporteCortes) => {
   const rama =
@@ -134,6 +153,7 @@ const productosTableCerveceria = (reporte: ReporteCortes): ProductosTable => {
       : "Precio abonado",
     "Cortesías",
     "Puntos ($)",
+    "Venta Mostrador ($)",
     "Venta palcos",
     "V. totales",
   ];
@@ -148,6 +168,9 @@ const productosTableCerveceria = (reporte: ReporteCortes): ProductosTable => {
     dashOrMoney(row.ventasAbonado),
     dashOrQty(row.cortesias),
     dashOrMoney(row.puntosCanjeados),
+    moneyProductoPalcos(
+      ventaMostradorMonto(row.ventasTotales, Number(row.ventaPalcos ?? 0)),
+    ),
     moneyProductoPalcos(Number(row.ventaPalcos ?? 0)),
     moneyTotalesIncluyePosPalcos(row.ventasTotales),
   ]);
@@ -165,6 +188,9 @@ const productosTableCerveceria = (reporte: ReporteCortes): ProductosTable => {
     dashOrMoney(t.ventasAbonado),
     dashOrQty(t.cortesias),
     dashOrMoney(t.puntosCanjeados),
+    moneyProductoPalcos(
+      ventaMostradorMonto(t.ventasTotales, Number(t.ventaPalcos ?? 0)),
+    ),
     moneyProductoPalcos(Number(t.ventaPalcos ?? 0)),
     moneyTotalesIncluyePosPalcos(t.ventasTotales),
   ]);
@@ -195,13 +221,16 @@ const productosTableGeneral = (reporte: ReporteCortes): ProductosTable => {
     "Producto",
     "Inv. ini.",
     "Inv. fin.",
-    "Ventas",
     precioShared != null
       ? `Precio unit. (${money(precioShared)})`
       : "Precio unit.",
     "Cortesías",
-    "Venta palcos",
-    "V. totales",
+    "Ventas Mostrador",
+    "Ventas Palcos",
+    "Ventas totales",
+    "Venta Mostrador ($)",
+    "Venta palcos ($)",
+    "Ventas totales ($)",
   ];
 
   const body = rows.map((row) => {
@@ -210,11 +239,14 @@ const productosTableGeneral = (reporte: ReporteCortes): ProductosTable => {
       row.nombre,
       String(row.inventarioInicial),
       String(row.inventarioFinal),
-      dashOrQty(row.ventas),
       divergente != null
         ? `${dashOrMoney(row.precioUnitario)} (cobrado ${money(divergente)})`
         : dashOrMoney(row.precioUnitario),
       dashOrQty(row.cortesias),
+      dashOrQty(row.ventasPos),
+      dashOrQty(row.ventasPalcos),
+      dashOrQty(row.ventas),
+      moneyProductoPalcos(row.ventaMostrador),
       moneyProductoPalcos(row.ventaPalcos),
       moneyTotalesIncluyePosPalcos(row.ventasTotales),
     ];
@@ -229,9 +261,12 @@ const productosTableGeneral = (reporte: ReporteCortes): ProductosTable => {
     "Totales",
     "—",
     "—",
-    dashOrQty(t.ventas),
     "—",
     dashOrQty(t.cortesias),
+    dashOrQty(t.ventasPos),
+    dashOrQty(t.ventasPalcos),
+    dashOrQty(t.ventas),
+    moneyProductoPalcos(t.ventaMostrador),
     moneyProductoPalcos(t.ventaPalcos),
     moneyTotalesIncluyePosPalcos(t.ventasTotales),
   ]);
@@ -267,6 +302,7 @@ export function buildReporteConcesionDoc(
   reporte: ReporteCortes,
   concesionNombre: string,
   tipo: ConcessionTipo = reporte.concesion?.tipo ?? "GENERAL",
+  partido?: PartidoStripInfo,
 ): jsPDF {
   const doc = new jsPDF({ orientation: "landscape" });
   const header: ReportHeaderInfo = {
@@ -275,9 +311,8 @@ export function buildReporteConcesionDoc(
   };
 
   drawReportHeader(doc, header);
-  drawMetaStrip(doc, 31, metaItems(reporte));
 
-  let cursorY = CONTENT_TOP;
+  let cursorY = drawIntro(doc, reporte, partido);
 
   if (reporte.ingresos) {
     cursorY = drawSectionTitle(doc, cursorY, "Resumen de ingresos") + 3;
@@ -348,27 +383,34 @@ export function buildReporteConcesionDoc(
       head: [
         [
           "Concesión",
-          "Comisión %",
-          "Venta total",
+          "Venta Mostrador",
           "Venta Palcos",
-          "Comisión",
+          "Venta total",
+          "Comisión %",
+          "Comisión $",
           "Total final",
         ],
       ],
       body: [
         [
           resumen.nombre,
-          `${resumen.porcentajeComision}%`,
-          moneyTotalIncluyePosPalcos(resumen.totalVenta),
+          money(
+            ventaMostradorMonto(
+              resumen.totalVenta,
+              Number(resumen.ventaPalcos ?? 0),
+            ),
+          ),
           moneyVentaPalcosComision(
             Number(resumen.ventaPalcos ?? 0),
             Number(resumen.cantidadVentasPalcos ?? 0),
           ),
+          moneyTotalIncluyePosPalcos(resumen.totalVenta),
+          `${resumen.porcentajeComision}%`,
           money(resumen.comision),
           money(resumen.gananciaConcesion),
         ],
       ],
-      columnStyles: alignNumericColumns(6),
+      columnStyles: alignNumericColumns(7),
       didParseCell: alignNumericHead,
       didDrawPage: () => drawReportHeader(doc, header),
     });
@@ -378,7 +420,10 @@ export function buildReporteConcesionDoc(
   return doc;
 }
 
-export function buildReporteConsolidadoDoc(reporte: ReporteCortes): jsPDF {
+export function buildReporteConsolidadoDoc(
+  reporte: ReporteCortes,
+  partido?: PartidoStripInfo,
+): jsPDF {
   const doc = new jsPDF({ orientation: "landscape" });
   const header: ReportHeaderInfo = {
     title: "Reporte consolidado de cortes",
@@ -386,12 +431,15 @@ export function buildReporteConsolidadoDoc(reporte: ReporteCortes): jsPDF {
   };
 
   drawReportHeader(doc, header);
-  drawMetaStrip(doc, 31, metaItems(reporte));
+  const contentTop = drawIntro(doc, reporte, partido);
 
   const totals = reporte.resumen.reduce(
     (acc, row) => ({
       totalVenta: acc.totalVenta + row.totalVenta,
       ventaPalcos: acc.ventaPalcos + Number(row.ventaPalcos ?? 0),
+      ventaMostrador:
+        acc.ventaMostrador +
+        ventaMostradorMonto(row.totalVenta, Number(row.ventaPalcos ?? 0)),
       cantidadVentasPalcos:
         acc.cantidadVentasPalcos + Number(row.cantidadVentasPalcos ?? 0),
       comision: acc.comision + row.comision,
@@ -400,6 +448,7 @@ export function buildReporteConsolidadoDoc(reporte: ReporteCortes): jsPDF {
     {
       totalVenta: 0,
       ventaPalcos: 0,
+      ventaMostrador: 0,
       cantidadVentasPalcos: 0,
       comision: 0,
       gananciaConcesion: 0,
@@ -408,12 +457,13 @@ export function buildReporteConsolidadoDoc(reporte: ReporteCortes): jsPDF {
 
   const body = reporte.resumen.map((row) => [
     row.nombre,
-    `${row.porcentajeComision}%`,
-    moneyTotalIncluyePosPalcos(row.totalVenta),
+    money(ventaMostradorMonto(row.totalVenta, Number(row.ventaPalcos ?? 0))),
     moneyVentaPalcosComision(
       Number(row.ventaPalcos ?? 0),
       Number(row.cantidadVentasPalcos ?? 0),
     ),
+    moneyTotalIncluyePosPalcos(row.totalVenta),
+    `${row.porcentajeComision}%`,
     money(row.comision),
     money(row.gananciaConcesion),
   ]);
@@ -421,15 +471,16 @@ export function buildReporteConsolidadoDoc(reporte: ReporteCortes): jsPDF {
   if (reporte.resumen.length > 1) {
     body.push([
       "TOTAL",
-      "—",
-      moneyTotalIncluyePosPalcos(totals.totalVenta),
+      money(totals.ventaMostrador),
       moneyVentaPalcosComision(totals.ventaPalcos, totals.cantidadVentasPalcos),
+      moneyTotalIncluyePosPalcos(totals.totalVenta),
+      "—",
       money(totals.comision),
       money(totals.gananciaConcesion),
     ]);
   }
 
-  const cursorY = drawSectionTitle(doc, CONTENT_TOP, "Resumen por concesión") + 3;
+  const cursorY = drawSectionTitle(doc, contentTop, "Resumen por concesión") + 3;
 
   autoTable(doc, {
     ...tableTheme(9),
@@ -437,15 +488,16 @@ export function buildReporteConsolidadoDoc(reporte: ReporteCortes): jsPDF {
     head: [
       [
         "Concesión",
-        "Comisión %",
-        "Venta total",
+        "Venta Mostrador",
         "Venta Palcos",
-        "Comisión",
+        "Venta total",
+        "Comisión %",
+        "Comisión $",
         "Total final",
       ],
     ],
     body,
-    columnStyles: alignNumericColumns(6),
+    columnStyles: alignNumericColumns(7),
     didParseCell: (data) => {
       alignNumericHead(data);
       if (
@@ -464,17 +516,37 @@ export function buildReporteConsolidadoDoc(reporte: ReporteCortes): jsPDF {
   return doc;
 }
 
-export function downloadReporteConcesionPdf(
+const withCrests = async (
+  partido?: PartidoReporte,
+): Promise<PartidoStripInfo | undefined> => {
+  if (!partido?.equipoLocal && !partido?.equipoVisitante) return undefined;
+  const [localLogo, visitanteLogo] = await Promise.all([
+    loadTeamCrest(partido.equipoLocal),
+    loadTeamCrest(partido.equipoVisitante),
+  ]);
+  return { ...partido, localLogo, visitanteLogo };
+};
+
+export async function downloadReporteConcesionPdf(
   reporte: ReporteCortes,
   concesionNombre: string,
   tipo?: ConcessionTipo,
+  partido?: PartidoReporte,
 ) {
-  const doc = buildReporteConcesionDoc(reporte, concesionNombre, tipo);
+  const doc = buildReporteConcesionDoc(
+    reporte,
+    concesionNombre,
+    tipo,
+    await withCrests(partido),
+  );
   const safeName = concesionNombre.replace(/[^\w\s-]/g, "").trim() || "concesion";
   doc.save(`corte-${safeName}-${reporte.jornada.fecha}.pdf`);
 }
 
-export function downloadReporteConsolidadoPdf(reporte: ReporteCortes) {
-  const doc = buildReporteConsolidadoDoc(reporte);
+export async function downloadReporteConsolidadoPdf(
+  reporte: ReporteCortes,
+  partido?: PartidoReporte,
+) {
+  const doc = buildReporteConsolidadoDoc(reporte, await withCrests(partido));
   doc.save(`corte-consolidado-${reporte.jornada.fecha}.pdf`);
 }

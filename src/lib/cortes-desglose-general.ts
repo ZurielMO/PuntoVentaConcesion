@@ -14,6 +14,10 @@ export type DesgloseGeneralRow = {
   inventarioFinal: number;
   /** Unidades pagadas (regular + abonado), sin cortesías. */
   ventas: number;
+  /** Unidades pagadas en POS. */
+  ventasPos: number;
+  /** Unidades pagadas en palcos. */
+  ventasPalcos: number;
   /** Precio de lista del catálogo. */
   precioUnitario: number;
   /** Precio promedio realmente cobrado; 0 cuando no hubo ventas. */
@@ -23,18 +27,27 @@ export type DesgloseGeneralRow = {
   ventasTotales: number;
   /** Parte de ventasTotales originada en VIP / VIP Stripe (palcos). */
   ventaPalcos: number;
+  /** Resto de ventasTotales, cobrado en mostrador. */
+  ventaMostrador: number;
 };
 
 export type DesgloseGeneralTotales = {
   ventas: number;
+  ventasPos: number;
+  ventasPalcos: number;
   cortesias: number;
   ventasTotales: number;
   ventaPalcos: number;
+  ventaMostrador: number;
   puntosCanjeadosMonto: number;
   dineroReal: number;
 };
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
+
+/** Dinero de mostrador: el total neto menos la parte de palcos. */
+export const ventaMostradorMonto = (total: number, palcos: number): number =>
+  round2(Math.max(0, Number(total) - Number(palcos || 0)));
 
 /** Tolerancia para decidir si el precio cobrado difiere del precio de lista. */
 export const PRECIO_TOLERANCIA = 0.01;
@@ -43,6 +56,7 @@ export const toDesgloseGeneralRow = (
   row: ReporteProductoRow,
 ): DesgloseGeneralRow => {
   const ventas = row.cantidadRegular + row.cantidadAbonado;
+  const ventasPalcos = Math.min(ventas, Math.max(0, Number(row.cantidadPalcos ?? 0)));
   const precioUnitario = round2(Number(row.precioActual ?? 0));
   const precioEfectivo = ventas > 0 ? round2(row.ventasTotales / ventas) : 0;
 
@@ -52,24 +66,43 @@ export const toDesgloseGeneralRow = (
     inventarioInicial: row.inventarioInicial,
     inventarioFinal: row.inventarioFinal,
     ventas,
+    ventasPos: ventas - ventasPalcos,
+    ventasPalcos,
     precioUnitario: precioUnitario > 0 ? precioUnitario : precioEfectivo,
     precioEfectivo,
     cortesias: row.cortesias,
     ventasTotales: row.ventasTotales,
     ventaPalcos: Number(row.ventaPalcos ?? 0),
+    ventaMostrador: ventaMostradorMonto(
+      row.ventasTotales,
+      Number(row.ventaPalcos ?? 0),
+    ),
   };
 };
 
 export const toDesgloseGeneralTotales = (
   totales: ReporteProductoTotales,
-): DesgloseGeneralTotales => ({
-  ventas: totales.cantidadRegular + totales.cantidadAbonado,
+): DesgloseGeneralTotales => {
+  const ventas = totales.cantidadRegular + totales.cantidadAbonado;
+  const ventasPalcos = Math.min(
+    ventas,
+    Math.max(0, Number(totales.cantidadPalcos ?? 0)),
+  );
+  return {
+  ventas,
+  ventasPos: ventas - ventasPalcos,
+  ventasPalcos,
   cortesias: totales.cortesias,
   ventasTotales: totales.ventasTotales,
   ventaPalcos: Number(totales.ventaPalcos ?? 0),
+  ventaMostrador: ventaMostradorMonto(
+    totales.ventasTotales,
+    Number(totales.ventaPalcos ?? 0),
+  ),
   puntosCanjeadosMonto: totales.puntosCanjeados,
   dineroReal: totales.dineroReal,
-});
+  };
+};
 
 /**
  * Precio a mostrar como pista cuando el promedio cobrado no coincide con el

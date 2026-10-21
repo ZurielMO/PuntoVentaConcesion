@@ -111,6 +111,111 @@ export const drawReportHeader = (
   doc.setTextColor(...PDF_BRAND.ink);
 };
 
+export interface PartidoStripInfo {
+  equipoLocal?: string | null;
+  equipoVisitante?: string | null;
+  localLogo?: string | null;
+  visitanteLogo?: string | null;
+}
+
+/**
+ * Tira del partido: escudos y nombres. Devuelve su borde inferior.
+ * Sin equipos no dibuja nada y regresa `y`.
+ */
+export const drawPartidoStrip = (
+  doc: jsPDF,
+  y: number,
+  partido: PartidoStripInfo,
+): number => {
+  const local = String(partido.equipoLocal ?? "").trim();
+  const visitante = String(partido.equipoVisitante ?? "").trim();
+  if (!local && !visitante) return y;
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const width = pageWidth - MARGIN_X * 2;
+  const height = 16;
+  const crest = 11;
+
+  doc.setFillColor(...PDF_BRAND.white);
+  doc.setDrawColor(...PDF_BRAND.hairline);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(MARGIN_X, y, width, height, 1.8, 1.8, "FD");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...PDF_BRAND.inkSoft);
+  doc.text("PARTIDO", MARGIN_X + 5, y + height / 2 + 1.1);
+
+  const contentLeft = MARGIN_X + 28;
+  const contentRight = MARGIN_X + width - 5;
+  doc.setFontSize(11);
+  const vs = "vs";
+  const localLabel = local || "Local";
+  const visitLabel = visitante || "Visitante";
+  let vsWidth = doc.getTextWidth(vs);
+  let localWidth = doc.getTextWidth(localLabel);
+  let visitWidth = doc.getTextWidth(visitLabel);
+  const crestGap = 2.2;
+  const sideGap = 7;
+  const localCrest = partido.localLogo ? crest + crestGap : 0;
+  const visitCrest = partido.visitanteLogo ? crestGap + crest : 0;
+  let total = localCrest + localWidth + sideGap + vsWidth + sideGap + visitWidth + visitCrest;
+  const available = contentRight - contentLeft;
+  if (total > available) {
+    doc.setFontSize(9);
+    vsWidth = doc.getTextWidth(vs);
+    localWidth = doc.getTextWidth(localLabel);
+    visitWidth = doc.getTextWidth(visitLabel);
+    total = localCrest + localWidth + sideGap + vsWidth + sideGap + visitWidth + visitCrest;
+  }
+  let cursor = contentLeft + Math.max(0, (available - total) / 2);
+  const midY = y + height / 2 + 1.4;
+
+  const paintCrest = (dataUrl: string, x: number, alias: string) => {
+    try {
+      const format = dataUrl.includes("image/jpeg") ? "JPEG" : "PNG";
+      doc.addImage(
+        dataUrl,
+        format,
+        x,
+        y + (height - crest) / 2,
+        crest,
+        crest,
+        alias,
+        "FAST",
+      );
+    } catch {
+      // El nombre del equipo sigue en la tira si el archivo no se puede incrustar.
+    }
+  };
+
+  if (partido.localLogo) {
+    paintCrest(partido.localLogo, cursor, "crest-local");
+    cursor += crest + crestGap;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...PDF_BRAND.ink);
+  doc.text(localLabel, cursor, midY);
+  cursor += localWidth + sideGap;
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...PDF_BRAND.inkSoft);
+  doc.text(vs, cursor, midY);
+  cursor += vsWidth + sideGap;
+
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...PDF_BRAND.ink);
+  doc.text(visitLabel, cursor, midY);
+  cursor += visitWidth + crestGap;
+
+  if (partido.visitanteLogo) {
+    paintCrest(partido.visitanteLogo, cursor, "crest-visitante");
+  }
+
+  return y + height;
+};
+
 /** Tira de metadatos en columnas (jornada, fecha, generado). Devuelve su borde inferior. */
 export const drawMetaStrip = (
   doc: jsPDF,

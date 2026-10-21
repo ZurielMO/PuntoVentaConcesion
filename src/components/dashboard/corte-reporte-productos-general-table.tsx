@@ -79,11 +79,14 @@ export function CorteReporteProductosGeneralTable({
             <th className={thClass}>Producto</th>
             <th className={cn(thClass, "text-right")}>Inv. inicial</th>
             <th className={cn(thClass, "text-right")}>Inv. final</th>
-            <th className={cn(thClass, "text-right")}>Ventas</th>
             <th className={cn(thClass, "text-right")}>Precio unitario</th>
             <th className={cn(thClass, "text-right")}>Cortesías</th>
-            <th className={cn(thClass, "text-right")}>Venta palcos</th>
+            <th className={cn(thClass, "text-right")}>Ventas Mostrador</th>
+            <th className={cn(thClass, "text-right")}>Ventas Palcos</th>
             <th className={cn(thClass, "text-right")}>Ventas totales</th>
+            <th className={cn(thClass, "text-right")}>Venta Mostrador ($)</th>
+            <th className={cn(thClass, "text-right")}>Venta palcos ($)</th>
+            <th className={cn(thClass, "text-right")}>Ventas totales ($)</th>
           </tr>
         </thead>
         <tbody>
@@ -97,7 +100,6 @@ export function CorteReporteProductosGeneralTable({
                 </td>
                 <td className={tdRight}>{qty(row.inventarioInicial)}</td>
                 <td className={tdRight}>{qty(row.inventarioFinal)}</td>
-                <td className={tdRight}>{qty(row.ventas)}</td>
                 <td className={tdRight}>
                   <div className="flex flex-col items-end gap-0.5">
                     <span>{money(row.precioUnitario)}</span>
@@ -109,6 +111,15 @@ export function CorteReporteProductosGeneralTable({
                   </div>
                 </td>
                 <td className={tdRight}>{qty(row.cortesias)}</td>
+                <td className={tdRight}>{qty(row.ventasPos)}</td>
+                <td className={tdRight}>{qty(row.ventasPalcos)}</td>
+                <td className={tdRight}>{qty(row.ventas)}</td>
+                <td className={tdRight}>
+                  <MoneyWithHint
+                    amount={row.ventaMostrador}
+                    hint={row.ventaMostrador > 0 ? "incluido en total" : null}
+                  />
+                </td>
                 <td className={tdRight}>
                   <MoneyWithHint
                     amount={row.ventaPalcos}
@@ -119,7 +130,7 @@ export function CorteReporteProductosGeneralTable({
                   <MoneyWithHint
                     amount={row.ventasTotales}
                     hint={
-                      row.ventasTotales > 0 ? "Incluye POS y palcos" : null
+                      row.ventasTotales > 0 ? "Incluye Ventas Mostrador y palcos" : null
                     }
                   />
                 </td>
@@ -133,9 +144,17 @@ export function CorteReporteProductosGeneralTable({
               <td className={tdClass}>Totales</td>
               <td className={tdRight}>—</td>
               <td className={tdRight}>—</td>
-              <td className={tdRight}>{qty(t.ventas)}</td>
               <td className={tdRight}>—</td>
               <td className={tdRight}>{qty(t.cortesias)}</td>
+              <td className={tdRight}>{qty(t.ventasPos)}</td>
+              <td className={tdRight}>{qty(t.ventasPalcos)}</td>
+              <td className={tdRight}>{qty(t.ventas)}</td>
+              <td className={tdRight}>
+                <MoneyWithHint
+                  amount={t.ventaMostrador}
+                  hint={t.ventaMostrador > 0 ? "incluido en total" : null}
+                />
+              </td>
               <td className={tdRight}>
                 <MoneyWithHint
                   amount={t.ventaPalcos}
@@ -145,13 +164,13 @@ export function CorteReporteProductosGeneralTable({
               <td className={cn(tdRight, "font-bold text-green-dark")}>
                 <MoneyWithHint
                   amount={t.ventasTotales}
-                  hint={t.ventasTotales > 0 ? "Incluye POS y palcos" : null}
+                  hint={t.ventasTotales > 0 ? "Incluye Ventas Mostrador y palcos" : null}
                 />
               </td>
             </tr>
             {mostrarPuntos && (
               <tr className="bg-muted/20">
-                <td className={tdClass} colSpan={7}>
+                <td className={tdClass} colSpan={10}>
                   {etiquetaPuntos}
                 </td>
                 <td className={cn(tdRight, "text-destructive")}>
@@ -160,7 +179,7 @@ export function CorteReporteProductosGeneralTable({
               </tr>
             )}
             <tr className="bg-green-muted font-bold">
-              <td className={cn(tdClass, "text-green-dark")} colSpan={7}>
+              <td className={cn(tdClass, "text-green-dark")} colSpan={10}>
                 Dinero real
               </td>
               <td

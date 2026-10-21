@@ -12,7 +12,12 @@ import { api, apiPaths, type ApiResponse } from "@/lib/api/client";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime, formatPrice } from "@/lib/format";
 import { formatJornadaLabel } from "@/lib/jornada";
-import { isVentaPalcos } from "@/lib/venta-palcos";
+import {
+  comisionPalcosDesdeNeto,
+  COMISION_PALCOS_PERCENT,
+  isVentaPalcos,
+  totalCobradoPalcos,
+} from "@/lib/venta-palcos";
 import type { ComprobanteVenta } from "@/lib/types";
 
 type VentaDetalleDialogProps = {
@@ -86,6 +91,14 @@ export function VentaDetalleDialog({
   const montoPuntos = Number(data?.montoPuntos ?? 0);
   const huboCanje = puntosCanjeados > 0;
   const esVentaPalcos = isVentaPalcos(data);
+  const neto = Number(data?.total ?? 0);
+  const comisionPalcos = esVentaPalcos ? comisionPalcosDesdeNeto(neto) : 0;
+  const cobradoPalcos = esVentaPalcos ? totalCobradoPalcos(neto) : 0;
+  const palco = String(data?.vipPalco ?? "").trim();
+  const zona = String(data?.vipZona ?? "").trim();
+  const jornadaLabel = data?.jornadaId
+    ? formatJornadaLabel(data.jornadaId, data.inventarioId)
+    : "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -107,13 +120,25 @@ export function VentaDetalleDialog({
               <p className="mt-1 break-words text-[1.3rem] text-muted-foreground">
                 {sucursalNombre ?? data.sucursalId ?? "—"}
               </p>
-              <p className="break-words text-[1.3rem] text-muted-foreground">
-                {data.cajaNombre ?? "Sin caja"}
-                {data.cajeroNombre ? ` · ${data.cajeroNombre}` : ""}
-              </p>
-              {esVentaPalcos && (
-                <p className="mt-2 inline-block rounded bg-sky-100 px-2 py-0.5 text-[1.2rem] font-semibold tracking-wide text-sky-900 uppercase">
-                  Venta Palcos
+              {esVentaPalcos ? (
+                <>
+                  <p className="mt-2 inline-block rounded bg-sky-100 px-2 py-0.5 text-[1.2rem] font-semibold tracking-wide text-sky-900 uppercase">
+                    Venta Palcos
+                  </p>
+                  {jornadaLabel ? (
+                    <p className="mt-2 break-words text-[1.3rem] font-medium text-foreground">
+                      {jornadaLabel}
+                    </p>
+                  ) : null}
+                  <p className="mt-1 break-words text-[1.35rem] font-semibold text-green-dark">
+                    {zona ? `Zona ${zona} · ` : ""}
+                    Palco {palco || "—"}
+                  </p>
+                </>
+              ) : (
+                <p className="break-words text-[1.3rem] text-muted-foreground">
+                  {data.cajaNombre ?? "Sin caja"}
+                  {data.cajeroNombre ? ` · ${data.cajeroNombre}` : ""}
                 </p>
               )}
             </div>
@@ -123,12 +148,9 @@ export function VentaDetalleDialog({
             {/* Datos del comprobante */}
             <dl className="grid gap-1">
               <TicketRow label="Folio" value={folio} />
-              {data.jornadaId && (
-                <TicketRow
-                  label="Jornada"
-                  value={formatJornadaLabel(data.jornadaId, data.inventarioId)}
-                />
-              )}
+              {!esVentaPalcos && jornadaLabel ? (
+                <TicketRow label="Jornada" value={jornadaLabel} />
+              ) : null}
               <TicketRow
                 label="Fecha"
                 value={formatDateTime(data.fecha ?? data.createdAt)}
@@ -205,9 +227,22 @@ export function VentaDetalleDialog({
                 Total
               </span>
               <span className="text-[2.2rem] font-bold text-green-dark">
-                {formatPrice(Number(data.total))}
+                {formatPrice(neto)}
               </span>
             </div>
+
+            {esVentaPalcos && comisionPalcos > 0 ? (
+              <dl className="mt-3 grid gap-1">
+                <TicketRow
+                  label={`Comisión palcos ${COMISION_PALCOS_PERCENT}%`}
+                  value={formatPrice(comisionPalcos)}
+                />
+                <TicketRow
+                  label="Total cobrado"
+                  value={formatPrice(cobradoPalcos)}
+                />
+              </dl>
+            ) : null}
 
             {data.inventarioId && (
               <p className="mt-4 break-all text-center text-[1.1rem] text-muted-foreground">

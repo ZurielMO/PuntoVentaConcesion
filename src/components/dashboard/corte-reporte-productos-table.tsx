@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { ventaMostradorMonto } from "@/lib/cortes-desglose-general";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ReporteProductoRow, ReporteProductoTotales } from "@/lib/types";
@@ -70,6 +71,7 @@ export function CorteReporteProductosTable({
             <th className={cn(thClass, "text-right")}>Precio abonado</th>
             <th className={cn(thClass, "text-right")}>Cortesías</th>
             <th className={cn(thClass, "text-right")}>Puntos ($)</th>
+            <th className={cn(thClass, "text-right")}>Venta Mostrador ($)</th>
             <th className={cn(thClass, "text-right")}>Venta palcos</th>
             <th className={cn(thClass, "text-right")}>Ventas totales</th>
           </tr>
@@ -85,6 +87,7 @@ export function CorteReporteProductosTable({
                 ? `(-${formatPrice(row.descuentoAbonado)})`
                 : null;
             const ventaPalcos = Number(row.ventaPalcos ?? 0);
+            const ventaMostrador = ventaMostradorMonto(row.ventasTotales, ventaPalcos);
 
             return (
               <tr key={row.productoId} className="border-b border-border/60">
@@ -108,6 +111,12 @@ export function CorteReporteProductosTable({
                 <td className={tdRight}>{money(row.puntosCanjeados)}</td>
                 <td className={tdRight}>
                   <MoneyWithHint
+                    amount={ventaMostrador}
+                    hint={ventaMostrador > 0 ? "incluido en total" : null}
+                  />
+                </td>
+                <td className={tdRight}>
+                  <MoneyWithHint
                     amount={ventaPalcos}
                     hint={ventaPalcos > 0 ? "incluido en total" : null}
                   />
@@ -116,7 +125,7 @@ export function CorteReporteProductosTable({
                   <MoneyWithHint
                     amount={row.ventasTotales}
                     hint={
-                      row.ventasTotales > 0 ? "Incluye POS y palcos" : null
+                      row.ventasTotales > 0 ? "Incluye Ventas Mostrador y palcos" : null
                     }
                   />
                 </td>
@@ -138,6 +147,22 @@ export function CorteReporteProductosTable({
               <td className={tdRight}>{money(totales.puntosCanjeados)}</td>
               <td className={tdRight}>
                 <MoneyWithHint
+                  amount={ventaMostradorMonto(
+                    totales.ventasTotales,
+                    Number(totales.ventaPalcos ?? 0),
+                  )}
+                  hint={
+                    ventaMostradorMonto(
+                      totales.ventasTotales,
+                      Number(totales.ventaPalcos ?? 0),
+                    ) > 0
+                      ? "incluido en total"
+                      : null
+                  }
+                />
+              </td>
+              <td className={tdRight}>
+                <MoneyWithHint
                   amount={Number(totales.ventaPalcos ?? 0)}
                   hint={
                     Number(totales.ventaPalcos ?? 0) > 0
@@ -150,13 +175,13 @@ export function CorteReporteProductosTable({
                 <MoneyWithHint
                   amount={totales.ventasTotales}
                   hint={
-                    totales.ventasTotales > 0 ? "Incluye POS y palcos" : null
+                    totales.ventasTotales > 0 ? "Incluye Ventas Mostrador y palcos" : null
                   }
                 />
               </td>
             </tr>
             <tr className="bg-muted/20">
-              <td className={tdClass} colSpan={10}>
+              <td className={tdClass} colSpan={11}>
                 Menos puntos canjeados
               </td>
               <td className={cn(tdRight, "text-destructive")}>
@@ -166,7 +191,7 @@ export function CorteReporteProductosTable({
               </td>
             </tr>
             <tr className="bg-green-muted font-bold">
-              <td className={cn(tdClass, "text-green-dark")} colSpan={10}>
+              <td className={cn(tdClass, "text-green-dark")} colSpan={11}>
                 Dinero real
               </td>
               <td
