@@ -9,9 +9,7 @@ import {
   Check,
   Package,
   Plus,
-  Store,
   Trash2,
-  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { RequireRole } from "@/components/auth/require-role";
@@ -41,7 +39,6 @@ type WizardStepId =
   | "admin"
   | "cajas"
   | "producto"
-  | "vendedor"
   | "resumen";
 
 type DraftProduct = {
@@ -73,20 +70,12 @@ function parseProductoPrecio(
   return { ok: true, value: precio };
 }
 
-type DraftVendedor = {
-  cajaIndex: number;
-  nombre: string;
-  email: string;
-  password: string;
-};
-
 const WIZARD_STEPS: StepperItem[] = [
   { id: "concesion", label: "Concesión", description: "Obligatorio" },
   { id: "sucursal", label: "Sucursal", description: "Obligatorio" },
   { id: "admin", label: "Admin", description: "Obligatorio" },
   { id: "cajas", label: "Cajas", description: "Obligatorio" },
   { id: "producto", label: "Productos", description: "Opcional" },
-  { id: "vendedor", label: "Vendedores", description: "Opcional" },
   { id: "resumen", label: "Resumen", description: "Crear todo" },
 ];
 
@@ -139,7 +128,6 @@ export default function NuevaConcesionWizardPage() {
     null,
   );
   const [productoImage, setProductoImage] = useState<File | null>(null);
-  const [vendedoresDraft, setVendedoresDraft] = useState<DraftVendedor[]>([]);
   const productosDraftRef = useRef(productosDraft);
   productosDraftRef.current = productosDraft;
 
@@ -206,19 +194,15 @@ export default function NuevaConcesionWizardPage() {
   const modoConteo = concesionTipo === "CERVECERIA" && sucursalModo === "CONTEO";
   const adminEsCerveceria = modoConteo && adminTipo === "CERVECERIA";
 
-  /** Pasos visibles: en modo conteo la sucursal no tiene cajas ni vendedores. */
+  /** Pasos visibles: en modo conteo la sucursal no tiene cajas. */
   const wizardSteps = useMemo(
-    () =>
-      modoConteo
-        ? WIZARD_STEPS.filter((s) => s.id !== "cajas" && s.id !== "vendedor")
-        : WIZARD_STEPS,
+    () => (modoConteo ? WIZARD_STEPS.filter((s) => s.id !== "cajas") : WIZARD_STEPS),
     [modoConteo],
   );
 
-  // Si el modo cambia estando en un paso que ya no existe, saltar al siguiente válido.
   useEffect(() => {
-    if (modoConteo && (step === "cajas" || step === "vendedor")) {
-      setStep(step === "cajas" ? "producto" : "resumen");
+    if (modoConteo && step === "cajas") {
+      setStep("producto");
     }
   }, [modoConteo, step]);
 
@@ -249,37 +233,6 @@ export default function NuevaConcesionWizardPage() {
     const idx = order.indexOf(step);
     if (idx > 0) setStep(order[idx - 1]);
   }, [step, wizardSteps]);
-
-  const updateVendedor = (
-    cajaIndex: number,
-    field: keyof Omit<DraftVendedor, "cajaIndex">,
-    value: string,
-  ) => {
-    setVendedoresDraft((prev) => {
-      const existing = prev.find((v) => v.cajaIndex === cajaIndex);
-      if (existing) {
-        return prev.map((v) =>
-          v.cajaIndex === cajaIndex ? { ...v, [field]: value } : v,
-        );
-      }
-      return [...prev, { cajaIndex, nombre: "", email: "", password: "", [field]: value }];
-    });
-  };
-
-  const getVendedorForCaja = (cajaIndex: number) =>
-    vendedoresDraft.find((v) => v.cajaIndex === cajaIndex);
-
-  const vendedoresCompletos = useMemo(
-    () =>
-      vendedoresDraft.filter(
-        (v) =>
-          v.nombre.trim() &&
-          v.email.trim() &&
-          v.password.length >= 6 &&
-          cajasValidas.some((c) => c.index === v.cajaIndex),
-      ),
-    [vendedoresDraft, cajasValidas],
-  );
 
   const handleStepConcesion = (e: FormEvent) => {
     e.preventDefault();
@@ -408,20 +361,6 @@ export default function NuevaConcesionWizardPage() {
     goNext();
   };
 
-  const handleStepVendedor = (e: FormEvent) => {
-    e.preventDefault();
-    const incompletos = vendedoresDraft.filter(
-      (v) =>
-        (v.nombre.trim() || v.email.trim() || v.password) &&
-        !(v.nombre.trim() && v.email.trim() && v.password.length >= 6),
-    );
-    if (incompletos.length > 0) {
-      toast.error("Completa todos los campos del vendedor o déjalos vacíos");
-      return;
-    }
-    goNext();
-  };
-
   const handleFinalCreate = async () => {
     if (creatingRef.current) return;
     const productosSinPrecio = productosDraft.some(
@@ -437,7 +376,7 @@ export default function NuevaConcesionWizardPage() {
     lockNavigation({
       title: "Creando concesión…",
       subtitle:
-        "Configurando sucursal, cajas y equipo. No cierres esta ventana.",
+        "Configurando sucursal y cajas. No cierres esta ventana.",
     });
     try {
       const comision = parseConcesionPorcentajeComision();
@@ -510,12 +449,9 @@ export default function NuevaConcesionWizardPage() {
         activo: true,
       });
 
-      // En modo conteo la sucursal no tiene cajas ni vendedores.
-      const cajaIdByIndex: Record<number, string> = {};
       if (!modoConteo) {
-        for (const { nombre, index } of cajasValidas) {
-          const caja = await createCaja(sucursal.id, nombre);
-          cajaIdByIndex[index] = caja.id;
+        for (const { nombre } of cajasValidas) {
+          await createCaja(sucursal.id, nombre);
         }
       }
 
@@ -532,24 +468,6 @@ export default function NuevaConcesionWizardPage() {
           await createProductWithImages(payload, [producto.imageFile]);
         } else {
           await createProduct(payload);
-        }
-      }
-
-      if (!modoConteo) {
-        for (const vendedor of vendedoresCompletos) {
-          const cajaId = cajaIdByIndex[vendedor.cajaIndex];
-          if (!cajaId) continue;
-          await createUser({
-            nombre: vendedor.nombre.trim(),
-            email: vendedor.email.trim(),
-            password: vendedor.password,
-            fecha_nacimiento: "1990-01-01",
-            rol: UserRole.VENDEDOR,
-            concesionId,
-            sucursalId: sucursal.id,
-            cajaId,
-            activo: true,
-          });
         }
       }
 
@@ -1051,7 +969,7 @@ export default function NuevaConcesionWizardPage() {
 
                 <WizardFooter
                   onBack={goBack}
-                  nextLabel="Continuar"
+                  nextLabel="Ver resumen"
                   skipLabel="Omitir productos"
                   onSkip={() => {
                     const sinPrecio = productosDraft.some(
@@ -1084,69 +1002,6 @@ export default function NuevaConcesionWizardPage() {
               </form>
             )}
 
-            {step === "vendedor" && (
-              <form onSubmit={handleStepVendedor}>
-                <p className="wizard-alta__hint wizard-alta__hint--optional">
-                  Asigna un vendedor por caja. Deja vacío las cajas sin personal.
-                </p>
-
-                <div className="wizard-alta__vendors-grid">
-                  {cajasValidas.map(({ nombre, index }) => {
-                    const v = getVendedorForCaja(index);
-                    return (
-                      <div key={index} className="wizard-alta__vendor-card">
-                        <div className="wizard-alta__vendor-head">
-                          <Store className="size-5 text-[#0C8643]" />
-                          {nombre}
-                        </div>
-                        <div className="space-y-3">
-                          <Field label="Nombre" htmlFor={`v-nombre-${index}`}>
-                            <Input
-                              id={`v-nombre-${index}`}
-                              value={v?.nombre ?? ""}
-                              onChange={(e) =>
-                                updateVendedor(index, "nombre", e.target.value)
-                              }
-                              placeholder="Opcional"
-                            />
-                          </Field>
-                          <Field label="Email" htmlFor={`v-email-${index}`}>
-                            <Input
-                              id={`v-email-${index}`}
-                              type="email"
-                              value={v?.email ?? ""}
-                              onChange={(e) =>
-                                updateVendedor(index, "email", e.target.value)
-                              }
-                              placeholder="Opcional"
-                            />
-                          </Field>
-                          <Field label="Contraseña" htmlFor={`v-pass-${index}`}>
-                            <Input
-                              id={`v-pass-${index}`}
-                              type="password"
-                              value={v?.password ?? ""}
-                              onChange={(e) =>
-                                updateVendedor(index, "password", e.target.value)
-                              }
-                              placeholder="Mín. 6 caracteres"
-                            />
-                          </Field>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <WizardFooter
-                  onBack={goBack}
-                  nextLabel="Ver resumen"
-                  skipLabel="Omitir vendedores"
-                  onSkip={goNext}
-                />
-              </form>
-            )}
-
             {step === "resumen" && (
               <WizardResumen
                 concesionNombre={concesionNombre}
@@ -1169,17 +1024,6 @@ export default function NuevaConcesionWizardPage() {
                 adminEmail={adminEmail}
                 cajas={modoConteo ? [] : cajasValidas.map((c) => c.nombre)}
                 productos={productosDraft}
-                vendedores={
-                  modoConteo
-                    ? []
-                    : vendedoresCompletos.map((v) => ({
-                        cajaNombre:
-                          cajasValidas.find((c) => c.index === v.cajaIndex)
-                            ?.nombre ?? "—",
-                        nombre: v.nombre,
-                        email: v.email,
-                      }))
-                }
                 creating={creating}
                 onBack={goBack}
                 onCreate={() => void handleFinalCreate()}
@@ -1205,7 +1049,6 @@ function WizardResumen({
   adminEmail,
   cajas,
   productos,
-  vendedores,
   creating,
   onBack,
   onCreate,
@@ -1222,13 +1065,11 @@ function WizardResumen({
   adminEmail: string;
   cajas: string[];
   productos: DraftProduct[];
-  vendedores: { cajaNombre: string; nombre: string; email: string }[];
   creating: boolean;
   onBack: () => void;
   onCreate: () => void;
 }) {
   const sinProductos = productos.length === 0;
-  const sinVendedores = vendedores.length === 0;
 
   return (
     <div className="wizard-alta__checkout">
@@ -1330,50 +1171,6 @@ function WizardResumen({
             </div>
           )}
         </section>
-
-        {!esConteo && (
-          <section className="wizard-alta__resumen-section wizard-alta__resumen-section--stack">
-            <div className="wizard-alta__resumen-section-head">
-              <div className="wizard-alta__resumen-section-title-row">
-                <Users
-                  className="size-4 text-[var(--wz-primary)]"
-                  aria-hidden
-                />
-                <p className="wizard-alta__resumen-label mb-0">Vendedores</p>
-              </div>
-              {sinVendedores ? (
-                <span className="wizard-alta__chip wizard-alta__chip--gold">
-                  Sin asignar
-                </span>
-              ) : (
-                <span className="wizard-alta__panel-tab-count">
-                  {vendedores.length}
-                </span>
-              )}
-            </div>
-            {sinVendedores ? (
-              <p className="wizard-alta__resumen-warn">
-                Ningún vendedor configurado. Podrás asignarlos después.
-              </p>
-            ) : (
-              <ul className="wizard-alta__resumen-vendors">
-                {vendedores.map((v) => (
-                  <li
-                    key={`${v.cajaNombre}-${v.email}`}
-                    className="wizard-alta__resumen-vendor"
-                  >
-                    <span className="wizard-alta__resumen-vendor-name">
-                      {v.nombre}
-                    </span>
-                    <span className="wizard-alta__resumen-vendor-caja">
-                      {v.cajaNombre}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        )}
       </div>
 
       <aside className="wizard-alta__checkout-sidebar">
@@ -1389,12 +1186,7 @@ function WizardResumen({
             <span>Productos</span>
             <strong>{productos.length}</strong>
           </div>
-          {!esConteo ? (
-            <div className="wizard-alta__checkout-row">
-              <span>Vendedores</span>
-              <strong>{vendedores.length}</strong>
-            </div>
-          ) : (
+          {esConteo && (
             <div className="wizard-alta__checkout-row">
               <span>Modo</span>
               <strong>Corte por conteo</strong>
@@ -1404,11 +1196,9 @@ function WizardResumen({
             <span>Estado</span>
             <span>Listo</span>
           </div>
-          {(sinProductos || (!esConteo && sinVendedores)) && (
+          {sinProductos && (
             <p className="wizard-alta__checkout-note">
-              {esConteo
-                ? "Puedes crear ahora y completar el catálogo después."
-                : "Puedes crear ahora y completar catálogo o equipo después."}
+              Puedes crear ahora y completar el catálogo después.
             </p>
           )}
           <button

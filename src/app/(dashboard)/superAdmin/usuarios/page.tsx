@@ -56,7 +56,7 @@ const emptyForm = (concesionId = ""): FormState => ({
   nombre: "",
   email: "",
   password: "",
-  rol: UserRole.VENDEDOR,
+  rol: UserRole.ADMIN,
   concesionId,
   sucursalId: "",
   activo: true,
@@ -111,12 +111,6 @@ export default function UsuariosPage() {
 
   const sucursalNombre = (id?: string | null) =>
     sucursales.find((s) => s.id === id)?.nombre ?? id ?? "—";
-
-  const cajaNombre = (sucursalId?: string | null, cajaId?: string | null) => {
-    if (!sucursalId || !cajaId) return null;
-    const suc = sucursales.find((s) => s.id === sucursalId);
-    return suc?.cajas?.find((c) => c.id === cajaId)?.nombre ?? cajaId;
-  };
 
   /** Solo usuarios de la concesión seleccionada (doble filtro por seguridad). */
   const usersFiltrados = useMemo(() => {
@@ -274,13 +268,12 @@ export default function UsuariosPage() {
       toast.error("Selecciona una concesión primero");
       return;
     }
-    // VENDEDOR y ADMIN_CERVECERIA: backend exige sucursalId en alta y edición.
     if (needsSucursal && !form.sucursalId) {
-      toast.error(
-        isAdminCerveceriaRol
-          ? "El admin de cervecería requiere una sucursal"
-          : "Los vendedores requieren una sucursal",
-      );
+      toast.error("El admin de cervecería requiere una sucursal");
+      return;
+    }
+    if (!editing && isVendedorRol) {
+      toast.error("Ya no se crean usuarios vendedor");
       return;
     }
     if (isAdminCerveceriaRol && !esConcesionCerveceria) {
@@ -323,10 +316,7 @@ export default function UsuariosPage() {
         }
         if (isVendedorRol) {
           payload.sucursalId = form.sucursalId;
-          // Liberar caja de la sucursal anterior al cambiar de sucursal.
-          if (form.sucursalId !== (editing.sucursalId ?? "")) {
-            payload.cajaId = null;
-          }
+          payload.cajaId = null;
         } else if (isAdminCerveceriaRol) {
           payload.sucursalId = form.sucursalId;
           payload.cajaId = null;
@@ -376,10 +366,9 @@ export default function UsuariosPage() {
     if (rol === UserRole.ADMIN_CERVECERIA) {
       return u.sucursalId ? sucursalNombre(u.sucursalId) : "Sin sucursal";
     }
-    const caja = cajaNombre(u.sucursalId, u.cajaId);
     const suc = sucursalNombre(u.sucursalId);
     if (!u.sucursalId) return "Sin sucursal";
-    return caja ? `${suc} · ${caja}` : `${suc} · Sin caja`;
+    return suc;
   };
 
   return (
@@ -389,7 +378,7 @@ export default function UsuariosPage() {
           <div className="wizard-alta__hero-inner">
             <div>
               <h1>Usuarios</h1>
-              <p>Administradores y vendedores de cada concesión.</p>
+              <p>Administradores de cada concesión.</p>
             </div>
             <div className="wizard-alta__hero-actions">
               <button
@@ -458,8 +447,7 @@ export default function UsuariosPage() {
               <div className="wizard-alta__panel-body">
                 <p className="wizard-alta__hint">
                   1) Elige la concesión a la izquierda → 2) Pulsa{" "}
-                  <strong>Nuevo usuario</strong> → 3) Asigna cajas en Sucursales
-                  y cajas.
+                  <strong>Nuevo usuario</strong>.
                 </p>
                 <p className="wizard-alta__empty">
                   Selecciona una concesión para ver la lista de usuarios.
@@ -480,8 +468,8 @@ export default function UsuariosPage() {
 
                 <div className="wizard-alta__panel-body">
                   <p className="wizard-alta__hint">
-                    Crea el equipo aquí. Los vendedores necesitan sucursal; la
-                    caja se asigna después en Sucursales y cajas.
+                    Crea administradores de la concesión. El Admin Cervecería
+                    necesita una sucursal en modo conteo.
                   </p>
 
                   {loading ? (
@@ -676,7 +664,7 @@ export default function UsuariosPage() {
               <DialogDescription className="wizard-alta__dialog-sub">
                 {editing
                   ? `Actualiza los datos de ${concesionNombre(concesionFilter)}.`
-                  : `Alta para ${concesionNombre(concesionFilter)}. Los vendedores se asignan a caja después.`}
+                  : `Alta para ${concesionNombre(concesionFilter)}.`}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -774,7 +762,9 @@ export default function UsuariosPage() {
                       Admin Cervecería
                     </option>
                   )}
-                  <option value={UserRole.VENDEDOR}>Vendedor</option>
+                  {editing && isVendedorRol && (
+                    <option value={UserRole.VENDEDOR}>Vendedor</option>
+                  )}
                 </NativeSelect>
               </Field>
               {needsSucursal && (
@@ -787,7 +777,7 @@ export default function UsuariosPage() {
                       ? sucursalesConteo.length === 0
                         ? "No hay sucursales en modo corte por conteo. Cámbialo en Sucursales y cajas."
                         : "Solo sucursales en modo corte por conteo"
-                      : "La caja se asigna después en Sucursales y cajas"
+                      : "El vendedor opera en esta sucursal"
                   }
                 >
                   <NativeSelect

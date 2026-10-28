@@ -7,7 +7,6 @@ import {
   Pencil,
   Power,
   PowerOff,
-  Unlock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -20,34 +19,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { RequireRole } from "@/components/auth/require-role";
 import { useSucursales } from "@/hooks/use-sucursales";
 import { useZonas } from "@/hooks/use-zonas";
 import { useConcessions } from "@/hooks/use-concessions";
-import { useEquipoVendedores } from "@/hooks/use-equipo";
 import { useUsers } from "@/hooks/use-users";
 import { useConcesionFilterParam } from "@/hooks/use-concesion-filter-param";
 import { useSucursalDeepLink } from "@/hooks/use-deep-link-params";
 import { useActiveConcesionOptional } from "@/hooks/use-active-concesion";
 import { usePermissions } from "@/hooks/use-permissions";
-import { UserRole, type Caja, type SucursalModoOperacion, type User } from "@/lib/types";
+import { UserRole, type Caja, type SucursalModoOperacion } from "@/lib/types";
 import "@/styles/wizard-alta.css";
 
 /** Máximo de cajas por sucursal (activas + desactivadas), igual que el asistente. */
 const MAX_CAJAS = 3;
-
-/** Número corto para el badge del menú (p. ej. "Caja 2" → "2"). */
-function cajaBadgeNumber(nombre: string | undefined, fallbackIndex: number): string {
-  const match = (nombre ?? "").match(/(\d+)/);
-  return match?.[1] ?? String(fallbackIndex + 1);
-}
 
 export default function SucursalesPage() {
   const perms = usePermissions();
@@ -68,15 +53,6 @@ export default function SucursalesPage() {
   const { concessions } = useConcessions();
 
   const [concesionFilter, setConcesionFilter] = useConcesionFilterParam();
-
-  const {
-    vendedores,
-    assignVendedor,
-    refetch: refetchEquipo,
-  } = useEquipoVendedores(
-    perms.isSuperAdmin ? concesionFilter || undefined : undefined,
-    { enabled: !perms.isSuperAdmin || Boolean(concesionFilter) },
-  );
 
   // Solo se usa createUser (alta del Admin Cervecería); no se listan usuarios aquí.
   const { createUser } = useUsers(undefined, { enabled: false });
@@ -113,12 +89,8 @@ export default function SucursalesPage() {
     [sucursalesVisibles],
   );
 
-  const {
-    selectedSucursalId,
-    setSelectedSucursalId,
-    detailTab,
-    setDetailTab,
-  } = useSucursalDeepLink(visibleSucursalIds);
+  const { selectedSucursalId, setSelectedSucursalId } =
+    useSucursalDeepLink(visibleSucursalIds);
 
   const selectedSucursal = sucursalesVisibles.find(
     (s) => s.id === selectedSucursalId,
@@ -140,67 +112,23 @@ export default function SucursalesPage() {
   const puedeAgregarCaja = cajasDeSucursal.length < MAX_CAJAS;
   const sucursalActiva = selectedSucursal?.activo !== false;
 
-  const equipoDeSucursal = useMemo(
-    () =>
-      vendedores.filter(
-        (v) => !selectedSucursalId || v.sucursalId === selectedSucursalId,
-      ),
-    [vendedores, selectedSucursalId],
-  );
-
   const cajasActivasSucursal = useMemo(
     () => cajasDeSucursal.filter((c) => c.activo !== false),
     [cajasDeSucursal],
   );
 
-  /** Cajas activas libres de la sucursal seleccionada. 1 vendedor por caja. */
-  const cajasLibresSucursal = useMemo(
-    () =>
-      cajasActivasSucursal.filter(
-        (c) =>
-          !vendedores.some(
-            (v) => v.cajaId === c.id && v.activo !== false,
-          ),
-      ),
-    [cajasActivasSucursal, vendedores],
-  );
-
-  const cajasConVendedorCount = useMemo(
-    () =>
-      cajasActivasSucursal.filter((c) =>
-        equipoDeSucursal.some(
-          (v) => v.cajaId === c.id && v.activo !== false,
-        ),
-      ).length,
-    [cajasActivasSucursal, equipoDeSucursal],
-  );
-
-  const equipoCompleto =
-    cajasActivasSucursal.length > 0 &&
-    cajasConVendedorCount >= cajasActivasSucursal.length;
-  const puedeAsignarVendedor = sucursalActiva && !equipoCompleto;
-
   const nextStepHint = (() => {
     if (!selectedSucursal) return null;
     if (!sucursalActiva) {
-      return "Sucursal desactivada. Reactívala para agregar cajas o asignar vendedores.";
-    }
-    if (detailTab === "cajas") {
-      if (cajasDeSucursal.length === 0) {
-        return "Agrega al menos una caja (máx. 3).";
-      }
-      if (cajasDeSucursal.length < MAX_CAJAS) {
-        return `Puedes agregar hasta ${MAX_CAJAS} cajas. Luego asigna vendedores en Equipo.`;
-      }
-      return "Máximo de cajas alcanzado. Ve a Equipo para asignar vendedores.";
+      return "Sucursal desactivada. Reactívala para agregar o editar cajas.";
     }
     if (cajasDeSucursal.length === 0) {
-      return "Primero agrega cajas en la pestaña Cajas.";
+      return "Agrega al menos una caja (máx. 3).";
     }
-    if (!equipoCompleto) {
-      return "Asigna cada caja activa a un vendedor.";
+    if (cajasDeSucursal.length < MAX_CAJAS) {
+      return `Puedes agregar hasta ${MAX_CAJAS} cajas.`;
     }
-    return "Equipo completo. Puedes liberar o reasignar cuando haga falta.";
+    return `Máximo de ${MAX_CAJAS} cajas alcanzado.`;
   })();
 
   const setConcesion = (value: string) => {
@@ -405,72 +333,8 @@ export default function SucursalesPage() {
     }
   };
 
-  const handleAsignarCajaInline = async (v: User, cajaId: string) => {
-    const userId = v.uid ?? v.id;
-    const sucursalId = v.sucursalId ?? selectedSucursalId;
-    if (!userId || !sucursalId || !cajaId) return;
-
-    if (!puedeAsignarVendedor) {
-      toast.error(
-        equipoCompleto
-          ? "Todas las cajas ya tienen vendedor asignado"
-          : "Reactiva la sucursal para asignar cajas",
-      );
-      return;
-    }
-
-    const ocupada = vendedores.find(
-      (other) =>
-        other.cajaId === cajaId &&
-        (other.uid ?? other.id) !== userId &&
-        other.activo !== false,
-    );
-    if (ocupada) {
-      toast.error(
-        `Esta caja ya está asignada a ${ocupada.nombre}. Solo 1 vendedor por caja.`,
-      );
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await assignVendedor(userId, sucursalId, cajaId);
-      toast.success("Caja asignada");
-      await refetchEquipo();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Error al asignar caja",
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleLiberarCaja = async (v: User) => {
-    const userId = v.uid ?? v.id;
-    const sucursalId = v.sucursalId ?? selectedSucursalId;
-    if (!userId || !sucursalId || !v.cajaId) return;
-
-    setSubmitting(true);
-    try {
-      await assignVendedor(userId, sucursalId, null);
-      toast.success("Caja liberada");
-      await refetchEquipo();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Error al liberar caja",
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const canCreateSucursal =
     perms.canManageSucursales &&
-    (!perms.isSuperAdmin || Boolean(concesionFilter));
-
-  const canAssignEquipo =
-    perms.canManageEquipo &&
     (!perms.isSuperAdmin || Boolean(concesionFilter));
 
   const showSidebarContent = !(perms.isSuperAdmin && !concesionFilter);
@@ -484,8 +348,8 @@ export default function SucursalesPage() {
               <h1>Sucursales y cajas</h1>
               <p>
                 {perms.canManageSucursales
-                  ? "Puntos de venta, cajas y asignación de vendedores."
-                  : "Consulta sucursales, cajas y equipo de tu concesión."}
+                  ? "Puntos de venta y cajas de cada sucursal."
+                  : "Consulta sucursales y cajas de tu concesión."}
               </p>
             </div>
             <div className="wizard-alta__hero-actions">
@@ -494,7 +358,6 @@ export default function SucursalesPage() {
                 className="wizard-alta__exit"
                 onClick={() => {
                   void refetch();
-                  void refetchEquipo();
                 }}
               >
                 <RefreshCw className="size-4" />
@@ -613,8 +476,7 @@ export default function SucursalesPage() {
               <div className="wizard-alta__panel-body">
                 <p className="wizard-alta__hint">
                   1) Elige la concesión a la izquierda → 2) Pulsa{" "}
-                  <strong>Nueva sucursal</strong> → 3) Agrega cajas → 4) Asigna
-                  vendedores.
+                  <strong>Nueva sucursal</strong> → 3) Agrega cajas.
                 </p>
                 <p className="wizard-alta__empty">
                   Selecciona una concesión para ver sus sucursales.
@@ -627,7 +489,7 @@ export default function SucursalesPage() {
                   <strong>Nueva sucursal</strong> para crear la primera.
                 </p>
                 <p className="wizard-alta__empty">
-                  Cuando haya una sucursal, aquí administrarás cajas y equipo.
+                  Cuando haya una sucursal, aquí administrarás sus cajas.
                 </p>
                 {canCreateSucursal && !loading && (
                   <button
@@ -668,7 +530,7 @@ export default function SucursalesPage() {
                         Zona: {zonaNombre(selectedSucursal.zona_id)}
                         {perms.isSuperAdmin &&
                           ` · ${concesionNombre(selectedSucursal.concesion_id)}`}
-                        {` · ${cajasActivasSucursal.length} caja(s) activa(s) · ${equipoDeSucursal.length} vendedor(es)`}
+                        {` · ${cajasActivasSucursal.length} caja(s) activa(s)`}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -713,44 +575,6 @@ export default function SucursalesPage() {
                     </div>
                   </div>
 
-                  <nav
-                    className="wizard-alta__panel-tabs"
-                    aria-label="Secciones de la sucursal"
-                  >
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={detailTab === "equipo"}
-                      className={`wizard-alta__panel-tab${
-                        detailTab === "equipo"
-                          ? " wizard-alta__panel-tab--active"
-                          : ""
-                      }`}
-                      onClick={() => setDetailTab("equipo")}
-                    >
-                      Equipo
-                      <span className="wizard-alta__panel-tab-count">
-                        {cajasConVendedorCount}/
-                        {cajasActivasSucursal.length || 0}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={detailTab === "cajas"}
-                      className={`wizard-alta__panel-tab${
-                        detailTab === "cajas"
-                          ? " wizard-alta__panel-tab--active"
-                          : ""
-                      }`}
-                      onClick={() => setDetailTab("cajas")}
-                    >
-                      Cajas
-                      <span className="wizard-alta__panel-tab-count">
-                        {cajasDeSucursal.length}/{MAX_CAJAS}
-                      </span>
-                    </button>
-                  </nav>
                 </div>
 
                 <div className="wizard-alta__panel-body wizard-alta__panel-body--stack">
@@ -758,199 +582,6 @@ export default function SucursalesPage() {
                     <p className="wizard-alta__hint">{nextStepHint}</p>
                   )}
 
-                  {detailTab === "equipo" ? (
-                    <section className="wizard-alta__section">
-                      <div className="wizard-alta__section-head">
-                        <div>
-                          <h3 className="wizard-alta__section-title">Equipo</h3>
-                          <p className="wizard-alta__section-sub">
-                            1 vendedor por caja activa ·{" "}
-                            {cajasConVendedorCount}/
-                            {cajasActivasSucursal.length || 0} asignadas
-                          </p>
-                        </div>
-                      </div>
-
-                      {equipoDeSucursal.length === 0 ? (
-                        <p className="wizard-alta__empty">
-                          Nadie en el equipo de esta sucursal. Asigna vendedores
-                          desde Usuarios y luego elige una caja libre en la
-                          tabla.
-                        </p>
-                      ) : (
-                        <div
-                          className={`wizard-alta__table-wrap wizard-alta__table-wrap--cards${
-                            equipoDeSucursal.length > 6
-                              ? " wizard-alta__table-wrap--scroll"
-                              : ""
-                          }`}
-                        >
-                          <table className="wizard-alta__table wizard-alta__table--cards">
-                            <thead>
-                              <tr>
-                                <th>Nombre</th>
-                                <th>Correo</th>
-                                <th>Caja</th>
-                                {canAssignEquipo && (
-                                  <th className="wizard-alta__table-actions-col">
-                                    Acciones
-                                  </th>
-                                )}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {equipoDeSucursal.map((v: User) => {
-                                const cajaNombreAsignada = v.cajaId
-                                  ? (selectedSucursal.cajas?.find(
-                                      (c) => c.id === v.cajaId,
-                                    )?.nombre ?? v.cajaId)
-                                  : "Sin caja";
-                                const activo = v.activo !== false;
-                                const puedeAsignarFila =
-                                  canAssignEquipo &&
-                                  activo &&
-                                  !v.cajaId &&
-                                  puedeAsignarVendedor &&
-                                  cajasLibresSucursal.length > 0;
-                                return (
-                                  <tr
-                                    key={v.id}
-                                    className={
-                                      activo
-                                        ? undefined
-                                        : "wizard-alta__table-row--off"
-                                    }
-                                  >
-                                    <td className="wizard-alta__table-card-title">
-                                      <span className="wizard-alta__table-name">
-                                        {v.nombre}
-                                      </span>
-                                    </td>
-                                    <td
-                                      className="wizard-alta__table-muted"
-                                      data-label="Correo"
-                                    >
-                                      {v.email}
-                                    </td>
-                                    <td data-label="Caja">
-                                      <span className="wizard-alta__chip">
-                                        {cajaNombreAsignada}
-                                      </span>
-                                    </td>
-                                    {canAssignEquipo && (
-                                      <td
-                                        className="wizard-alta__table-actions-col"
-                                        data-label="Acciones"
-                                      >
-                                        <div className="wizard-alta__table-actions">
-                                          {v.cajaId ? (
-                                            <button
-                                              type="button"
-                                              className="wizard-alta__btn wizard-alta__btn--danger wizard-alta__btn--sm"
-                                              onClick={() =>
-                                                void handleLiberarCaja(v)
-                                              }
-                                              disabled={submitting}
-                                              title="Liberar caja del vendedor"
-                                            >
-                                              <Unlock className="size-3.5" />
-                                              Liberar caja
-                                            </button>
-                                          ) : puedeAsignarFila ? (
-                                            <DropdownMenu>
-                                              <DropdownMenuTrigger asChild>
-                                                <button
-                                                  type="button"
-                                                  className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
-                                                  disabled={submitting}
-                                                  aria-label={`Asignar caja a ${v.nombre}`}
-                                                  title="Asignar caja libre"
-                                                >
-                                                  <Plus className="size-3.5" />
-                                                  Asignar
-                                                </button>
-                                              </DropdownMenuTrigger>
-                                              <DropdownMenuContent
-                                                align="end"
-                                                sideOffset={8}
-                                                className="wizard-alta wizard-alta__assign-menu"
-                                              >
-                                                <DropdownMenuLabel className="wizard-alta__assign-menu-label">
-                                                  Elegir caja
-                                                </DropdownMenuLabel>
-                                                {cajasLibresSucursal.length ===
-                                                0 ? (
-                                                  <div
-                                                    className="wizard-alta__assign-menu-empty"
-                                                    role="status"
-                                                  >
-                                                    No hay cajas libres
-                                                  </div>
-                                                ) : (
-                                                  cajasLibresSucursal.map(
-                                                    (c, idx) => (
-                                                      <DropdownMenuItem
-                                                        key={c.id}
-                                                        disabled={submitting}
-                                                        className="wizard-alta__assign-menu-item"
-                                                        onSelect={() => {
-                                                          void handleAsignarCajaInline(
-                                                            v,
-                                                            c.id,
-                                                          );
-                                                        }}
-                                                      >
-                                                        <span
-                                                          className="wizard-alta__assign-menu-badge"
-                                                          aria-hidden
-                                                        >
-                                                          {cajaBadgeNumber(
-                                                            c.nombre,
-                                                            idx,
-                                                          )}
-                                                        </span>
-                                                        <span className="wizard-alta__assign-menu-item-text">
-                                                          {c.nombre ?? c.id}
-                                                        </span>
-                                                      </DropdownMenuItem>
-                                                    ),
-                                                  )
-                                                )}
-                                              </DropdownMenuContent>
-                                            </DropdownMenu>
-                                          ) : (
-                                            <button
-                                              type="button"
-                                              className="wizard-alta__btn wizard-alta__btn--outline wizard-alta__btn--sm"
-                                              disabled
-                                              title={
-                                                !sucursalActiva
-                                                  ? "Reactiva la sucursal para asignar cajas"
-                                                  : equipoCompleto ||
-                                                      cajasLibresSucursal.length ===
-                                                        0
-                                                    ? "No hay cajas libres"
-                                                    : !activo
-                                                      ? "Vendedor inactivo"
-                                                      : "No se puede asignar"
-                                              }
-                                            >
-                                              <Plus className="size-3.5" />
-                                              Asignar
-                                            </button>
-                                          )}
-                                        </div>
-                                      </td>
-                                    )}
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </section>
-                  ) : (
                     <section className="wizard-alta__section">
                       <div className="wizard-alta__section-head">
                         <div>
@@ -1080,7 +711,6 @@ export default function SucursalesPage() {
                         </div>
                       )}
                     </section>
-                  )}
                 </div>
               </>
             )}

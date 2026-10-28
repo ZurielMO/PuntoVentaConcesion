@@ -88,7 +88,11 @@ export function SetupChecklist({
                         : "wizard-alta__status-pill--pending",
                     )}
                   >
-                    {step.done ? "Completo" : "Pendiente"}
+                    {step.done
+                      ? "Completo"
+                      : step.optional
+                        ? "Opcional"
+                        : "Pendiente"}
                   </span>
                 </td>
                 <td className="wizard-alta__table-muted">{step.description}</td>

@@ -34,16 +34,8 @@ export function useConcesionSetup(concesionId?: string | null) {
       users,
       products,
       sucursales,
-      vendedores,
     });
-  }, [
-    concesionId,
-    concession,
-    users,
-    products,
-    sucursales,
-    vendedores,
-  ]);
+  }, [concesionId, concession, users, products, sucursales]);
 
   const loading =
     loadingCon ||

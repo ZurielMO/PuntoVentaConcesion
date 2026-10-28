@@ -12,8 +12,7 @@ export type SetupStepId =
   | "sucursal"
   | "admin"
   | "cajas"
-  | "productos"
-  | "vendedores";
+  | "productos";
 
 export type SetupStep = {
   id: SetupStepId;
@@ -66,35 +65,14 @@ function pickSucursalForCajas(sucursales: Sucursal[]): string | undefined {
   return (sinCajas ?? sucursales[0]).id;
 }
 
-/** Primera sucursal con cajas incompletas de equipo, o la primera con cajas. */
-function pickSucursalForEquipo(
-  sucursales: Sucursal[],
-  vendedoresAsignados: User[],
-): string | undefined {
-  if (sucursales.length === 0) return undefined;
-  const incompleta = sucursales.find((s) => {
-    const nCajas = cajasActivas(s);
-    if (nCajas === 0) return false;
-    const asignados = vendedoresAsignados.filter(
-      (v) => v.sucursalId === s.id,
-    ).length;
-    return asignados < nCajas;
-  });
-  if (incompleta) return incompleta.id;
-  const conCajas = sucursales.find((s) => cajasActivas(s) > 0);
-  return (conCajas ?? sucursales[0]).id;
-}
-
 export function computeConcesionSetupStatus(input: {
   concesionId: string;
   concession?: Concession | null;
   users: User[];
   products: SetupProduct[];
   sucursales: Sucursal[];
-  vendedores: User[];
 }): ConcesionSetupStatus {
-  const { concesionId, concession, users, products, sucursales, vendedores } =
-    input;
+  const { concesionId, concession, users, products, sucursales } = input;
 
   const concessionUsers = users.filter(
     (u) => u.concesionId === concesionId && u.activo !== false,
@@ -110,20 +88,9 @@ export function computeConcesionSetupStatus(input: {
     0,
   );
   const hasAdmin = concessionUsers.some((u) => isAdminRole(String(u.rol)));
-  const vendedoresAsignados = vendedores.filter(
-    (v) =>
-      v.concesionId === concesionId &&
-      v.activo !== false &&
-      Boolean(v.sucursalId) &&
-      Boolean(v.cajaId),
-  );
 
   const qConcesion = buildQuery({ concesionId });
   const sucursalForCajas = pickSucursalForCajas(concessionSucursales);
-  const sucursalForEquipo = pickSucursalForEquipo(
-    concessionSucursales,
-    vendedoresAsignados,
-  );
   const firstSucursalId = concessionSucursales[0]?.id;
 
   const steps: SetupStep[] = [
@@ -173,7 +140,6 @@ export function computeConcesionSetupStatus(input: {
       href: `/sucursales${buildQuery({
         concesionId,
         sucursalId: sucursalForCajas,
-        tab: "cajas",
       })}`,
       actionLabel: totalCajas > 0 ? "Gestionar cajas" : "Agregar cajas",
     },
@@ -188,25 +154,11 @@ export function computeConcesionSetupStatus(input: {
       href: `/products${qConcesion}`,
       actionLabel: concessionProducts.length > 0 ? "Ver productos" : "Agregar producto",
     },
-    {
-      id: "vendedores",
-      title: "Equipo en caja",
-      description:
-        vendedoresAsignados.length > 0
-          ? `${vendedoresAsignados.length} vendedor(es) asignado(s)`
-          : "Asigna vendedores a sucursal y caja",
-      done: vendedoresAsignados.length > 0,
-      href: `/sucursales${buildQuery({
-        concesionId,
-        sucursalId: sucursalForEquipo,
-        tab: "equipo",
-      })}`,
-      actionLabel: "Asignar vendedor",
-    },
   ];
 
-  const completedCount = steps.filter((s) => s.done).length;
-  const totalCount = steps.length;
+  const requiredSteps = steps.filter((s) => !s.optional);
+  const completedCount = requiredSteps.filter((s) => s.done).length;
+  const totalCount = requiredSteps.length;
   const progressPercent = Math.round((completedCount / totalCount) * 100);
 
   const readyForJornada =
@@ -214,8 +166,7 @@ export function computeConcesionSetupStatus(input: {
     hasAdmin &&
     concessionProducts.length > 0 &&
     concessionSucursales.length > 0 &&
-    totalCajas > 0 &&
-    vendedoresAsignados.length > 0;
+    totalCajas > 0;
 
   return {
     steps,

@@ -16,24 +16,15 @@ export function useDeepLinkParam(name: string): string {
   return value;
 }
 
-type SucursalTab = "equipo" | "cajas";
-
 /**
- * Hidrata selección de sucursal + pestaña desde ?sucursalId=&tab=
+ * Hidrata la sucursal seleccionada desde ?sucursalId=
  * cuando la lista visible ya está disponible.
  * Sin deep-link, no auto-selecciona la primera sucursal.
  */
 export function useSucursalDeepLink(visibleIds: string[]) {
   const deepSucursalId = useDeepLinkParam("sucursalId");
-  const deepTabRaw = useDeepLinkParam("tab");
-  const deepTab: SucursalTab | null =
-    deepTabRaw === "cajas" || deepTabRaw === "equipo" ? deepTabRaw : null;
-
   const [selectedSucursalId, setSelectedSucursalId] = useState("");
-  const [detailTab, setDetailTab] = useState<SucursalTab>(deepTab ?? "equipo");
   const appliedRef = useRef(false);
-  /** Evita resetear la pestaña en la primera hidratación (deep-link). */
-  const skipTabResetRef = useRef(true);
 
   useEffect(() => {
     if (visibleIds.length === 0) {
@@ -52,20 +43,8 @@ export function useSucursalDeepLink(visibleIds: string[]) {
     }
   }, [visibleIds, selectedSucursalId, deepSucursalId]);
 
-  useEffect(() => {
-    if (skipTabResetRef.current) {
-      if (selectedSucursalId) {
-        skipTabResetRef.current = false;
-      }
-      return;
-    }
-    setDetailTab("equipo");
-  }, [selectedSucursalId]);
-
   return {
     selectedSucursalId,
     setSelectedSucursalId,
-    detailTab,
-    setDetailTab,
   } as const;
 }
